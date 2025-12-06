@@ -51,10 +51,8 @@ tailwind.config = {
   </div>
 </div>
 
-
 <!-- GRID -->
 <div id="musicList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-32"></div>
-
 
 <!-- PLAYER -->
 <div id="player"
@@ -73,13 +71,11 @@ tailwind.config = {
   </div>
 </div>
 
-
 <!-- ADMIN BUTTON -->
 <button onclick="openAdminModal()"
 class="fixed bottom-24 right-6 bg-primary text-black px-5 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">
 Admin Panel
 </button>
-
 
 <!-- ADMIN MODAL -->
 <div id="adminModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -137,10 +133,9 @@ Admin Panel
 </div>
 </div>
 
-
 <script>
 
-// ✅ HATA DÜZELTİLDİ — EN ÜSTE ALINDI VE VAR YAPILDI
+// ✅ ADMIN PASS EN ÜSTTE TANIMLANDI
 var ADMIN_PASS = "efe12345efe"
 
 // ========== CLOUDINARY ==========
@@ -150,13 +145,12 @@ const UPLOAD_PRESET = "music_upload"
 // ========== SUPABASE ==========
 const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA"
-const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // ========== GLOBAL ==========
 let musics = []
 let audio = new Audio()
 let currentIndex = 0
-
 
 // ========== CLOUDINARY UPLOAD ==========
 function uploadToCloudinary(file, type){
@@ -167,11 +161,9 @@ function uploadToCloudinary(file, type){
   return fetch(url, { method:"POST", body:data }).then(res => res.json())
 }
 
-
 // ========== ADMIN MODAL ==========
 function openAdminModal(){ document.getElementById("adminModal").classList.remove("hidden") }
 function closeAdminModal(){ document.getElementById("adminModal").classList.add("hidden") }
-
 
 // ========== LOGIN ==========
 function checkAdmin(){
@@ -184,14 +176,12 @@ function checkAdmin(){
   }
 }
 
-
 // ========== LOAD MUSICS ==========
 async function loadMusics(){
   let { data } = await supabase.from("music").select("*")
   musics = data || []
   renderMusics()
 }
-
 
 // ========== UPLOAD ==========
 async function uploadMusic(){
@@ -222,7 +212,6 @@ async function uploadMusic(){
   status.innerText = "✅ Müzik eklendi"
 }
 
-
 // ========== DELETE ==========
 async function deleteMusic(index){
   if(confirm("Silinsin mi?")){
@@ -232,7 +221,6 @@ async function deleteMusic(index){
     renderAdminList()
   }
 }
-
 
 // ========== RENDER ==========
 function renderMusics(){
@@ -254,7 +242,6 @@ function renderMusics(){
   })
 }
 
-
 // ========== ADMIN LIST ==========
 function renderAdminList(){
   adminMusicList.innerHTML = ""
@@ -268,7 +255,6 @@ function renderAdminList(){
       </div>`
   })
 }
-
 
 // ========== PLAYER ==========
 function playMusic(index){
@@ -294,10 +280,9 @@ function togglePlay(){
 function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
 function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
 
-
 // ========== LOAD ==========
 window.onload = () => { loadMusics() }
 
 </script>
 </body>
-  </html>
+</html>
