@@ -147,7 +147,11 @@ let audio = new Audio();
 let currentIndex = 0;
 
 /* =================== SUPABASE CLIENT =================== */
-const db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let db;
+window.addEventListener('DOMContentLoaded', () => {
+  db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  loadMusics();
+});
 
 /* =================== CLOUDINARY UPLOAD =================== */
 function uploadToCloudinary(file, type) {
@@ -175,6 +179,7 @@ function checkAdmin() {
 
 /* =================== LOAD MUSICS =================== */
 async function loadMusics() {
+  if (!db) return;
   let { data } = await db.from("musics").select("*");
   musics = data || [];
   renderMusics();
@@ -183,6 +188,7 @@ async function loadMusics() {
 
 /* =================== UPLOAD MUSIC =================== */
 async function uploadMusic() {
+  if (!db) return;
   let title = musicTitle.value;
   let tags = musicTags.value;
   let cover = musicCover.files[0];
@@ -211,6 +217,7 @@ async function uploadMusic() {
 
 /* =================== DELETE MUSIC =================== */
 async function deleteMusic(index) {
+  if (!db) return;
   if (confirm("Silinsin mi?")) {
     let music = musics[index];
     await db.from("musics").delete().eq("audio_url", music.audio_url);
@@ -277,9 +284,6 @@ function togglePlay() {
 
 function nextMusic() { if (currentIndex < musics.length - 1) playMusic(currentIndex + 1); }
 function prevMusic() { if (currentIndex > 0) playMusic(currentIndex - 1); }
-
-/* =================== INIT =================== */
-window.onload = () => { loadMusics(); };
 
 </script>
 </body>
