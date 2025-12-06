@@ -67,7 +67,7 @@ tailwind.config = {
 
 <div id="adminLogin">
   <input id="adminPass" type="password" placeholder="Admin şifresi" class="w-full p-3 rounded bg-neutral-800 mb-4">
-  <button onclick="checkAdmin()" class="w-full bg-primary py-2 text-black font-bold rounded">Giriş Yap</button>
+  <button id="adminLoginBtn" class="w-full bg-primary py-2 text-black font-bold rounded">Giriş Yap</button>
 </div>
 
 <div id="adminPanel" class="hidden">
@@ -78,7 +78,7 @@ tailwind.config = {
   <input id="musicCover" type="file" accept="image/*" class="w-full mb-2">
   <p class="text-sm text-gray-400">Müzik Dosyası (mp3)</p>
   <input id="musicFile" type="file" accept="audio/*" class="w-full mb-4">
-  <button onclick="uploadMusic()" class="w-full bg-primary text-black py-2 rounded font-bold">Müzik Yükle</button>
+  <button id="uploadMusicBtn" class="w-full bg-primary text-black py-2 rounded font-bold">Müzik Yükle</button>
   <p id="status" class="text-center text-sm text-gray-400 mt-2"></p>
   <hr class="my-6 border-neutral-700">
   <h3 class="text-lg mb-4">Yüklenen Müzikler</h3>
@@ -91,68 +91,67 @@ tailwind.config = {
 
 <script>
 // ==================== CONFIG ====================
-const ADMIN_PASS = "efe12345efe";
-const CLOUD_NAME = "dq4iighak";
-const UPLOAD_PRESET = "music_upload";
-const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA";
+var ADMIN_PASS = "efe12345efe";
+var CLOUD_NAME = "dq4iighak";
+var UPLOAD_PRESET = "music_upload";
+var SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA";
 
 // ==================== GLOBAL ====================
-let musics = [];
-let audio = new Audio();
-let currentIndex = 0;
+var musics = [];
+var audio = new Audio();
+var currentIndex = 0;
+var db; // db global olarak declare edildi
 
-// ==================== INIT ====================
-const db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // db artık baştan var
+// ==================== FUNCTIONS ====================
+function initApp(){
+  // Supabase db initialize
+  db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ==================== CLOUDINARY UPLOAD ====================
+  // Event listeners
+  document.getElementById("adminLoginBtn").addEventListener("click", checkAdmin);
+  document.getElementById("uploadMusicBtn").addEventListener("click", uploadMusic);
+
+  loadMusics();
+}
+
 function uploadToCloudinary(file, type){
-  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`;
-  const formData = new FormData();
+  var url = "https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/" + type + "/upload";
+  var formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", UPLOAD_PRESET);
   return fetch(url, { method:"POST", body: formData }).then(res => res.json());
 }
 
-// ==================== ADMIN MODAL ====================
-function openAdminModal(){ document.getElementById("adminModal").classList.remove("hidden") }
-function closeAdminModal(){ document.getElementById("adminModal").classList.add("hidden") }
+function openAdminModal(){ document.getElementById("adminModal").classList.remove("hidden"); }
+function closeAdminModal(){ document.getElementById("adminModal").classList.add("hidden"); }
 
-// ==================== LOGIN ====================
 function checkAdmin(){
   if(document.getElementById("adminPass").value === ADMIN_PASS){
     document.getElementById("adminLogin").classList.add("hidden");
     document.getElementById("adminPanel").classList.remove("hidden");
     renderAdminList();
-  } else {
-    alert("Hatalı şifre");
-  }
+  } else alert("Hatalı şifre");
 }
 
-// ==================== LOAD MUSICS ====================
 async function loadMusics(){
-  const { data, error } = await db.from("musics").select("*");
+  var { data, error } = await db.from("musics").select("*");
   if(error) console.error(error);
   musics = data || [];
   renderMusics();
 }
 
-// ==================== UPLOAD ====================
 async function uploadMusic(){
-  const title = musicTitle.value;
-  const tags = musicTags.value;
-  const cover = musicCover.files[0];
-  const file  = musicFile.files[0];
+  var title = document.getElementById("musicTitle").value;
+  var tags = document.getElementById("musicTags").value;
+  var cover = document.getElementById("musicCover").files[0];
+  var file  = document.getElementById("musicFile").files[0];
 
-  if(!title || !tags || !cover || !file){
-    alert("Tüm alanları doldur");
-    return;
-  }
+  if(!title || !tags || !cover || !file){ alert("Tüm alanları doldur"); return; }
 
-  status.innerText = "Yükleniyor...";
-
-  const coverRes = await uploadToCloudinary(cover,"image");
-  const audioRes = await uploadToCloudinary(file,"video");
+  document.getElementById("status").innerText = "Yükleniyor...";
+  var coverRes = await uploadToCloudinary(cover, "image");
+  var audioRes = await uploadToCloudinary(file, "video");
 
   await db.from("musics").insert([{
     title: title,
@@ -163,30 +162,27 @@ async function uploadMusic(){
 
   await loadMusics();
   renderAdminList();
-  status.innerText = "✅ Müzik eklendi";
+  document.getElementById("status").innerText = "✅ Müzik eklendi";
 }
 
-// ==================== DELETE ====================
 async function deleteMusic(index){
   if(confirm("Silinsin mi?")){
-    let music = musics[index];
+    var music = musics[index];
     await db.from("musics").delete().eq("audio_url", music.audio_url);
     await loadMusics();
     renderAdminList();
   }
 }
 
-// ==================== RENDER ====================
 function renderMusics(){
-  musicList.innerHTML = "";
-  const search = document.getElementById("search").value.toLowerCase();
-  const filter = document.getElementById("filter").value;
+  var musicListEl = document.getElementById("musicList");
+  musicListEl.innerHTML = "";
+  var search = document.getElementById("search").value.toLowerCase();
+  var filter = document.getElementById("filter").value;
 
-  musics.filter(m =>
-    m.title.toLowerCase().includes(search) &&
-    (filter === "all" || m.tags.includes(filter))
-  ).forEach((m,i)=>{
-    musicList.innerHTML += `
+  musics.filter(m => m.title.toLowerCase().includes(search) && (filter==="all" || m.tags.includes(filter)))
+        .forEach((m,i)=>{
+    musicListEl.innerHTML += `
     <div onclick="playMusic(${i})" class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
       <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
       <p class="font-semibold">${m.title}</p>
@@ -196,9 +192,10 @@ function renderMusics(){
 }
 
 function renderAdminList(){
-  adminMusicList.innerHTML = "";
+  var adminListEl = document.getElementById("adminMusicList");
+  adminListEl.innerHTML = "";
   musics.forEach((m,i)=>{
-    adminMusicList.innerHTML += `
+    adminListEl.innerHTML += `
       <div class="bg-neutral-800 p-3 rounded-lg">
         <img src="${m.cover_url}" class="h-24 rounded mb-2">
         <p class="font-bold">${m.title}</p>
@@ -208,34 +205,28 @@ function renderAdminList(){
   });
 }
 
-// ==================== PLAYER ====================
 function playMusic(index){
   currentIndex = index;
-  const m = musics[index];
-  player.classList.remove("hidden");
-  playerCover.src = m.cover_url;
-  playerTitle.innerText = m.title;
-  downloadBtn.href = m.audio_url;
+  var m = musics[index];
+  document.getElementById("player").classList.remove("hidden");
+  document.getElementById("playerCover").src = m.cover_url;
+  document.getElementById("playerTitle").innerText = m.title;
+  document.getElementById("downloadBtn").href = m.audio_url;
   audio.src = m.audio_url;
   audio.play();
-  playPause.innerText = "⏸";
+  document.getElementById("playPause").innerText = "⏸";
 }
 
 function togglePlay(){
-  if(audio.paused){
-    audio.play();
-    playPause.innerText="⏸";
-  } else {
-    audio.pause();
-    playPause.innerText="▶";
-  }
+  if(audio.paused){ audio.play(); document.getElementById("playPause").innerText="⏸"; }
+  else { audio.pause(); document.getElementById("playPause").innerText="▶"; }
 }
 
-function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
-function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
+function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1); }
+function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1); }
 
-// ==================== LOAD ====================
-window.onload = () => { loadMusics(); }
+// ==================== INIT ====================
+window.onload = initApp;
 </script>
 </body>
 </html>
