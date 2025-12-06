@@ -37,6 +37,7 @@ tailwind.config = {
 
     <select id="filter" onchange="renderMusics()"
       class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
+
       <option value="all">Tümü</option>
       <option value="Rap">Rap</option>
       <option value="Chill">Chill</option>
@@ -45,6 +46,7 @@ tailwind.config = {
       <option value="Electronic">Electronic</option>
       <option value="Lo-fi">Lo-fi</option>
       <option value="Jazz">Jazz</option>
+
     </select>
   </div>
 </div>
@@ -85,7 +87,7 @@ Admin Panel
   <input id="adminPass" type="password" placeholder="Admin şifresi"
     class="w-full p-3 rounded bg-neutral-800 mb-4">
 
-  <button id="adminLoginBtn"
+  <button onclick="checkAdmin()"
     class="w-full bg-primary py-2 text-black font-bold rounded">
     Giriş Yap
   </button>
@@ -109,7 +111,7 @@ Admin Panel
   <input id="musicFile" type="file" accept="audio/*"
     class="w-full mb-4">
 
-  <button id="uploadBtn"
+  <button onclick="uploadMusic()"
     class="w-full bg-primary text-black py-2 rounded font-bold">
     Müzik Yükle
   </button>
@@ -132,20 +134,24 @@ Admin Panel
 </div>
 
 <script>
-/* ========== GLOBAL DEĞİŞKENLER ========= */
+// ✅ ADMIN ŞİFRESİ EN ÜSTTE
 var ADMIN_PASS = "efe12345efe"
+
+// ========== CLOUDINARY ==========
 const CLOUD_NAME = "dq4iighak"
 const UPLOAD_PRESET = "music_upload"
+
+// ========== SUPABASE ==========
 const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA"
+const db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) // değiştirildi
 
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
+// ========== GLOBAL ==========
 let musics = []
 let audio = new Audio()
 let currentIndex = 0
 
-/* ========== CLOUDINARY UPLOAD ========= */
+// ========== CLOUDINARY UPLOAD ==========
 function uploadToCloudinary(file, type){
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`
   let data = new FormData()
@@ -154,12 +160,12 @@ function uploadToCloudinary(file, type){
   return fetch(url, { method:"POST", body:data }).then(res => res.json())
 }
 
-/* ========== ADMIN MODAL ========= */
+// ========== ADMIN MODAL ==========
 function openAdminModal(){ document.getElementById("adminModal").classList.remove("hidden") }
 function closeAdminModal(){ document.getElementById("adminModal").classList.add("hidden") }
 
-/* ========== LOGIN ========= */
-document.getElementById("adminLoginBtn").addEventListener("click", () => {
+// ========== LOGIN ==========
+function checkAdmin(){
   if(document.getElementById("adminPass").value === ADMIN_PASS){
     document.getElementById("adminLogin").classList.add("hidden")
     document.getElementById("adminPanel").classList.remove("hidden")
@@ -167,33 +173,33 @@ document.getElementById("adminLoginBtn").addEventListener("click", () => {
   } else {
     alert("Hatalı şifre")
   }
-})
+}
 
-/* ========== LOAD MUSICS ========= */
+// ========== LOAD MUSICS ==========
 async function loadMusics(){
-  let { data } = await db.from("music").select("*")
+  let { data } = await db.from("musics").select("*") // tablo adı düzeltildi
   musics = data || []
   renderMusics()
 }
 
-/* ========== UPLOAD ========= */
-document.getElementById("uploadBtn").addEventListener("click", async () => {
-  let title = document.getElementById("musicTitle").value
-  let tags = document.getElementById("musicTags").value
-  let cover = document.getElementById("musicCover").files[0]
-  let file  = document.getElementById("musicFile").files[0]
+// ========== UPLOAD ==========
+async function uploadMusic(){
+  let title = musicTitle.value
+  let tags = musicTags.value
+  let cover = musicCover.files[0]
+  let file  = musicFile.files[0]
 
   if(!title || !tags || !cover || !file){
     alert("Tüm alanları doldur")
     return
   }
 
-  document.getElementById("status").innerText = "Yükleniyor..."
+  status.innerText = "Yükleniyor..."
 
   let coverRes = await uploadToCloudinary(cover,"image")
   let audioRes = await uploadToCloudinary(file,"video")
 
-  await db.from("music").insert([{
+  await db.from("musics").insert([{ // tablo adı düzeltildi
     title: title,
     tags: tags,
     cover_url: coverRes.secure_url,
@@ -202,29 +208,28 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
 
   await loadMusics()
   renderAdminList()
-  document.getElementById("status").innerText = "✅ Müzik eklendi"
-})
+  status.innerText = "✅ Müzik eklendi"
+}
 
-/* ========== DELETE ========= */
+// ========== DELETE ==========
 async function deleteMusic(index){
   if(confirm("Silinsin mi?")){
     let music = musics[index]
-    await db.from("music").delete().eq("audio_url", music.audio_url)
+    await db.from("musics").delete().eq("audio_url", music.audio_url) // tablo adı düzeltildi
     await loadMusics()
     renderAdminList()
   }
 }
 
-/* ========== RENDER ========= */
+// ========== RENDER ==========
 function renderMusics(){
-  let musicList = document.getElementById("musicList")
   musicList.innerHTML = ""
   const search = document.getElementById("search").value.toLowerCase()
   const filter = document.getElementById("filter").value
 
   musics.filter(m =>
     m.title.toLowerCase().includes(search) &&
-    (filter === "all" || m.tags.includes(filter))
+    (filter == "all" || m.tags.includes(filter))
   ).forEach((m,i)=>{
     musicList.innerHTML += `
     <div onclick="playMusic(${i})"
@@ -236,8 +241,8 @@ function renderMusics(){
   })
 }
 
+// ========== ADMIN LIST ==========
 function renderAdminList(){
-  let adminMusicList = document.getElementById("adminMusicList")
   adminMusicList.innerHTML = ""
   musics.forEach((m,i)=>{
     adminMusicList.innerHTML += `
@@ -250,31 +255,31 @@ function renderAdminList(){
   })
 }
 
-/* ========== PLAYER ========= */
+// ========== PLAYER ==========
 function playMusic(index){
   currentIndex = index
   let m = musics[index]
-  document.getElementById("player").classList.remove("hidden")
-  document.getElementById("playerCover").src = m.cover_url
-  document.getElementById("playerTitle").innerText = m.title
-  document.getElementById("downloadBtn").href = m.audio_url
+  player.classList.remove("hidden")
+  playerCover.src = m.cover_url
+  playerTitle.innerText = m.title
+  downloadBtn.href = m.audio_url
   audio.src = m.audio_url
   audio.play()
-  document.getElementById("playPause").innerText = "⏸"
+  playPause.innerText = "⏸"
 }
-function togglePlay(){
+function togglePlay(){ 
   if(audio.paused){
     audio.play()
-    document.getElementById("playPause").innerText = "⏸"
+    playPause.innerText="⏸"
   } else {
     audio.pause()
-    document.getElementById("playPause").innerText = "▶"
+    playPause.innerText="▶"
   }
 }
-function nextMusic(){ if(currentIndex < musics.length-1) playMusic(currentIndex+1) }
-function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex-1) }
+function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
+function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
 
-/* ========== INITIAL LOAD ========= */
+// ========== LOAD ==========
 window.onload = () => { loadMusics() }
 
 </script>
