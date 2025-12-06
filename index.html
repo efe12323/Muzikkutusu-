@@ -68,15 +68,11 @@ let currentIndex = 0;
 async function loadMusics(){
   const res = await fetch(API_URL);
   const data = await res.json();
-  if(Array.isArray(data)){
-    musics = data;
-  } else if(data.data && Array.isArray(data.data)){
-    musics = data.data;
-  } else {
-    musics = [];
-  }
+  if(Array.isArray(data)) musics = data;
+  else if(data.data && Array.isArray(data.data)) musics = data.data;
+  else musics = [];
 
-  // ✅ Rastgele sırala
+  // Rastgele sırala
   musics.sort(() => Math.random() - 0.5);
 
   renderMusics();
