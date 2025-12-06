@@ -2,339 +2,274 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>🎧 Müzik Kutusu</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Müzik Kutusu</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 
-<style>
-:root{
-  --green:#1db954;
-  --dark:#121212;
-  --card:#181818;
-  --text:#eee;
-  --gray:#777;
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#1DB954',
+        dark: '#0B0B0B',
+        card: '#161616'
+      }
+    }
+  }
 }
-
-*{box-sizing:border-box;font-family:Poppins,sans-serif}
-
-body{
-  margin:0;
-  background:var(--dark);
-  color:var(--text);
-}
-
-header{
-  padding:20px;
-  text-align:center;
-}
-
-.logo{
-  font-size:36px;
-  font-weight:700;
-  letter-spacing:2px;
-  color:var(--green);
-  animation: pulse 4s infinite;
-}
-
-@keyframes pulse{
-  0%{transform:scale(1);}
-  50%{transform:scale(1.06);}
-  100%{transform:scale(1);}
-}
-
-.subtitle{
-  color:var(--gray);
-  margin-top:5px;
-}
-
-/* Categories */
-.categories{
-  display:flex;
-  overflow-x:auto;
-  gap:10px;
-  padding:10px 15px;
-}
-
-.category{
-  background:#222;
-  padding:8px 16px;
-  border-radius:20px;
-  cursor:pointer;
-  white-space:nowrap;
-  transition:.3s;
-}
-
-.category:hover, .category.active{
-  background:var(--green);
-  color:black;
-}
-
-/* Music Grid */
-.container{
-  padding:20px;
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
-  gap:20px;
-}
-
-.music-card{
-  background:var(--card);
-  border-radius:16px;
-  padding:15px;
-  transition:.3s;
-  position:relative;
-}
-
-.music-card:hover{
-  transform:translateY(-7px);
-}
-
-.music-card img{
-  width:100%;
-  border-radius:12px;
-  height:150px;
-  object-fit:cover;
-}
-
-.music-title{
-  margin:10px 0 0;
-  font-size:15px;
-  font-weight:600;
-}
-
-.play-btn{
-  margin-top:10px;
-  width:100%;
-  background:var(--green);
-  border:none;
-  padding:8px;
-  border-radius:20px;
-  cursor:pointer;
-  font-weight:600;
-}
-
-/* Player */
-.player{
-  position:fixed;
-  bottom:70px;
-  left:0;
-  right:0;
-  background:#000;
-  padding:10px;
-  display:none;
-}
-
-/* Admin Button */
-.admin-btn{
-  position:fixed;
-  bottom:0;
-  left:0;
-  width:100%;
-  padding:12px;
-  border:0;
-  background:var(--green);
-  color:black;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-/* ADMIN PANEL */
-.admin-panel{
-  display:none;
-  background:#000;
-  padding:20px;
-}
-
-.admin-panel h2{
-  text-align:center;
-}
-
-.admin-panel input, select{
-  width:100%;
-  margin-bottom:10px;
-  padding:8px;
-  border-radius:8px;
-  border:none;
-}
-
-.admin-panel button{
-  padding:10px;
-  width:100%;
-  border:none;
-  background:var(--green);
-  font-weight:600;
-  cursor:pointer;
-}
-
-.music-actions{
-  display:flex;
-  gap:5px;
-  margin-top:10px;
-}
-
-.music-actions button{
-  flex:1;
-  background:#222;
-  color:white;
-  border-radius:10px;
-}
-</style>
+</script>
 </head>
-<body>
 
-<header>
-  <div class="logo">🎵 MÜZİK KUTUSU</div>
-  <div class="subtitle">Spotify tarzı müzik platformu</div>
-</header>
+<body class="bg-dark text-white">
 
-<div class="categories" id="categoryList">
-  <div class="category active" onclick="filterCategory('tümü')">Tümü</div>
-  <div class="category" onclick="filterCategory('pop')">Pop</div>
-  <div class="category" onclick="filterCategory('rap')">Rap</div>
-  <div class="category" onclick="filterCategory('rock')">Rock</div>
-  <div class="category" onclick="filterCategory('lofi')">Lo-Fi</div>
-  <div class="category" onclick="filterCategory('game')">Game</div>
-  <div class="category" onclick="filterCategory('sad')">Sad</div>
-  <div class="category" onclick="filterCategory('energy')">Energy</div>
+<!-- HEADER -->
+<div class="p-5 flex flex-col md:flex-row justify-between items-center gap-4 bg-black/80 backdrop-blur shadow-lg sticky top-0 z-50">
+  <div class="flex items-center gap-2">
+    <h1 class="text-3xl font-extrabold text-primary tracking-wide">🎧 Müzik Kutusu</h1>
+  </div>
+  <p class="text-sm text-gray-400">%100 Ücretsiz • Telifsiz müzik platformu</p>
+
+  <div class="flex gap-2">
+    <input id="search" oninput="renderMusics()" placeholder="Ara..."
+      class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
+    <select id="filter" onchange="renderMusics()"
+      class="bg-neutral-800 px-4 py-2 rounded-xl">
+      <option value="all">Tümü</option>
+      <option>Rap</option>
+      <option>Pop</option>
+      <option>Rock</option>
+      <option>Anadolu Rock</option>
+      <option>Chill</option>
+      <option>Jazz</option>
+      <option>Lo-Fi</option>
+      <option>Electronic</option>
+    </select>
+  </div>
 </div>
 
-<div class="container" id="musicContainer"></div>
+<!-- MÜZİKLER -->
+<div id="musicList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-40"></div>
 
-<div class="player" id="playerBox">
-  <audio id="player" controls style="width:100%"></audio>
+<!-- PLAYER -->
+<div id="player"
+  class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg p-4 flex justify-between items-center border-t border-neutral-700">
+
+  <div class="flex items-center gap-3">
+    <img id="playerCover" class="w-14 h-14 rounded-lg object-cover">
+    <p id="playerTitle" class="font-semibold"></p>
+  </div>
+
+  <div class="flex gap-6 text-2xl items-center">
+    <button onclick="prevMusic()">⏮</button>
+    <button id="playPause" onclick="togglePlay()">▶</button>
+    <button onclick="nextMusic()">⏭</button>
+    <a id="downloadBtn" download class="text-primary">⬇</a>
+  </div>
 </div>
 
-<!-- ADMIN -->
-<div class="admin-panel" id="adminPanel">
-  <h2>🔐 Admin Panel</h2>
+<!-- ADMIN BUTTON -->
+<button onclick="openAdminModal()"
+class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-primary text-black px-6 py-3 font-bold rounded-full shadow-xl hover:scale-105 transition">
+  Admin Panel
+</button>
 
-  <input type="text" id="title" placeholder="Müzik Adı">
-  <select id="category">
-    <option value="pop">Pop</option>
-    <option value="rap">Rap</option>
-    <option value="rock">Rock</option>
-    <option value="lofi">Lo-Fi</option>
-    <option value="sad">Sad</option>
-    <option value="game">Game</option>
-    <option value="energy">Energy</option>
-  </select>
+<!-- ADMIN MODAL -->
+<div id="adminModal" class="hidden fixed inset-0 bg-black/70 flex justify-center items-center z-50">
+  <div class="bg-card p-6 rounded-xl w-full max-w-xl">
 
-  <label>Kapak Fotoğrafı</label>
-  <input type="file" id="cover">
+    <h2 class="text-xl font-bold text-primary mb-4">Admin Panel</h2>
 
-  <label>Müzik Dosyası</label>
-  <input type="file" id="music">
+    <div id="adminLogin">
+      <input id="adminPass" type="password" placeholder="Şifre"
+      class="w-full p-3 bg-neutral-800 rounded mb-3">
+      <button onclick="checkAdmin()"
+      class="w-full bg-primary text-black py-2 font-bold rounded">
+        Giriş Yap
+      </button>
+    </div>
 
-  <button onclick="uploadMusic()">Müziği Yükle</button>
+    <div id="adminPanel" class="hidden">
+
+      <input id="musicTitle" placeholder="Müzik Başlığı"
+      class="w-full p-2 mb-2 bg-neutral-800 rounded">
+
+      <input id="musicTags" placeholder="Etiketler"
+      class="w-full p-2 mb-2 bg-neutral-800 rounded">
+
+      <input id="musicCover" type="file" accept="image/*"
+      class="mb-3 w-full">
+
+      <input id="musicFile" type="file" accept="audio/*"
+      class="mb-4 w-full">
+
+      <button onclick="uploadMusic()"
+      class="w-full bg-primary text-black py-2 rounded font-bold">
+        Müzik Yükle
+      </button>
+
+      <p id="status" class="text-center text-sm mt-2"></p>
+
+      <div id="adminMusicList" class="mt-6 space-y-3"></div>
+
+      <button onclick="closeAdminModal()"
+      class="mt-6 w-full bg-neutral-800 py-2 rounded">
+        Kapat
+      </button>
+
+    </div>
+  </div>
 </div>
-
-<button class="admin-btn" onclick="toggleAdmin()">Admin Paneli Aç / Kapat</button>
 
 <script>
 const CLOUD_NAME = "dq4iighak";
-const UPLOAD_PRESET = "muzikkutusu";
+const UPLOAD_PRESET = "music_upload";
+const ADMIN_PASS = "efe12345efe";
+const JSON_FILE = "music_list.json";
 
-let musics = JSON.parse(localStorage.getItem("musicData")) || [];
+let musics = [];
+let audio = new Audio();
+let currentIndex = 0;
 
-function saveMusics(){
-  localStorage.setItem("musicData", JSON.stringify(musics));
+function cloudUrl(name){
+  return `https://res.cloudinary.com/${CLOUD_NAME}/raw/upload/${name}`;
 }
 
-function renderMusics(filter="tümü"){
-  const container = document.getElementById("musicContainer");
-  container.innerHTML = "";
-
-  musics
-    .filter(m => filter==="tümü" || m.category===filter)
-    .forEach((m,index)=>{
-      container.innerHTML += `
-      <div class="music-card">
-        <img src="${m.cover}">
-        <div class="music-title">${m.title}</div>
-        <button class="play-btn" onclick="playMusic('${m.url}')">▶ OYNAT</button>
-
-        <div class="music-actions">
-          <button onclick="deleteMusic(${index})">🗑</button>
-          <button onclick="editMusic(${index})">✏</button>
-        </div>
-      </div>
-      `;
-    })
+async function loadMusics(){
+  try {
+    const res = await fetch(cloudUrl(JSON_FILE));
+    musics = await res.json();
+  } catch {
+    musics = [];
+  }
+  renderMusics();
 }
 
-function playMusic(url){
-  const playerBox = document.getElementById("playerBox");
-  const player = document.getElementById("player");
+async function saveMusics(){
+  const blob = new Blob([JSON.stringify(musics)], { type: 'application/json' });
+  const data = new FormData();
+  data.append("file", blob);
+  data.append("upload_preset", UPLOAD_PRESET);
+  data.append("public_id", "music_list");
+  data.append("overwrite", "true");
 
-  player.src = url;
-  playerBox.style.display = "block";
-  player.play();
-}
-
-function filterCategory(cat){
-  document.querySelectorAll(".category").forEach(c=>c.classList.remove("active"));
-  event.target.classList.add("active");
-  renderMusics(cat);
-}
-
-function toggleAdmin(){
-  const panel = document.getElementById("adminPanel");
-  panel.style.display = panel.style.display === "block" ? "none" : "block";
-}
-
-async function uploadFile(file){
-  const form = new FormData();
-  form.append("file",file);
-  form.append("upload_preset",UPLOAD_PRESET);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,{
-    method:"POST",
-    body:form
+  await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`, { 
+    method: "POST", body: data
   });
+}
 
-  const data = await res.json();
-  return data.secure_url;
+function uploadToCloudinary(file, type){
+  const data = new FormData();
+  data.append("file", file);
+  data.append("upload_preset", UPLOAD_PRESET);
+  return fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`,
+    { method: "POST", body: data }).then(r=>r.json());
 }
 
 async function uploadMusic(){
-  const title = document.getElementById("title").value;
-  const cat = document.getElementById("category").value;
-  const coverFile = document.getElementById("cover").files[0];
-  const musicFile = document.getElementById("music").files[0];
+  let title = musicTitle.value;
+  let tags = musicTags.value;
+  let cover = musicCover.files[0];
+  let file = musicFile.files[0];
 
-  if(!title || !coverFile || !musicFile){
+  if(!title || !tags || !cover || !file){
     alert("Tüm alanları doldur");
     return;
   }
 
-  const coverUrl = await uploadFile(coverFile);
-  const musicUrl = await uploadFile(musicFile);
+  status.innerText = "Yükleniyor...";
 
-  musics.push({ title:title, category:cat, cover:coverUrl, url:musicUrl});
-  saveMusics();
+  let coverRes = await uploadToCloudinary(cover,"image");
+  let musicRes = await uploadToCloudinary(file,"video");
+
+  musics.push({
+    title,
+    tags,
+    cover_url: coverRes.secure_url,
+    audio_url: musicRes.secure_url
+  });
+
+  await saveMusics();
   renderMusics();
-
-  alert("Müzik eklendi ✅");
+  renderAdminList();
+  status.innerText = "Başarıyla eklendi ✅";
 }
 
 function deleteMusic(i){
-  if(confirm("Silmek istediğine emin misin?")){
+  if(confirm("Silmek istediğinize emin misiniz?")){
     musics.splice(i,1);
-    saveMusics();
-    renderMusics();
+    saveMusics().then(()=>{
+      renderMusics();
+      renderAdminList();
+    });
   }
 }
 
-function editMusic(i){
-  const yeniAd = prompt("Yeni müzik adı:", musics[i].title);
-  if(yeniAd) musics[i].title = yeniAd;
+function renderMusics(){
+  musicList.innerHTML="";
+  const s = search.value.toLowerCase();
+  const f = filter.value;
 
-  saveMusics();
-  renderMusics();
+  musics.filter(m =>
+    m.title.toLowerCase().includes(s) &&
+    (f=="all" || m.tags.includes(f))
+  ).forEach((m,i)=>{
+    musicList.innerHTML += `
+    <div onclick="playMusic(${i})"
+    class="bg-card p-3 rounded-xl shadow hover:scale-105 transition cursor-pointer">
+    <img src="${m.cover_url}" class="rounded-lg h-48 w-full object-cover mb-2">
+    <p class="font-semibold">${m.title}</p>
+    <p class="text-sm text-gray-400">${m.tags}</p>
+    </div>`
+  })
 }
 
-renderMusics();
+function renderAdminList(){
+  adminMusicList.innerHTML="";
+  musics.forEach((m,i)=>{
+    adminMusicList.innerHTML+=`
+    <div class="bg-neutral-800 p-2 rounded">
+      <img src="${m.cover_url}" class="h-20 mb-2 rounded">
+      <p>${m.title}</p>
+      <button onclick="deleteMusic(${i})"
+      class="bg-red-600 mt-2 px-3 py-1 rounded">Sil</button>
+    </div>`
+  });
+}
+
+function playMusic(i){
+  currentIndex=i;
+  let m=musics[i];
+  player.classList.remove("hidden");
+  playerCover.src=m.cover_url;
+  playerTitle.innerText=m.title;
+  audio.src=m.audio_url;
+  downloadBtn.href=m.audio_url;
+  audio.play(); playPause.innerText="⏸";
+}
+function togglePlay(){
+  if(audio.paused){audio.play();playPause.innerText="⏸";}
+  else{audio.pause();playPause.innerText="▶";}
+}
+function nextMusic(){if(currentIndex<musics.length-1)playMusic(currentIndex+1);}
+function prevMusic(){if(currentIndex>0)playMusic(currentusicIndex-1);}
+
+function openAdminModal(){
+  adminModal.classList.remove("hidden");
+}
+function closeAdminModal(){
+  adminModal.classList.add("hidden");
+}
+function checkAdmin(){
+  if(adminPass.value===ADMIN_PASS){
+    adminLogin.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    renderAdminList();
+  } else alert("Hatalı şifre");
+}
+
+loadMusics();
 </script>
 </body>
-  </html>
+</html>
