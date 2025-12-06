@@ -3,10 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <title>Admin Paneli</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.1/dist/umd/supabase.js"></script>
+
 <style>
-  body { background-color:#0c0c0c; }
+  body { background:#0c0c0c; }
 </style>
 </head>
 
@@ -14,65 +17,51 @@
 
 <h1 class="text-3xl font-bold">🔐 Admin Paneli</h1>
 
-<div id="loginBox" class="mt-6 bg-neutral-900 p-4 rounded-lg max-w-sm">
-  <p>Şifreyi gir:</p>
-  <input id="adminPass" type="password" class="bg-neutral-800 p-2 rounded w-full mt-2">
-  <button onclick="login()" class="mt-3 w-full bg-blue-600 p-2 rounded">Giriş Yap</button>
+<!-- Login Box -->
+<div id="loginBox" class="mt-6 bg-neutral-900 p-5 rounded-lg max-w-sm">
+  <p class="mb-2">Admin şifresi:</p>
+  <input id="adminPass" type="password" class="bg-neutral-800 p-2 rounded w-full">
+  <button onclick="login()" class="mt-3 bg-blue-600 rounded p-2 w-full">Giriş Yap</button>
 </div>
 
+<!-- Panel -->
 <div id="panel" class="hidden mt-6">
 
-  <h2 class="text-2xl font-bold mb-4">Müzik Yükle</h2>
+  <h2 class="text-2xl font-bold mb-4">Yeni Müzik Ekle</h2>
 
   <input id="title" placeholder="Başlık" class="p-2 bg-neutral-900 rounded w-full mb-2">
-  <input id="tags" placeholder="Etiketler" class="p-2 bg-neutral-900 rounded w-full mb-2">
-  <label class="block mb-2 text-sm">MP3 Dosyası:</label>
-  <input id="audio" type="file" accept="audio/mp3" class="mb-3">
-  <label class="block mb-2 text-sm">Kapak Resmi:</label>
-  <input id="cover" type="file" accept="image/*" class="mb-3">
+  <input id="tags" placeholder="Etiketler (virgüllü)" class="p-2 bg-neutral-900 rounded w-full mb-2">
 
-  <button onclick="uploadMusic()" class="bg-green-600 p-2 rounded w-full">Yükle</button>
+  <label class="block mt-2 mb-1">MP3:</label>
+  <input id="audio" type="file" accept="audio/mp3" class="mb-3">
+
+  <label class="block mt-2 mb-1">Kapak Resmi:</label>
+  <input id="cover" type="file" accept="image/*" class="mb-4">
+
+  <button onclick="uploadMusic()" class="bg-green-600 p-2 rounded w-full">Müziği Yükle</button>
 
   <h2 class="text-2xl font-bold mt-8 mb-4">Yüklü Müzikler</h2>
   <div id="adminList" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+
 </div>
 
 <script>
-const PASS = "efe12345efe";
+const ADMIN_PASSWORD = "efe12345efe";
 
-const supabase = supabase.createClient(
-  "https://jzidtvylnrolmmlaegyr.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWR0dnlsbnJvbG1tbGFlZ3lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMDQ4ODgsImV4cCI6MjA4MDU4MDg4OH0.S61VHALTStNxq2RY4B2GhrAuELTtgycsTrTw5cH04EA"
+const client = supabase.createClient(
+ "https://jzidtvylnrolmmlaegyr.supabase.co",
+ "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWR0dnlsbnJvbG1tbGFlZ3lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMDQ4ODgsImV4cCI6MjA4MDU4MDg4OH0.S61VHALTStNxq2RY4B2GhrAuELTtgycsTrTw5cH04EA"
 );
 
 function login(){
-  const val = document.getElementById("adminPass").value;
-  if(val === PASS){
-    document.getElementById("loginBox").style.display="none";
-    document.getElementById("panel").classList.remove("hidden");
-    loadAdminList();
-  } else {
-    alert("Hatalı şifre!");
+  const pass = document.getElementById("adminPass").value;
+  if(pass !== ADMIN_PASSWORD){
+    alert("Yanlış şifre!");
+    return;
   }
-}
-
-async function loadAdminList(){
-  const { data } = await supabase.from("musics").select("*").order("id",{ascending:false});
-
-  const box = document.getElementById("adminList");
-  box.innerHTML = "";
-
-  data.forEach(m=>{
-    box.innerHTML += `
-      <div class="bg-neutral-900 p-3 rounded-lg">
-        <img src="${m.cover_url}" class="h-28 w-full object-cover rounded">
-        <p class="mt-2 font-bold">${m.title}</p>
-        <p class="text-xs">${m.tags}</p>
-        <button onclick="deleteMusic(${m.id})" 
-                class="mt-2 bg-red-600 w-full p-1 rounded">Sil</button>
-      </div>
-    `;
-  });
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("panel").classList.remove("hidden");
+  loadAdminList();
 }
 
 async function uploadMusic(){
@@ -81,27 +70,49 @@ async function uploadMusic(){
   const audio = document.getElementById("audio").files[0];
   const cover = document.getElementById("cover").files[0];
 
-  if(!title || !audio || !cover){ alert("Eksik bilgi!"); return;}
+  if(!title || !tags || !audio || !cover){
+    alert("Tüm alanları doldurun!");
+    return;
+  }
 
   const audioName = "audio_" + Date.now() + ".mp3";
   const coverName = "cover_" + Date.now() + ".jpg";
 
-  await supabase.storage.from("music").upload(audioName,audio);
-  await supabase.storage.from("music").upload(coverName,cover);
+  await client.storage.from("music").upload(audioName, audio);
+  await client.storage.from("music").upload(coverName, cover);
 
-  const audioURL = "https://jzidtvylnrolmmlaegyr.supabase.co/storage/v1/object/public/music/" + audioName;
-  const coverURL = "https://jzidtvylnrolmmlaegyr.supabase.co/storage/v1/object/public/music/" + coverName;
+  const audioURL = `https://jzidtvylnrolmmlaegyr.supabase.co/storage/v1/object/public/music/${audioName}`;
+  const coverURL = `https://jzidtvylnrolmmlaegyr.supabase.co/storage/v1/object/public/music/${coverName}`;
 
-  await supabase.from("musics").insert({
+  await client.from("musics").insert({
     title, tags, audio_url: audioURL, cover_url: coverURL
   });
 
-  alert("Müzik yüklendi!");
+  alert("Müzik başarıyla yüklendi!");
   loadAdminList();
 }
 
+async function loadAdminList(){
+  const { data } = await client.from("musics").select("*");
+  const box = document.getElementById("adminList");
+  box.innerHTML = "";
+
+  data.forEach(m => {
+    box.innerHTML += `
+      <div class="bg-neutral-900 p-3 rounded-lg">
+        <img src="${m.cover_url}" class="w-full h-28 object-cover rounded">
+        <p class="mt-2 font-semibold">${m.title}</p>
+        <p class="text-xs text-neutral-400">${m.tags}</p>
+        <button onclick="deleteMusic(${m.id})"
+                class="bg-red-600 w-full p-1 rounded mt-2">Sil</button>
+      </div>
+    `;
+  });
+}
+
 async function deleteMusic(id){
-  await supabase.from("musics").delete().eq("id", id);
+  if(!confirm("Bu müziği silmek istediğine emin misin?")) return;
+  await client.from("musics").delete().eq("id", id);
   loadAdminList();
 }
 </script>
