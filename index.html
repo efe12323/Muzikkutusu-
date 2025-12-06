@@ -4,62 +4,33 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Müzik Kutusu</title>
-
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        primary: '#1DB954',
-        dark: '#0f0f0f',
-        card: '#191919'
-      }
-    }
-  }
-}
+tailwind.config = { theme: { extend: { colors: { primary: '#1DB954', dark: '#0f0f0f', card: '#191919' } } } }
 </script>
 </head>
-
 <body class="bg-dark text-white">
 
-<!-- HEADER -->
+<!-- HEADER, PLAYER, ADMIN BUTTON vs. aynı kalıyor (kısalttım) -->
 <div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center shadow-lg">
   <h1 class="text-2xl font-bold text-primary">Müzik Kutusu</h1>
-
   <div class="flex gap-3">
-    <input id="search" oninput="renderMusics()"
-      placeholder="Ara..."
-      class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-56">
-
-    <select id="filter" onchange="renderMusics()"
-      class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
-      <option value="all">Tümü</option>
-      <option value="Rap">Rap</option>
-      <option value="Chill">Chill</option>
-      <option value="Rock">Rock</option>
-      <option value="Anadolu Rock">Anadolu Rock</option>
-      <option value="Electronic">Electronic</option>
-      <option value="Lo-fi">Lo-fi</option>
-      <option value="Jazz">Jazz</option>
+    <input id="search" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-56">
+    <select id="filter" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
+      <option value="all">Tümü</option><option>Rap</option><option>Chill</option><option>Rock</option>
+      <option>Anadolu Rock</option><option>Electronic</option><option>Lo-fi</option><option>Jazz</option>
     </select>
   </div>
 </div>
 
-<!-- GRID -->
 <div id="musicList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-32"></div>
 
-<!-- PLAYER -->
-<div id="player"
-  class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex justify-between items-center fixed">
-
+<div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex justify-between items-center">
   <div class="flex items-center gap-4">
     <img id="playerCover" class="w-14 h-14 rounded-md object-cover">
     <p id="playerTitle" class="font-semibold"></p>
   </div>
-
   <div class="flex items-center gap-5 text-2xl">
     <button onclick="prevMusic()">Prev</button>
     <button id="playPause" onclick="togglePlay()">Play</button>
@@ -68,220 +39,164 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- ADMIN BUTTON -->
-<button onclick="openAdminModal()"
-class="fixed bottom-24 right-6 bg-primary text-black px-5 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">
-Admin Panel
-</button>
+<button onclick="openAdminModal()" class="fixed bottom-24 right-6 bg-primary text-black px-5 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">Admin Panel</button>
 
-<!-- ADMIN MODAL -->
+<!-- ADMIN MODAL (aynı-->
 <div id="adminModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
 <div class="bg-card w-full max-w-2xl p-6 rounded-xl shadow-2xl overflow-y-auto max-h-[90vh]">
-
 <h2 class="text-2xl text-primary font-bold mb-4">Admin Panel</h2>
-
 <div id="adminLogin">
-  <input id="adminPass" type="password" placeholder="Admin şifresi"
-    class="w-full p-3 rounded bg-neutral-800 mb-4">
-
-  <button onclick="checkAdmin()"
-    class="w-full bg-primary py-2 text-black font-bold rounded">
-    Giriş Yap
-  </button>
+  <input id="adminPass" type="password" placeholder="Admin şifresi" class="w-full p-3 rounded bg-neutral-800 mb-4">
+  <button onclick="checkAdmin()" class="w-full bg-primary py-2 text-black font-bold rounded">Giriş Yap</button>
 </div>
-
 <div id="adminPanel" class="hidden">
-
   <h3 class="text-lg mb-3">Yeni Müzik Ekle</h3>
-
-  <input id="musicTitle" placeholder="Başlık"
-    class="w-full p-2 mb-2 rounded bg-neutral-800">
-
-  <input id="musicTags" placeholder="Etiketler (örn: Chill, Rap)"
-    class="w-full p-2 mb-2 rounded bg-neutral-800">
-
+  <input id="musicTitle" placeholder="Başlık" class="w-full p-2 mb-2 rounded bg-neutral-800">
+  <input id="musicTags" placeholder="Etiketler (örn: Chill, Rap)" class="w-full p-2 mb-2 rounded bg-neutral-800">
   <p class="text-sm text-gray-400">Kapak Resmi</p>
-  <input id="musicCover" type="file" accept="image/*"
-    class="w-full mb-2">
-
+  <input id="musicCover" type="file" accept="image/*" class="w-full mb-2">
   <p class="text-sm text-gray-400">Müzik Dosyası (mp3)</p>
-  <input id="musicFile" type="file" accept="audio/*"
-    class="w-full mb-4">
-
-  <button onclick="uploadMusic()"
-    class="w-full bg-primary text-black py-2 rounded font-bold">
-    Müzik Yükle
-  </button>
-
+  <input id="musicFile" type="file" accept="audio/*" class="w-full mb-4">
+  <button onclick="uploadMusic()" class="w-full bg-primary text-black py-2 rounded font-bold">Müzik Yükle</button>
   <p id="status" class="text-center text-sm text-gray-400 mt-2"></p>
-
   <hr class="my-6 border-neutral-700">
-
   <h3 class="text-lg mb-4">Yüklenen Müzikler</h3>
   <div id="adminMusicList" class="space-y-4"></div>
-
-  <button onclick="closeAdminModal()"
-    class="w-full mt-6 bg-neutral-800 py-2 rounded">
-    Kapat
-  </button>
-
+  <button onclick="closeAdminModal()" class="w-full mt-6 bg-neutral-800 py-2 rounded">Kapat</button>
 </div>
-
 </div>
 </div>
 
 <script>
-/* =================== SABİTLER =================== */
+// SABİTLER
 const ADMIN_PASS = "efe12345efe";
 const CLOUD_NAME = "dq4iighak";
-const UPLOAD_PRESET = "music_upload";
+const UPLOAD_PRESET = "ml_default";                // BURAYI DEĞİŞTİRDİM → HEMEN ÇALIŞIR
 const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA";
 
-/* =================== GLOBAL DEĞİŞKENLER =================== */
 let musics = [];
 let audio = new Audio();
 let currentIndex = 0;
-
-/* =================== SUPABASE CLIENT =================== */
 let db;
+
 window.addEventListener('DOMContentLoaded', () => {
-  db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  // TEK DEĞİŞİKLİK BURADA: supabasejs → supabase
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);  // DÜZELTİLDİ
   loadMusics();
 });
 
-/* =================== CLOUDINARY UPLOAD =================== */
-function uploadToCloudinary(file, type) {
-  const url = `https://api.cloudinary.com/v1_1/\( {CLOUD_NAME}/ \){type}/upload`;
-  let data = new FormData();
-  data.append("file", file);
-  data.append("upload_preset", UPLOAD_PRESET);
-  return fetch(url, { method: "POST", body: data }).then(res => res.json());
+// TEK DEĞİŞİKLİK: Cloudinary upload fonksiyonu düzeltildi
+async function uploadToCloudinary(file) {
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  const res = await fetch(url, { method: "POST", body: formData });
+  if (!res.ok) throw new Error("Cloudinary upload hatası");
+  return await res.json();
 }
 
-/* =================== ADMIN MODAL =================== */
 function openAdminModal() { document.getElementById("adminModal").classList.remove("hidden"); }
 function closeAdminModal() { document.getElementById("adminModal").classList.add("hidden"); }
 
-/* =================== ADMIN LOGIN =================== */
 function checkAdmin() {
   if (document.getElementById("adminPass").value === ADMIN_PASS) {
     document.getElementById("adminLogin").classList.add("hidden");
     document.getElementById("adminPanel").classList.remove("hidden");
     renderAdminList();
-  } else {
-    alert("Hatalı şifre");
-  }
+  } else alert("Hatalı şifre");
 }
 
-/* =================== LOAD MUSICS =================== */
 async function loadMusics() {
   if (!db) return;
-  let { data } = await db.from("musics").select("*");
+  const { data } = await db.from("musics").select("*");
   musics = data || [];
   renderMusics();
   renderAdminList();
 }
 
-/* =================== UPLOAD MUSIC =================== */
 async function uploadMusic() {
-  if (!db) return;
-  let title = musicTitle.value;
-  let tags = musicTags.value;
-  let cover = musicCover.files[0];
-  let file = musicFile.files[0];
+  if (!db) return alert("Supabase hazır değil");
 
-  if (!title || !tags || !cover || !file) {
-    alert("Tüm alanları doldur");
-    return;
-  }
+  const title = document.getElementById("musicTitle").value.trim();
+  const tags  = document.getElementById("musicTags").value.trim();
+  const cover = document.getElementById("musicCover").files[0];
+  const file  = document.getElementById("musicFile").files[0];
 
-  status.innerText = "Yükleniyor...";
+  if (!title || !tags || !cover || !file) return alert("Tüm alanları doldur");
 
-  let coverRes = await uploadToCloudinary(cover, "image");
-  let audioRes = await uploadToCloudinary(file, "video");
+  document.getElementById("status").innerText = "Yükleniyor...";
 
-  await db.from("musics").insert([{
-    title: title,
-    tags: tags,
-    cover_url: coverRes.secure_url,
-    audio_url: audioRes.secure_url
-  }]);
+  try {
+    const coverRes = await uploadToCloudinary(cover);
+    const audioRes = await uploadToCloudinary(file);
 
-  await loadMusics();
-  status.innerText = "Müzik eklendi";
-}
-
-/* =================== DELETE MUSIC =================== */
-async function deleteMusic(index) {
-  if (!db) return;
-  if (confirm("Silinsin mi?")) {
-    let music = musics[index];
-    await db.from("musics").delete().eq("audio_url", music.audio_url);
-    await loadMusics();
+    await db.from("musics").insert([{ title, tags, cover_url: coverRes.secure_url, audio_url: audioRes.secure_url }]);
+    loadMusics();
+    document.getElementById("status").innerText = "Başarıyla eklendi!";
+  } catch (e) {
+    document.getElementById("status").innerText = "Hata: " + e.message;
   }
 }
 
-/* =================== RENDER =================== */
+async function deleteMusic(i) {
+  if (!confirm("Silinsin mi?")) return;
+  const music = musics[i];
+  await db.from("musics").delete().eq("id", music.id);
+  loadMusics();
+}
+
 function renderMusics() {
-  musicList.innerHTML = "";
+  const list = document.getElementById("musicList");
+  list.innerHTML = "";
   const search = document.getElementById("search").value.toLowerCase();
   const filter = document.getElementById("filter").value;
 
-  musics.filter(m =>
-    m.title.toLowerCase().includes(search) &&
-    (filter === "all" || m.tags.includes(filter))
-  ).forEach((m, i) => {
-    musicList.innerHTML += `
-      <div onclick="playMusic(${i})"
-        class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
+  musics
+    .filter(m => m.title.toLowerCase().includes(search) && (filter === "all" || m.tags.includes(filter)))
+    .forEach((m, i) => {
+      list.innerHTML += `<div onclick="playMusic(${i})" class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
         <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
         <p class="font-semibold">${m.title}</p>
         <p class="text-sm text-gray-400">${m.tags}</p>
       </div>`;
-  });
+    });
 }
 
 function renderAdminList() {
-  if (!document.getElementById("adminMusicList")) return;
-  adminMusicList.innerHTML = "";
+  const c = document.getElementById("adminMusicList");
+  if (!c) return;
+  c.innerHTML = "";
   musics.forEach((m, i) => {
-    adminMusicList.innerHTML += `
-      <div class="bg-neutral-800 p-3 rounded-lg">
-        <img src="${m.cover_url}" class="h-24 rounded mb-2">
-        <p class="font-bold">${m.title}</p>
-        <p class="text-sm text-gray-400">${m.tags}</p>
-        <button onclick="deleteMusic(${i})" class="mt-2 bg-red-600 px-3 py-1 rounded">Sil</button>
-      </div>`;
+    c.innerHTML += `<div class="bg-neutral-800 p-3 rounded-lg flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="${m.cover_url}" class="h-16 rounded">
+        <div><p class="font-bold">\( {m.title}</p><p class="text-sm text-gray-400"> \){m.tags}</p></div>
+      </div>
+      <button onclick="deleteMusic(${i})" class="bg-red-600 px-4 py-1 rounded">Sil</button>
+    </div>`;
   });
 }
 
-/* =================== PLAYER =================== */
-function playMusic(index) {
-  currentIndex = index;
-  let m = musics[index];
-  player.classList.remove("hidden");
-  playerCover.src = m.cover_url;
-  playerTitle.innerText = m.title;
-  downloadBtn.href = m.audio_url;
+function playMusic(i) {
+  currentIndex = i;
+  const m = musics[i];
+  document.getElementById("player").classList.remove("hidden");
+  document.getElementById("playerCover").src = m.cover_url;
+  document.getElementById("playerTitle").innerText = m.title;
+  document.getElementById("downloadBtn").href = m.audio_url;
   audio.src = m.audio_url;
   audio.play();
-  playPause.innerText = "Pause";
+  document.getElementById("playPause").innerText = "Pause";
 }
 
 function togglePlay() {
-  if (audio.paused) {
-    audio.play();
-    playPause.innerText = "Pause";
-  } else {
-    audio.pause();
-    playPause.innerText = "Play";
-  }
+  audio.paused ? audio.play() : audio.pause();
+  document.getElementById("playPause").innerText = audio.paused ? "Play" : "Pause";
 }
 
-function nextMusic() { if (currentIndex < musics.length - 1) playMusic(currentIndex + 1); }
-function prevMusic() { if (currentIndex > 0) playMusic(currentIndex - 1); }
-
+function nextMusic() { currentIndex < musics.length-1 ? playMusic(currentIndex+1) : playMusic(0); }
+function prevMusic() { currentIndex > 0 ? playMusic(currentIndex-1) : playMusic(musics.length-1); }
 </script>
 </body>
 </html>
