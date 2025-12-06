@@ -24,7 +24,7 @@
 <!-- HEADER -->
 <div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex flex-col gap-1 shadow-lg">
   <h1 class="text-2xl font-bold text-primary">🎵 Müzik Kutusu</h1>
-  <p class="text-sm text-gray-400">%100 ücretsiz, telifsiz müzikler</p>
+  <p class="text-sm text-gray-400">%100 ücretsiz, telifsiz & yapay zeka ile üretilmiş müzikler</p>
   <div class="flex gap-3 mt-2">
     <input id="search" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-36 sm:w-56">
     <select id="filter" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-28 sm:w-48">
@@ -99,7 +99,12 @@ function renderMusics(){
     card.className = "bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer relative";
     card.innerHTML = `
       <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-top object-cover">
-      <p class="font-semibold text-white">${m.title}</p>
+      
+      <div class="flex items-center gap-2">
+        <p class="font-semibold text-white">${m.title}</p>
+        <span class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">AI</span>
+      </div>
+
       <p class="text-sm text-gray-400">${m.tags}</p>
       <button onclick="toggleFavoriteFromList(${i}, event)" class="absolute top-2 right-2 text-xl text-yellow-400">${favorites.includes(m.objectId) ? "★" : "☆"}</button>
     `;
