@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Müzik Kutusu</title>
-
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 tailwind.config = {
   theme: {
@@ -22,15 +20,14 @@ tailwind.config = {
 }
 </script>
 </head>
-
 <body class="bg-dark text-white">
 
 <!-- HEADER -->
 <div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center shadow-lg">
   <h1 class="text-2xl font-bold text-primary">🎵 Müzik Kutusu</h1>
   <div class="flex gap-3">
-    <input id="search" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-56">
-    <select id="filter" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
+    <input id="search" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-56">
+    <select id="filter" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
       <option value="all">Tümü</option>
       <option value="Rap">Rap</option>
       <option value="Chill">Chill</option>
@@ -47,8 +44,7 @@ tailwind.config = {
 <div id="musicList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-32"></div>
 
 <!-- PLAYER -->
-<div id="player"
-class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex justify-between items-center">
+<div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex justify-between items-center">
   <div class="flex items-center gap-4">
     <img id="playerCover" class="w-14 h-14 rounded-md object-cover">
     <p id="playerTitle" class="font-semibold"></p>
@@ -62,10 +58,7 @@ class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-
 </div>
 
 <!-- ADMIN BUTTON -->
-<button onclick="openAdminModal()"
-class="fixed bottom-24 right-6 bg-primary text-black px-5 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">
-Admin Panel
-</button>
+<button onclick="openAdminModal()" class="fixed bottom-24 right-6 bg-primary text-black px-5 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">Admin Panel</button>
 
 <!-- ADMIN MODAL -->
 <div id="adminModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -73,9 +66,8 @@ Admin Panel
 <h2 class="text-2xl text-primary font-bold mb-4">Admin Panel</h2>
 
 <div id="adminLogin">
-  <input id="adminPass" type="password" placeholder="Admin şifresi"
-  class="w-full p-3 rounded bg-neutral-800 mb-4">
-  <button id="adminLoginBtn" class="w-full bg-primary py-2 text-black font-bold rounded">Giriş Yap</button>
+  <input id="adminPass" type="password" placeholder="Admin şifresi" class="w-full p-3 rounded bg-neutral-800 mb-4">
+  <button onclick="checkAdmin()" class="w-full bg-primary py-2 text-black font-bold rounded">Giriş Yap</button>
 </div>
 
 <div id="adminPanel" class="hidden">
@@ -86,7 +78,7 @@ Admin Panel
   <input id="musicCover" type="file" accept="image/*" class="w-full mb-2">
   <p class="text-sm text-gray-400">Müzik Dosyası (mp3)</p>
   <input id="musicFile" type="file" accept="audio/*" class="w-full mb-4">
-  <button id="uploadBtn" class="w-full bg-primary text-black py-2 rounded font-bold">Müzik Yükle</button>
+  <button onclick="uploadMusic()" class="w-full bg-primary text-black py-2 rounded font-bold">Müzik Yükle</button>
   <p id="status" class="text-center text-sm text-gray-400 mt-2"></p>
   <hr class="my-6 border-neutral-700">
   <h3 class="text-lg mb-4">Yüklenen Müzikler</h3>
@@ -98,56 +90,113 @@ Admin Panel
 </div>
 
 <script>
-// ====== CONFIG ======
-const ADMIN_PASS = "efe12345efe"
-const CLOUD_NAME = "dq4iighak"
-const UPLOAD_PRESET = "music_upload"
-const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co"
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA"
+// ==================== CONFIG ====================
+const ADMIN_PASS = "efe12345efe";
+const APP_ID = "637D6A77-BB29-401E-924F-375EBB7DD458";         // Backendless App ID
+const REST_KEY = "6F69C295-2945-4FBE-9D27-F9FED5ADFC9B"; // Backendless REST API Key
+const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
 
-// ====== INIT ======
-const db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-let musics = []
-let audio = new Audio()
-let currentIndex = 0
+// ==================== GLOBAL ====================
+let musics = [];
+let audio = new Audio();
+let currentIndex = 0;
 
-// ====== FUNCTIONS ======
+// ==================== CLOUDINARY UPLOAD ====================
+function uploadToCloudinary(file, type){
+  const url = `https://api.cloudinary.com/v1_1/dq4iighak/${type}/upload`;
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "music_upload");
+  return fetch(url, { method:"POST", body: formData }).then(res => res.json());
+}
+
+// ==================== ADMIN MODAL ====================
 function openAdminModal(){ document.getElementById("adminModal").classList.remove("hidden") }
 function closeAdminModal(){ document.getElementById("adminModal").classList.add("hidden") }
 
+// ==================== LOGIN ====================
 function checkAdmin(){
   if(document.getElementById("adminPass").value === ADMIN_PASS){
-    document.getElementById("adminLogin").classList.add("hidden")
-    document.getElementById("adminPanel").classList.remove("hidden")
-    renderAdminList()
-  } else alert("Hatalı şifre")
+    document.getElementById("adminLogin").classList.add("hidden");
+    document.getElementById("adminPanel").classList.remove("hidden");
+    renderAdminList();
+  } else {
+    alert("Hatalı şifre");
+  }
 }
 
+// ==================== LOAD MUSICS ====================
 async function loadMusics(){
-  let { data } = await db.from("musics").select("*")
-  musics = data || []
-  renderMusics()
+  const res = await fetch(API_URL);
+  const data = await res.json();
+  musics = data || [];
+  renderMusics();
 }
 
+// ==================== UPLOAD ====================
+async function uploadMusic(){
+  const title = musicTitle.value;
+  const tags = musicTags.value;
+  const cover = musicCover.files[0];
+  const file  = musicFile.files[0];
+
+  if(!title || !tags || !cover || !file){
+    alert("Tüm alanları doldur");
+    return;
+  }
+
+  status.innerText = "Yükleniyor...";
+
+  const coverRes = await uploadToCloudinary(cover,"image");
+  const audioRes = await uploadToCloudinary(file,"video");
+
+  await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: title,
+      tags: tags,
+      cover_url: coverRes.secure_url,
+      audio_url: audioRes.secure_url
+    })
+  });
+
+  await loadMusics();
+  renderAdminList();
+  status.innerText = "✅ Müzik eklendi";
+}
+
+// ==================== DELETE ====================
+async function deleteMusic(index){
+  if(confirm("Silinsin mi?")){
+    let music = musics[index];
+    await fetch(`${API_URL}/${music.objectId}`, { method: "DELETE" });
+    await loadMusics();
+    renderAdminList();
+  }
+}
+
+// ==================== RENDER ====================
 function renderMusics(){
-  musicList.innerHTML = ""
-  const search = document.getElementById("search").value.toLowerCase()
-  const filter = document.getElementById("filter").value
+  musicList.innerHTML = "";
+  const search = document.getElementById("search").value.toLowerCase();
+  const filter = document.getElementById("filter").value;
+
   musics.filter(m =>
     m.title.toLowerCase().includes(search) &&
     (filter === "all" || m.tags.includes(filter))
   ).forEach((m,i)=>{
     musicList.innerHTML += `
-      <div onclick="playMusic(${i})" class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
-        <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
-        <p class="font-semibold">${m.title}</p>
-        <p class="text-sm text-gray-400">${m.tags}</p>
-      </div>`
-  })
+    <div onclick="playMusic(${i})" class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
+      <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
+      <p class="font-semibold">${m.title}</p>
+      <p class="text-sm text-gray-400">${m.tags}</p>
+    </div>`;
+  });
 }
 
 function renderAdminList(){
-  adminMusicList.innerHTML = ""
+  adminMusicList.innerHTML = "";
   musics.forEach((m,i)=>{
     adminMusicList.innerHTML += `
       <div class="bg-neutral-800 p-3 rounded-lg">
@@ -155,78 +204,38 @@ function renderAdminList(){
         <p class="font-bold">${m.title}</p>
         <p class="text-sm text-gray-400">${m.tags}</p>
         <button onclick="deleteMusic(${i})" class="mt-2 bg-red-600 px-3 py-1 rounded">Sil</button>
-      </div>`
-  })
+      </div>`;
+  });
 }
 
-async function deleteMusic(index){
-  if(confirm("Silinsin mi?")){
-    const music = musics[index]
-    await db.from("musics").delete().eq("audio_url", music.audio_url)
-    await loadMusics()
-    renderAdminList()
+// ==================== PLAYER ====================
+function playMusic(index){
+  currentIndex = index;
+  const m = musics[index];
+  player.classList.remove("hidden");
+  playerCover.src = m.cover_url;
+  playerTitle.innerText = m.title;
+  downloadBtn.href = m.audio_url;
+  audio.src = m.audio_url;
+  audio.play();
+  playPause.innerText = "⏸";
+}
+
+function togglePlay(){
+  if(audio.paused){
+    audio.play();
+    playPause.innerText="⏸";
+  } else {
+    audio.pause();
+    playPause.innerText="▶";
   }
 }
 
-async function uploadToCloudinary(file, type){
-  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`
-  let data = new FormData()
-  data.append("file", file)
-  data.append("upload_preset", UPLOAD_PRESET)
-  return fetch(url, { method:"POST", body:data }).then(res => res.json())
-}
+function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
+function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
 
-async function uploadMusic(){
-  const title = musicTitle.value
-  const tags = musicTags.value
-  const cover = musicCover.files[0]
-  const file = musicFile.files[0]
-
-  if(!title || !tags || !cover || !file){ alert("Tüm alanları doldur"); return }
-
-  status.innerText = "Yükleniyor..."
-  const coverRes = await uploadToCloudinary(cover,"image")
-  const audioRes = await uploadToCloudinary(file,"video")
-
-  await db.from("musics").insert([{
-    title: title,
-    tags: tags,
-    cover_url: coverRes.secure_url,
-    audio_url: audioRes.secure_url
-  }])
-
-  await loadMusics()
-  renderAdminList()
-  status.innerText = "✅ Müzik eklendi"
-}
-
-// ====== PLAYER ======
-function playMusic(index){
-  currentIndex = index
-  const m = musics[index]
-  player.classList.remove("hidden")
-  playerCover.src = m.cover_url
-  playerTitle.innerText = m.title
-  downloadBtn.href = m.audio_url
-  audio.src = m.audio_url
-  audio.play()
-  playPause.innerText = "⏸"
-}
-function togglePlay(){
-  if(audio.paused){ audio.play(); playPause.innerText="⏸" } 
-  else { audio.pause(); playPause.innerText="▶" }
-}
-function nextMusic(){ if(currentIndex < musics.length-1) playMusic(currentIndex+1) }
-function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex-1) }
-
-// ====== INIT EVENTS ======
-window.onload = () => {
-  loadMusics()
-  document.getElementById("search").addEventListener("input", renderMusics)
-  document.getElementById("filter").addEventListener("change", renderMusics)
-  document.getElementById("adminLoginBtn").addEventListener("click", checkAdmin)
-  document.getElementById("uploadBtn").addEventListener("click", uploadMusic)
-}
+// ==================== LOAD ====================
+window.onload = () => { loadMusics(); }
 </script>
 </body>
 </html>
