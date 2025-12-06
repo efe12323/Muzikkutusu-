@@ -145,7 +145,9 @@ const UPLOAD_PRESET = "music_upload"
 // ========== SUPABASE ==========
 const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA"
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// 🔥 Değiştirildi: supabase -> db
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // ========== GLOBAL ==========
 let musics = []
@@ -178,7 +180,7 @@ function checkAdmin(){
 
 // ========== LOAD MUSICS ==========
 async function loadMusics(){
-  let { data } = await supabase.from("music").select("*")
+  let { data } = await db.from("music").select("*") // supabase -> db
   musics = data || []
   renderMusics()
 }
@@ -200,7 +202,7 @@ async function uploadMusic(){
   let coverRes = await uploadToCloudinary(cover,"image")
   let audioRes = await uploadToCloudinary(file,"video")
 
-  await supabase.from("music").insert([{
+  await db.from("music").insert([{  // supabase -> db
     title: title,
     tags: tags,
     cover_url: coverRes.secure_url,
@@ -216,7 +218,7 @@ async function uploadMusic(){
 async function deleteMusic(index){
   if(confirm("Silinsin mi?")){
     let music = musics[index]
-    await supabase.from("music").delete().eq("audio_url", music.audio_url)
+    await db.from("music").delete().eq("audio_url", music.audio_url) // supabase -> db
     await loadMusics()
     renderAdminList()
   }
