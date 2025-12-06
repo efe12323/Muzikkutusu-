@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Müzik Kutusu - Ücretsiz Telifsiz Müzik</title>
+<title>Müzik Kutusu</title>
+
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -12,101 +13,117 @@ body{
   background:#0f0f0f;
   color:white;
 }
-.glass {
-  backdrop-filter: blur(14px);
-  background: rgba(20,20,20,0.9);
+.spotify-green{background:#1DB954;}
+.spotify-text{color:#1DB954}
+.drawer{
+  height:85vh;
+  bottom:-100%;
+  transition:0.4s ease;
 }
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb { background: #1DB954; border-radius: 10px;}
+.drawer.active{
+  bottom:0;
+}
+.card:hover{transform:scale(1.03)}
 </style>
 </head>
 
-<body class="min-h-screen font-sans">
+<body class="min-h-screen pb-40">
 
-<!-- HEADER -->
 <header class="flex justify-between items-center p-5 border-b border-zinc-800 bg-black">
   <div>
-    <h1 class="text-2xl font-bold text-green-500">🎵 Müzik Kutusu</h1>
+    <h1 class="text-2xl font-bold spotify-text">🎵 Müzik Kutusu</h1>
     <p class="text-sm text-zinc-400">Türkiye’nin %100 ücretsiz telifsiz müzik platformu</p>
   </div>
-  <button onclick="openAdminLogin()" class="px-4 py-1 text-sm rounded-full border border-zinc-700 hover:bg-zinc-800">
-    Admin
-  </button>
+  <button onclick="openAdminLogin()" class="px-4 py-1 text-sm rounded-full border border-zinc-700 hover:bg-zinc-900">Admin</button>
 </header>
 
-<!-- SEARCH & FILTER -->
-<section class="p-4 flex flex-col md:flex-row gap-3 justify-between">
+<section class="p-4 flex gap-3 flex-wrap">
   <input id="searchInput" onkeyup="loadMusics()" type="text" placeholder="Müzik ara..."
   class="w-full md:w-1/3 bg-zinc-900 px-4 py-2 rounded-lg outline-none">
 
   <select id="filterSelect" onchange="loadMusics()"
   class="bg-zinc-900 px-4 py-2 rounded-lg">
-    <option value="">Tüm Türler</option>
+    <option value="">Tümü</option>
     <option>Rap</option>
     <option>Chill</option>
     <option>Rock</option>
     <option>Anadolu Rock</option>
     <option>Lo-fi</option>
-    <option>Jazz</option>
   </select>
 </section>
 
-<!-- MUSIC LIST -->
-<main class="p-5 grid gap-8 grid-cols-2 md:grid-cols-4 lg:grid-cols-6" id="musicList"></main>
+<main class="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6" id="musicList"></main>
 
 <!-- PLAYER -->
-<div id="player" class="fixed bottom-0 left-0 right-0 hidden glass p-4 border-t border-zinc-800">
+<div id="player" class="fixed bottom-0 left-0 w-full bg-black border-t border-zinc-800 p-4 hidden">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <img id="playerCover" class="w-14 h-14 rounded" src="">
+      <img id="playerCover" class="w-14 h-14 rounded">
       <div>
         <h3 id="playerTitle"></h3>
-        <p id="playerTags" class="text-xs text-zinc-400"></p>
+        <p id="playerTags" class="text-xs text-gray-400"></p>
       </div>
     </div>
 
-    <div class="flex gap-5 text-2xl">
+    <div class="flex items-center gap-6 text-xl">
       <button onclick="prevMusic()">⏮️</button>
       <button onclick="togglePlay()">⏯️</button>
       <button onclick="nextMusic()">⏭️</button>
-      <a id="downloadBtn" download class="text-green-500">⬇️</a>
+      <a id="downloadBtn" class="spotify-text" download>⬇</a>
     </div>
   </div>
 </div>
 
-<!-- ADMIN LOGIN MODAL -->
+<!-- ADMIN LOGIN -->
 <div id="adminLoginModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
-  <div class="glass p-6 rounded-xl w-80">
-    <h2 class="text-lg mb-4">Admin Giriş</h2>
-    <input id="adminPassInput" type="password" placeholder="Şifre"
-      class="w-full mb-3 p-2 bg-zinc-900 rounded">
-    <button onclick="checkAdmin()" class="bg-green-600 w-full py-2 rounded">
-      Giriş
-    </button>
+  <div class="bg-zinc-900 p-6 rounded-xl w-80">
+    <h2 class="text-lg mb-4">🔐 Admin Giriş</h2>
+    <input id="adminPassInput" type="password" placeholder="Şifre" class="w-full p-2 bg-black rounded mb-3">
+    <button onclick="checkAdmin()" class="spotify-green w-full py-2 rounded">Giriş</button>
   </div>
 </div>
 
-<!-- ADMIN PANEL -->
-<div id="adminPanel" class="hidden fixed inset-0 bg-black/80 overflow-y-auto p-6">
-  <div class="glass max-w-3xl mx-auto p-6 rounded-xl">
+<!-- ADMIN DRAWER -->
+<div id="adminPanel" class="drawer fixed left-0 bg-zinc-950 border-t border-zinc-800 w-full overflow-y-auto p-5">
 
-    <h2 class="text-xl mb-4">🎧 Admin Panel</h2>
+  <div class="max-w-5xl mx-auto">
 
-    <div class="grid md:grid-cols-2 gap-3">
-      <input id="newTitle" class="p-2 bg-zinc-900 rounded" placeholder="Başlık">
-      <input id="newTags" class="p-2 bg-zinc-900 rounded" placeholder="Etiketler">
-      <input id="newAudio" type="file" accept="audio/mp3" class="text-sm">
-      <input id="newCover" type="file" accept="image/*" class="text-sm">
+    <div class="flex justify-between mb-4">
+      <h2 class="text-xl spotify-text">🎧 Müzik Yükleme Paneli</h2>
+      <button onclick="closeAdminPanel()" class="text-red-500">Kapat ✖</button>
     </div>
 
-    <button onclick="uploadMusic()" class="bg-green-600 mt-4 w-full py-2 rounded">
-      🎵 Müzik Ekle
+    <div class="grid md:grid-cols-2 gap-4">
+      <input id="newTitle" placeholder="Müzik Başlığı" class="p-2 rounded bg-black">
+      <input id="newTags" placeholder="Etiketler (örn: Rap, Chill)" class="p-2 rounded bg-black">
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 mt-3">
+
+      <!-- AUDIO -->
+      <label class="bg-black p-4 rounded flex flex-col items-center justify-center cursor-pointer border border-dashed border-zinc-600">
+        <span>🎵 MP3 Seç</span>
+        <input type="file" id="newAudio" accept=".mp3,.wav,.ogg,.m4a" hidden
+        onchange="audioLabel.innerText=this.files[0].name || 'Seçildi'">
+        <small id="audioLabel" class="text-xs opacity-60 mt-1">Henüz seçilmedi</small>
+      </label>
+
+      <!-- COVER -->
+      <label class="bg-black p-4 rounded flex flex-col items-center justify-center cursor-pointer border border-dashed border-zinc-600">
+        <span>🖼️ Kapak Seç</span>
+        <input type="file" id="newCover" accept="image/*" hidden
+        onchange="coverLabel.innerText=this.files[0].name || 'Seçildi'">
+        <small id="coverLabel" class="text-xs opacity-60 mt-1">Henüz seçilmedi</small>
+      </label>
+    </div>
+
+    <button onclick="uploadMusic()" class="spotify-green w-full py-3 rounded mt-4 font-bold">
+      🚀 MÜZİĞİ YÜKLE
     </button>
 
-    <h3 class="mt-6 mb-2">🎵 Yüklü Müzikler</h3>
-    <div id="adminMusicList" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+    <h3 class="mt-10 mb-3 text-lg">🎼 Yüklü Müzikler</h3>
+    <div id="adminMusicList" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
 
-    <button onclick="closeAdminPanel()" class="mt-5 text-red-500">Kapat</button>
   </div>
 </div>
 
@@ -118,121 +135,105 @@ const supabase = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWR0dnlsbnJvbG1tbGFlZ3lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMDQ4ODgsImV4cCI6MjA4MDU4MDg4OH0.S61VHALTStNxq2RY4B2GhrAuELTtgycsTrTw5cH04EA"
 );
 
-let musicData = [];
-let currentIndex = 0;
-
-async function loadMusics(){
-  let search = searchInput.value.toLowerCase();
-  let filter = filterSelect.value.toLowerCase();
-
-  let { data } = await supabase.from("musics").select("*").order("created_at",{ascending:false});
-  if(!data) return;
-
-  musicData = data.filter(m=>
-    m.title.toLowerCase().includes(search) &&
-    (filter=="" || m.tags.toLowerCase().includes(filter))
-  );
-
-  musicList.innerHTML = "";
-  adminMusicList.innerHTML = "";
-
-  musicData.forEach((m,i)=>{
-    musicList.innerHTML += `
-    <div onclick="playMusic(${i})" class="bg-zinc-900 p-3 rounded-lg hover:bg-zinc-800 cursor-pointer">
-      <img src="${m.cover_url}" class="w-full aspect-square rounded">
-      <h3 class="mt-2">${m.title}</h3>
-      <p class="text-xs text-zinc-400">${m.tags}</p>
-    </div>
-    `;
-
-    adminMusicList.innerHTML += `
-      <div class="bg-zinc-900 p-2 rounded">
-        <h3 class="text-sm">${m.title}</h3>
-        <button onclick="deleteMusic('${m.id}','${m.audio_url}','${m.cover_url}')" class="text-red-500 text-xs">Sil</button>
-      </div>
-    `;
-  });
-}
-
-function playMusic(i){
-  currentIndex = i;
-  let m = musicData[i];
-  player.classList.remove("hidden");
-  audio.src = m.audio_url;
-  audio.play();
-  playerTitle.innerText = m.title;
-  playerTags.innerText = m.tags;
-  playerCover.src = m.cover_url;
-  downloadBtn.href = m.audio_url;
-}
-
-function togglePlay(){
-  audio.paused ? audio.play() : audio.pause();
-}
-
-function nextMusic(){
-  if(currentIndex < musicData.length-1)
-    playMusic(currentIndex+1);
-}
-
-function prevMusic(){
-  if(currentIndex > 0)
-    playMusic(currentIndex-1);
-}
+let musicData=[]
+let currentIndex=0
 
 function openAdminLogin(){
-  adminLoginModal.classList.remove("hidden");
+  adminLoginModal.classList.remove("hidden")
 }
 
 function checkAdmin(){
-  if(adminPassInput.value === "efe12345efe"){
-    adminLoginModal.classList.add("hidden");
-    adminPanel.classList.remove("hidden");
-    loadMusics();
-  }
+  if(adminPassInput.value==="efe12345efe"){
+    adminLoginModal.classList.add("hidden")
+    adminPanel.classList.add("active")
+    loadMusics()
+  } else alert("Şifre yanlış!")
 }
 
 function closeAdminPanel(){
-  adminPanel.classList.add("hidden");
+ adminPanel.classList.remove("active")
 }
 
 async function uploadMusic(){
-  const audio = newAudio.files[0];
-  const cover = newCover.files[0];
+ const audioFile = newAudio.files[0]
+ const coverFile = newCover.files[0]
 
-  if(!audio || !cover) return alert("Dosyaları seç!");
+ if(!audioFile || !coverFile) return alert("MP3 ve Kapak seç!")
 
-  let audioPath = Date.now()+"_"+audio.name;
-  let coverPath = Date.now()+"_"+cover.name;
+ let audioName = Date.now()+"_"+audioFile.name
+ let coverName = Date.now()+"_"+coverFile.name
 
-  await supabase.storage.from("music").upload(audioPath, audio);
-  await supabase.storage.from("music").upload(coverPath, cover);
+ await supabase.storage.from("music").upload(audioName,audioFile)
+ await supabase.storage.from("music").upload(coverName,coverFile)
 
-  let audioURL = supabase.storage.from("music").getPublicUrl(audioPath).data.publicUrl;
-  let coverURL = supabase.storage.from("music").getPublicUrl(coverPath).data.publicUrl;
+ const audioURL = supabase.storage.from("music").getPublicUrl(audioName).data.publicUrl
+ const coverURL = supabase.storage.from("music").getPublicUrl(coverName).data.publicUrl
 
-  await supabase.from("musics").insert({
-    title:newTitle.value,
-    tags:newTags.value,
-    audio_url:audioURL,
-    cover_url:coverURL,
-  });
+ await supabase.from("musics").insert({
+   title:newTitle.value,
+   tags:newTags.value,
+   audio_url:audioURL,
+   cover_url:coverURL
+ })
 
-  alert("Müzik eklendi!");
-  loadMusics();
+ alert("✅ Yüklendi")
+ newTitle.value=""
+ newTags.value=""
+ audioLabel.innerText="Henüz seçilmedi"
+ coverLabel.innerText="Henüz seçilmedi"
+ loadMusics()
 }
+
+async function loadMusics(){
+ let {data} = await supabase.from("musics").select("*").order("created_at",{ascending:false})
+
+ if(!data) return
+ musicData=data
+
+ musicList.innerHTML=""
+ adminMusicList.innerHTML=""
+
+ data.forEach((m,i)=>{
+
+  musicList.innerHTML+=`
+  <div onclick="playMusic(${i})" class="card bg-zinc-900 p-3 rounded-xl cursor-pointer transition">
+   <img src="${m.cover_url}" class="rounded w-full aspect-square">
+   <h3 class="mt-2">${m.title}</h3>
+   <p class="text-xs text-gray-400">${m.tags}</p>
+  </div>`
+
+  adminMusicList.innerHTML+=`
+   <div class="bg-black p-2 rounded">
+     <h3 class="text-sm truncate">${m.title}</h3>
+     <button onclick="deleteMusic('${m.id}','${m.audio_url}','${m.cover_url}')" class="text-red-500 text-xs mt-1">Sil</button>
+   </div>`
+ })
+}
+
+function playMusic(index){
+ currentIndex=index
+ let m = musicData[index]
+ player.classList.remove("hidden")
+ audio.src=m.audio_url
+ audio.play()
+ playerTitle.innerText=m.title
+ playerTags.innerText=m.tags
+ playerCover.src=m.cover_url
+ downloadBtn.href=m.audio_url
+}
+
+function togglePlay(){ audio.paused?audio.play():audio.pause() }
+function nextMusic(){ if(currentIndex<musicData.length-1)playMusic(currentIndex+1)}
+function prevMusic(){ if(currentIndex>0)playMusic(currentIndex-1)}
 
 async function deleteMusic(id,audioURL,coverURL){
-  let audioPath = audioURL.split("/").pop();
-  let coverPath = coverURL.split("/").pop();
-
-  await supabase.storage.from("music").remove([audioPath,coverPath]);
-  await supabase.from("musics").delete().eq("id",id);
-
-  loadMusics();
+ await supabase.storage.from("music")
+ .remove([audioURL.split('/').pop(), coverURL.split('/').pop()])
+ await supabase.from("musics").delete().eq("id",id)
+ loadMusics()
 }
 
-loadMusics();
+loadMusics()
 </script>
 </body>
-</html>
+  </html>
