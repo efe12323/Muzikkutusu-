@@ -36,12 +36,11 @@
       <option value="Electronic">Electronic</option>
       <option value="Lo-fi">Lo-fi</option>
       <option value="Jazz">Jazz</option>
-      <option value="Pop"> Pop</option>
     </select>
-    <button onclick="createPlaylistFromFavorites()" class="bg-primary text-black px-3 py-1 rounded font-bold hover:bg-green-600 transition mt-2">
-      Favori Playlist Çal
+    <button onclick="toggleListView('favorites')" class="bg-primary text-black px-3 py-1 rounded font-bold hover:bg-green-600 transition mt-2">
+      Favoriler
     </button>
-    <button onclick="playOfflineList()" class="bg-blue-500 text-white px-3 py-1 rounded font-bold hover:bg-blue-600 transition mt-2">
+    <button onclick="toggleListView('offline')" class="bg-blue-500 text-white px-3 py-1 rounded font-bold hover:bg-blue-600 transition mt-2">
       Çevrimdışı Dinle
     </button>
   </div>
@@ -51,18 +50,18 @@
 <div id="musicList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 pb-32"></div>
 
 <!-- PLAYER -->
-<div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-5">
-  <div class="flex items-center gap-4">
+<div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-3 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-5">
+  <div class="flex items-center gap-3">
     <img id="playerCover" class="w-14 h-14 rounded-md object-top object-cover">
     <p id="playerTitle" class="font-semibold"></p>
   </div>
-  <div class="flex items-center gap-2 sm:gap-5 text-2xl">
+  <div class="flex items-center gap-2 sm:gap-4 text-xl">
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
-    <a id="downloadBtn" download class="bg-primary text-black px-3 py-1 rounded font-bold hover:bg-green-600 transition">⬇ İndir</a>
-    <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
-    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
+    <a id="downloadBtn" download class="bg-primary text-black px-2 py-1 rounded text-sm font-bold hover:bg-green-600 transition">⬇</a>
+    <button onclick="closePlayer()" class="text-red-500 font-bold text-lg">✖️</button>
+    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-lg">★</button>
   </div>
 </div>
 
@@ -74,14 +73,14 @@ const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
 let musics = [];
 let audio = new Audio();
 let currentIndex = 0;
+let viewMode = 'all'; // all, favorites, offline
 
-// Favoriler ve Offline listesi
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let offlineList = JSON.parse(localStorage.getItem("offlineList") || "[]");
 let playlist = [];
-let offlineCache = {}; // Offline şarkı blobları
+let offlineCache = {};
 
-// Müzikleri yükle ve rastgele sırala
+// Load musics
 async function loadMusics(){
   const res = await fetch(API_URL);
   const data = await res.json();
@@ -89,36 +88,51 @@ async function loadMusics(){
   else if(data.data && Array.isArray(data.data)) musics = data.data;
   else musics = [];
 
-  musics.sort(() => Math.random() - 0.5);
+  musics.sort(() => Math.random() - 0.5); // rastgele
   renderMusics();
 }
 
-// Render müzik listesi
+// Render
 function renderMusics(){
   const search = (document.getElementById("search").value || "").toLowerCase();
   const filter = document.getElementById("filter").value;
   const container = document.getElementById("musicList");
   container.innerHTML = "";
 
-  musics.filter(m =>
+  let listToShow = musics;
+  if(viewMode === 'favorites') listToShow = musics.filter(m => favorites.includes(m.objectId));
+  else if(viewMode === 'offline') listToShow = musics.filter(m => offlineList.includes(m.objectId));
+
+  listToShow.filter(m =>
     (m.title || "").toLowerCase().includes(search) &&
     (filter === "all" || (m.tags || "").includes(filter))
   ).forEach((m,i)=>{
     const card = document.createElement("div");
-    card.className = "bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer relative";
+    card.className = "bg-card p-2 rounded-lg shadow-lg hover:scale-105 transition relative flex flex-col items-start";
     card.innerHTML = `
-      <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-top object-cover">
-      <p class="font-semibold text-white">${m.title}</p>
-      <p class="text-sm text-gray-400">${m.tags}</p>
-      <button onclick="toggleFavoriteFromList(${i}, event)" class="absolute top-2 right-2 text-xl text-yellow-400">${favorites.includes(m.objectId) ? "★" : "☆"}</button>
-      <button onclick="toggleOfflineFromList(${i}, event)" class="absolute top-2 right-10 text-xl text-blue-400">${offlineList.includes(m.objectId) ? "⬇️" : "⬇"}</button>
+      <img src="${m.cover_url}" class="rounded-lg mb-2 w-full h-36 object-top object-cover">
+      <p class="font-semibold text-white text-sm truncate w-full">${m.title}</p>
+      <p class="text-xs text-gray-400 truncate w-full">${m.tags}</p>
+      <div class="flex gap-2 mt-1 w-full">
+        <button onclick="toggleFavoriteFromList(${i}, event)" class="text-yellow-400 text-lg">${favorites.includes(m.objectId) ? "★" : "☆"}</button>
+        <button onclick="toggleOfflineFromList(${i}, event)" class="text-blue-400 text-lg">${offlineList.includes(m.objectId) ? "⬇️" : "⬇"}</button>
+      </div>
     `;
-    card.onclick = () => playMusic(i);
+    card.onclick = () => playMusicById(m.objectId);
     container.appendChild(card);
   });
+
+  if(listToShow.length === 0){
+    container.innerHTML = `<p class="text-center text-gray-400 col-span-full">Liste boş</p>`;
+  }
 }
 
-// Player fonksiyonları
+// Player
+function playMusicById(objectId){
+  const index = musics.findIndex(m => m.objectId === objectId);
+  if(index !== -1) playMusic(index);
+}
+
 function playMusic(index){
   currentIndex = index;
   const m = musics[index];
@@ -126,7 +140,6 @@ function playMusic(index){
   player.classList.remove("hidden");
   document.getElementById("playerCover").src = m.cover_url;
   document.getElementById("playerTitle").innerText = m.title;
-
   const downloadBtn = document.getElementById("downloadBtn");
   downloadBtn.href = m.audio_url;
   downloadBtn.download = m.title + ".mp3";
@@ -154,62 +167,43 @@ function togglePlay(){
 }
 
 function nextMusic(){ 
-  if(playlist.length > 0){
-    if(currentIndex < playlist.length - 1) playMusicFromPlaylist(currentIndex+1)
-  } else if(currentIndex < musics.length - 1){
-    playMusic(currentIndex+1)
-  }
+  if(currentIndex < musics.length - 1) playMusic(currentIndex+1);
 }
 function prevMusic(){ 
-  if(playlist.length > 0){
-    if(currentIndex > 0) playMusicFromPlaylist(currentIndex - 1)
-  } else if(currentIndex > 0){
-    playMusic(currentIndex - 1)
-  }
+  if(currentIndex > 0) playMusic(currentIndex - 1);
 }
+function closePlayer(){ audio.pause(); document.getElementById("player").classList.add("hidden"); }
 
-function closePlayer(){
-  audio.pause();
-  document.getElementById("player").classList.add("hidden");
-}
-
-// Favori ekle/çıkar
+// Favorites
 function toggleFavorite(){
   const m = musics[currentIndex];
   if(favorites.includes(m.objectId)){
     favorites = favorites.filter(id => id !== m.objectId);
-  } else {
-    favorites.push(m.objectId);
-  }
+  } else favorites.push(m.objectId);
   localStorage.setItem("favorites", JSON.stringify(favorites));
-  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
   renderMusics();
+  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
 }
 
-// Karttaki favori butonu
 function toggleFavoriteFromList(index, e){
   e.stopPropagation();
-  const m = musics[index];
+  const m = viewMode === 'all' ? musics[index] : (viewMode === 'favorites' ? musics.filter(m => favorites.includes(m.objectId))[index] : musics.filter(m => offlineList.includes(m.objectId))[index]);
   toggleFavoriteById(m.objectId);
 }
 
 function toggleFavoriteById(id){
-  if(favorites.includes(id)){
-    favorites = favorites.filter(i => i !== id);
-  } else {
-    favorites.push(id);
-  }
+  if(favorites.includes(id)) favorites = favorites.filter(i => i!==id);
+  else favorites.push(id);
   localStorage.setItem("favorites", JSON.stringify(favorites));
   renderMusics();
 }
 
-// Çevrimdışı butonu
+// Offline
 function toggleOfflineFromList(index, e){
   e.stopPropagation();
-  const m = musics[index];
-  if(offlineList.includes(m.objectId)){
-    offlineList = offlineList.filter(id => id !== m.objectId);
-  } else {
+  const m = viewMode === 'all' ? musics[index] : (viewMode === 'favorites' ? musics.filter(m => favorites.includes(m.objectId))[index] : musics.filter(m => offlineList.includes(m.objectId))[index]);
+  if(offlineList.includes(m.objectId)) offlineList = offlineList.filter(id => id!==m.objectId);
+  else {
     offlineList.push(m.objectId);
     cacheOffline(m);
   }
@@ -217,56 +211,26 @@ function toggleOfflineFromList(index, e){
   renderMusics();
 }
 
-// Playlist
-function createPlaylistFromFavorites(){
-  playlist = musics.filter(m => favorites.includes(m.objectId));
-  if(playlist.length === 0){
-    alert("Favori şarkılarınızdan bir playlist oluşturun!");
-    return;
-  }
-  playMusicFromPlaylist(0);
-}
-
-function playMusicFromPlaylist(index){
-  currentIndex = index;
-  const m = playlist[index];
-  document.getElementById("player").classList.remove("hidden");
-  document.getElementById("playerCover").src = m.cover_url;
-  document.getElementById("playerTitle").innerText = m.title;
-  document.getElementById("downloadBtn").href = m.audio_url;
-  document.getElementById("downloadBtn").download = m.title + ".mp3";
-  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
-
-  if(offlineCache[m.objectId]){
-    audio.src = URL.createObjectURL(offlineCache[m.objectId]);
-  } else {
-    audio.src = m.audio_url;
-    if(offlineList.includes(m.objectId)) cacheOffline(m);
-  }
-
-  audio.play();
-  document.getElementById("playPause").innerText = "⏸";
-}
-
-// Offline şarkıyı cachele
 async function cacheOffline(music){
   try {
     const res = await fetch(music.audio_url);
     const blob = await res.blob();
     offlineCache[music.objectId] = blob;
-  } catch(e){
-    console.error("Offline cache hatası", e);
-  }
+  } catch(e){ console.error("Offline cache hatası", e);}
 }
 
-// Offline listesi çal
 function playOfflineList(){
-  playlist = musics.filter(m => offlineList.includes(m.objectId));
-  if(playlist.length === 0){
+  if(offlineList.length === 0){
     alert("Çevrimdışı dinle listesi boş!");
     return;
   }
-  playMusicFromPlaylist(0);
+  playlist = musics.filter(m => offlineList.includes(m.objectId));
+  playMusicById(playlist[0].objectId);
+}
+
+function toggleListView(mode){
+  viewMode = mode;
+  renderMusics();
 }
 
 window.onload = loadMusics;
