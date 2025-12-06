@@ -139,9 +139,13 @@ Admin Panel
 
 
 <script>
+
+// ✅ HATA DÜZELTİLDİ — EN ÜSTE ALINDI VE VAR YAPILDI
+var ADMIN_PASS = "efe12345efe"
+
 // ========== CLOUDINARY ==========
 const CLOUD_NAME = "dq4iighak"
-const UPLOAD_PRESET = "music_upload" // 🔥 senin kullandığın preset
+const UPLOAD_PRESET = "music_upload"
 
 // ========== SUPABASE ==========
 const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co"
@@ -152,7 +156,6 @@ const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 let musics = []
 let audio = new Audio()
 let currentIndex = 0
-const ADMIN_PASS = "efe12345efe"
 
 
 // ========== CLOUDINARY UPLOAD ==========
@@ -172,11 +175,13 @@ function closeAdminModal(){ document.getElementById("adminModal").classList.add(
 
 // ========== LOGIN ==========
 function checkAdmin(){
-  if(document.getElementById("adminPass").value == ADMIN_PASS){
+  if(document.getElementById("adminPass").value === ADMIN_PASS){
     document.getElementById("adminLogin").classList.add("hidden")
     document.getElementById("adminPanel").classList.remove("hidden")
     renderAdminList()
-  } else alert("Hatalı şifre")
+  } else {
+    alert("Hatalı şifre")
+  }
 }
 
 
@@ -277,13 +282,22 @@ function playMusic(index){
   audio.play()
   playPause.innerText = "⏸"
 }
-function togglePlay(){ if(audio.paused){audio.play();playPause.innerText="⏸"} else {audio.pause();playPause.innerText="▶"} }
+function togglePlay(){ 
+  if(audio.paused){
+    audio.play()
+    playPause.innerText="⏸"
+  } else {
+    audio.pause()
+    playPause.innerText="▶"
+  }
+}
 function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
 function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
 
 
 // ========== LOAD ==========
 window.onload = () => { loadMusics() }
+
 </script>
 </body>
   </html>
