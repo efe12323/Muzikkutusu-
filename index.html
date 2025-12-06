@@ -5,20 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Müzik Kutusu</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        primary: '#1DB954',
-        dark: '#0f0f0f',
-        card: '#191919'
-      }
-    }
-  }
-}
-</script>
 </head>
 <body class="bg-dark text-white">
 
@@ -129,7 +115,7 @@ function checkAdmin(){
 async function loadMusics(){
   const res = await fetch(API_URL);
   const data = await res.json();
-  musics = data || [];
+  musics = data.data || data || [];
   renderMusics();
 }
 
@@ -146,7 +132,6 @@ async function uploadMusic(){
   }
 
   status.innerText = "Yükleniyor...";
-
   const coverRes = await uploadToCloudinary(cover,"image");
   const audioRes = await uploadToCloudinary(file,"video");
 
@@ -170,6 +155,10 @@ async function uploadMusic(){
 async function deleteMusic(index){
   if(confirm("Silinsin mi?")){
     let music = musics[index];
+    if(!music.objectId){
+      alert("Kayıt ID bulunamadı!");
+      return;
+    }
     await fetch(`${API_URL}/${music.objectId}`, { method: "DELETE" });
     await loadMusics();
     renderAdminList();
@@ -179,12 +168,12 @@ async function deleteMusic(index){
 // ==================== RENDER ====================
 function renderMusics(){
   musicList.innerHTML = "";
-  const search = document.getElementById("search").value.toLowerCase();
+  const search = (document.getElementById("search").value || "").toLowerCase();
   const filter = document.getElementById("filter").value;
 
   musics.filter(m =>
-    m.title.toLowerCase().includes(search) &&
-    (filter === "all" || m.tags.includes(filter))
+    (m.title || "").toLowerCase().includes(search) &&
+    (filter === "all" || (m.tags || "").includes(filter))
   ).forEach((m,i)=>{
     musicList.innerHTML += `
     <div onclick="playMusic(${i})" class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
