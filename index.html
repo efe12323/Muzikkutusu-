@@ -55,7 +55,7 @@
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
-    <button onclick="openDownloadModal()">⬇</button>
+    <button onclick="openDownloadModal()" class="text-blue-400 text-xl">⬇</button>
     <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
     <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
   </div>
@@ -66,13 +66,13 @@
   <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-2xl relative">
     <button onclick="closeDownloadModal()" class="absolute top-3 right-3 text-red-500 text-xl font-bold">✖️</button>
     <h2 class="text-lg text-primary font-bold mb-4">Müziği İndir</h2>
-    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded font-bold block text-center" download>İndir</a>
+    <button id="modalDownload" class="bg-primary text-black px-4 py-2 rounded font-bold block text-center">İndir</button>
   </div>
 </div>
 
 <script>
 const APP_ID = "637D6A77-BB29-401E-924F-375EBB7DD458";
-const REST_KEY = "6F69C295-2945-4FBE-9D27-F9FED5ADFC9B";
+const REST_KEY = "6F69C295-2945-4FBE-9D27-F9FED5ADFC9";
 const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
 
 let musics = [];
@@ -133,41 +133,73 @@ function playMusic(index){
   document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
 }
 
-// Player kontrolleri
 function togglePlay(){
-  if(audio.paused){ audio.play(); document.getElementById("playPause").innerText="⏸"; }
-  else { audio.pause(); document.getElementById("playPause").innerText="▶"; }
+  if(audio.paused){
+    audio.play();
+    document.getElementById("playPause").innerText="⏸";
+  } else {
+    audio.pause();
+    document.getElementById("playPause").innerText="▶";
+  }
 }
+
 function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
 function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
-function closePlayer(){ audio.pause(); document.getElementById("player").classList.add("hidden"); }
+
+function closePlayer(){
+  audio.pause();
+  document.getElementById("player").classList.add("hidden");
+}
 
 // Favorilere ekleme
 function toggleFavorite(){
   const m = musics[currentIndex];
-  if(favorites.includes(m.objectId)){ favorites = favorites.filter(id => id !== m.objectId); }
-  else { favorites.push(m.objectId); }
+  if(favorites.includes(m.objectId)){
+    favorites = favorites.filter(id => id !== m.objectId);
+  } else {
+    favorites.push(m.objectId);
+  }
   localStorage.setItem("favorites", JSON.stringify(favorites));
   document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
   renderMusics();
 }
+
+// Listeden favori butonuna tıklama
 function toggleFavoriteFromList(index, e){
   e.stopPropagation();
   const m = musics[index];
-  if(favorites.includes(m.objectId)){ favorites = favorites.filter(id => id !== m.objectId); }
-  else { favorites.push(m.objectId); }
+  if(favorites.includes(m.objectId)){
+    favorites = favorites.filter(id => id !== m.objectId);
+  } else {
+    favorites.push(m.objectId);
+  }
   localStorage.setItem("favorites", JSON.stringify(favorites));
   renderMusics();
 }
 
-// DOWNLOAD MODAL (sadece indirme)
+// =================== DOWNLOAD MODAL ===================
 function openDownloadModal(){
   const m = musics[currentIndex];
   if(!m) return;
   document.getElementById("downloadModal").classList.remove("hidden");
-  const downloadLink = document.getElementById("modalDownload");
-  downloadLink.href = m.audio_url;
-  downloadLink.setAttribute("download", m.title + ".mp3");
+
+  const downloadBtn = document.getElementById("modalDownload");
+  downloadBtn.onclick = async () => {
+    try {
+      const response = await fetch(m.audio_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = m.title + ".mp3";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch(e){
+      alert("İndirme başarısız: " + e);
+    }
+  }
 }
 
 function closeDownloadModal(){
