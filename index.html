@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Müzik Kutusu - Ücretsiz Telifsiz Müzik</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+  background:#0f0f0f;
+  color:white;
+}
+.glass {
+  backdrop-filter: blur(14px);
+  background: rgba(20,20,20,0.9);
+}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: #1DB954; border-radius: 10px;}
+</style>
+</head>
+
+<body class="min-h-screen font-sans">
+
+<!-- HEADER -->
+<header class="flex justify-between items-center p-5 border-b border-zinc-800 bg-black">
+  <div>
+    <h1 class="text-2xl font-bold text-green-500">🎵 Müzik Kutusu</h1>
+    <p class="text-sm text-zinc-400">Türkiye’nin %100 ücretsiz telifsiz müzik platformu</p>
+  </div>
+  <button onclick="openAdminLogin()" class="px-4 py-1 text-sm rounded-full border border-zinc-700 hover:bg-zinc-800">
+    Admin
+  </button>
+</header>
+
+<!-- SEARCH & FILTER -->
+<section class="p-4 flex flex-col md:flex-row gap-3 justify-between">
+  <input id="searchInput" onkeyup="loadMusics()" type="text" placeholder="Müzik ara..."
+  class="w-full md:w-1/3 bg-zinc-900 px-4 py-2 rounded-lg outline-none">
+
+  <select id="filterSelect" onchange="loadMusics()"
+  class="bg-zinc-900 px-4 py-2 rounded-lg">
+    <option value="">Tüm Türler</option>
+    <option>Rap</option>
+    <option>Chill</option>
+    <option>Rock</option>
+    <option>Anadolu Rock</option>
+    <option>Lo-fi</option>
+    <option>Jazz</option>
+  </select>
+</section>
+
+<!-- MUSIC LIST -->
+<main class="p-5 grid gap-8 grid-cols-2 md:grid-cols-4 lg:grid-cols-6" id="musicList"></main>
+
+<!-- PLAYER -->
+<div id="player" class="fixed bottom-0 left-0 right-0 hidden glass p-4 border-t border-zinc-800">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <img id="playerCover" class="w-14 h-14 rounded" src="">
+      <div>
+        <h3 id="playerTitle"></h3>
+        <p id="playerTags" class="text-xs text-zinc-400"></p>
+      </div>
+    </div>
+
+    <div class="flex gap-5 text-2xl">
+      <button onclick="prevMusic()">⏮️</button>
+      <button onclick="togglePlay()">⏯️</button>
+      <button onclick="nextMusic()">⏭️</button>
+      <a id="downloadBtn" download class="text-green-500">⬇️</a>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN MODAL -->
+<div id="adminLoginModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
+  <div class="glass p-6 rounded-xl w-80">
+    <h2 class="text-lg mb-4">Admin Giriş</h2>
+    <input id="adminPassInput" type="password" placeholder="Şifre"
+      class="w-full mb-3 p-2 bg-zinc-900 rounded">
+    <button onclick="checkAdmin()" class="bg-green-600 w-full py-2 rounded">
+      Giriş
+    </button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="hidden fixed inset-0 bg-black/80 overflow-y-auto p-6">
+  <div class="glass max-w-3xl mx-auto p-6 rounded-xl">
+
+    <h2 class="text-xl mb-4">🎧 Admin Panel</h2>
+
+    <div class="grid md:grid-cols-2 gap-3">
+      <input id="newTitle" class="p-2 bg-zinc-900 rounded" placeholder="Başlık">
+      <input id="newTags" class="p-2 bg-zinc-900 rounded" placeholder="Etiketler">
+      <input id="newAudio" type="file" accept="audio/mp3" class="text-sm">
+      <input id="newCover" type="file" accept="image/*" class="text-sm">
+    </div>
+
+    <button onclick="uploadMusic()" class="bg-green-600 mt-4 w-full py-2 rounded">
+      🎵 Müzik Ekle
+    </button>
+
+    <h3 class="mt-6 mb-2">🎵 Yüklü Müzikler</h3>
+    <div id="adminMusicList" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+
+    <button onclick="closeAdminPanel()" class="mt-5 text-red-500">Kapat</button>
+  </div>
+</div>
+
+<audio id="audio"></audio>
+
+<script>
+const supabase = supabase.createClient(
+  "https://jzidtvylnrolmmlaegyr.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWR0dnlsbnJvbG1tbGFlZ3lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMDQ4ODgsImV4cCI6MjA4MDU4MDg4OH0.S61VHALTStNxq2RY4B2GhrAuELTtgycsTrTw5cH04EA"
+);
+
+let musicData = [];
+let currentIndex = 0;
+
+async function loadMusics(){
+  let search = searchInput.value.toLowerCase();
+  let filter = filterSelect.value.toLowerCase();
+
+  let { data } = await supabase.from("musics").select("*").order("created_at",{ascending:false});
+  if(!data) return;
+
+  musicData = data.filter(m=>
+    m.title.toLowerCase().includes(search) &&
+    (filter=="" || m.tags.toLowerCase().includes(filter))
+  );
+
+  musicList.innerHTML = "";
+  adminMusicList.innerHTML = "";
+
+  musicData.forEach((m,i)=>{
+    musicList.innerHTML += `
+    <div onclick="playMusic(${i})" class="bg-zinc-900 p-3 rounded-lg hover:bg-zinc-800 cursor-pointer">
+      <img src="${m.cover_url}" class="w-full aspect-square rounded">
+      <h3 class="mt-2">${m.title}</h3>
+      <p class="text-xs text-zinc-400">${m.tags}</p>
+    </div>
+    `;
+
+    adminMusicList.innerHTML += `
+      <div class="bg-zinc-900 p-2 rounded">
+        <h3 class="text-sm">${m.title}</h3>
+        <button onclick="deleteMusic('${m.id}','${m.audio_url}','${m.cover_url}')" class="text-red-500 text-xs">Sil</button>
+      </div>
+    `;
+  });
+}
+
+function playMusic(i){
+  currentIndex = i;
+  let m = musicData[i];
+  player.classList.remove("hidden");
+  audio.src = m.audio_url;
+  audio.play();
+  playerTitle.innerText = m.title;
+  playerTags.innerText = m.tags;
+  playerCover.src = m.cover_url;
+  downloadBtn.href = m.audio_url;
+}
+
+function togglePlay(){
+  audio.paused ? audio.play() : audio.pause();
+}
+
+function nextMusic(){
+  if(currentIndex < musicData.length-1)
+    playMusic(currentIndex+1);
+}
+
+function prevMusic(){
+  if(currentIndex > 0)
+    playMusic(currentIndex-1);
+}
+
+function openAdminLogin(){
+  adminLoginModal.classList.remove("hidden");
+}
+
+function checkAdmin(){
+  if(adminPassInput.value === "efe12345efe"){
+    adminLoginModal.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+    loadMusics();
+  }
+}
+
+function closeAdminPanel(){
+  adminPanel.classList.add("hidden");
+}
+
+async function uploadMusic(){
+  const audio = newAudio.files[0];
+  const cover = newCover.files[0];
+
+  if(!audio || !cover) return alert("Dosyaları seç!");
+
+  let audioPath = Date.now()+"_"+audio.name;
+  let coverPath = Date.now()+"_"+cover.name;
+
+  await supabase.storage.from("music").upload(audioPath, audio);
+  await supabase.storage.from("music").upload(coverPath, cover);
+
+  let audioURL = supabase.storage.from("music").getPublicUrl(audioPath).data.publicUrl;
+  let coverURL = supabase.storage.from("music").getPublicUrl(coverPath).data.publicUrl;
+
+  await supabase.from("musics").insert({
+    title:newTitle.value,
+    tags:newTags.value,
+    audio_url:audioURL,
+    cover_url:coverURL,
+  });
+
+  alert("Müzik eklendi!");
+  loadMusics();
+}
+
+async function deleteMusic(id,audioURL,coverURL){
+  let audioPath = audioURL.split("/").pop();
+  let coverPath = coverURL.split("/").pop();
+
+  await supabase.storage.from("music").remove([audioPath,coverPath]);
+  await supabase.from("musics").delete().eq("id",id);
+
+  loadMusics();
+}
+
+loadMusics();
+</script>
+</body>
+</html>
