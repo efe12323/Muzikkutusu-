@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Müzik Kutusu</title>
+<meta name="description" content="Türkiye’nin %100 ücretsiz telifsiz müzik platformu">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body { background: radial-gradient(circle at top, #1a1a1d, #0f0f11 70%); }
+.fade-in { animation: fadeIn .4s ease-out forwards; opacity: 0; }
+@keyframes fadeIn { to {opacity:1;} }
+</style>
+</head>
+
+<body class="text-gray-200">
+
+<!-- HEADER -->
+<header class="p-4 flex justify-between items-center bg-black/30 border-b border-gray-700 backdrop-blur-xl shadow-lg">
+    <div class="text-3xl font-extrabold">🎵 Müzik Kutusu</div>
+
+    <!-- SEARCH + FILTER -->
+    <div class="flex gap-2">
+        <input id="searchInput" placeholder="Müzik Ara..." 
+            class="p-2 bg-gray-800 rounded-lg w-40 sm:w-60 focus:outline-none">
+        <select id="genreFilter" class="p-2 bg-gray-800 rounded-lg">
+            <option value="">Tümü</option>
+            <option>Anadolu Rock</option>
+            <option>Rap</option>
+            <option>Pop</option>
+            <option>Elektronik</option>
+            <option>Lo-fi</option>
+        </select>
+    </div>
+</header>
+
+<!-- MUSIC LIST -->
+<div id="musicList" class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+
+<!-- PLAYER -->
+<div id="playerBar" class="hidden fixed bottom-0 left-0 right-0 bg-black/70 backdrop-blur-xl border-t border-gray-700 p-4 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <img id="playerCover" class="w-14 h-14 object-cover rounded hidden shadow">
+        <div>
+            <div id="playerTitle" class="font-bold text-lg"></div>
+            <div id="playerTags" class="text-sm text-gray-400"></div>
+        </div>
+    </div>
+    <div class="flex items-center gap-4 text-2xl">
+        <button id="prevBtn">⏮️</button>
+        <button id="playPauseBtn">▶️</button>
+        <button id="nextBtn">⏭️</button>
+        <button id="downloadBtn">⬇️</button>
+    </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="hidden fixed inset-0 bg-black/80 backdrop-blur-xl p-6 overflow-auto fade-in">
+    <div class="max-w-4xl mx-auto bg-gray-900 p-6 rounded-xl border border-gray-700 shadow-2xl">
+
+        <h2 class="text-3xl mb-6 text-center font-bold">⚙️ Admin Paneli</h2>
+
+        <!-- ADD MUSIC -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-6">
+            <h3 class="text-xl mb-3 font-semibold">Yeni Müzik Ekle</h3>
+            <input id="newTitle" placeholder="Başlık" class="w-full p-2 bg-gray-700 rounded mb-2">
+            <input id="newTags" placeholder="Etiketler" class="w-full p-2 bg-gray-700 rounded mb-2">
+            <label class="block mb-2 text-sm">MP3 Dosyası<input id="newAudio" type="file" accept="audio/mp3" class="mt-1"></label>
+            <label class="block mb-2 text-sm">Kapak Resmi<input id="newCover" type="file" accept="image/*" class="mt-1"></label>
+            <button onclick="uploadMusic()" class="w-full bg-green-700 hover:bg-green-800 p-2 rounded">Ekle</button>
+        </div>
+
+        <!-- MUSIC LIST -->
+        <h3 class="text-xl mb-4 font-semibold">Yüklü Müzikler</h3>
+        <div id="adminMusicList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+
+        <button onclick="closeAdminPanel()" class="mt-4 w-full bg-red-700 hover:bg-red-800 p-2 rounded">Kapat</button>
+    </div>
+</div>
+
+<script>
+// SUPABASE
+const supabase = supabase.createClient(
+    "https://jzidtvylnrolmmlaegyr.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWR0dnlsbnJvbG1tbGFlZ3lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMDQ4ODgsImV4cCI6MjA4MDU4MDg4OH0.S61VHALTStNxq2RY4B2GhrAuELTtgycsTrTw5cH04EA"
+);
+
+let musics = [];
+let filteredMusics = [];
+let currentIndex = -1;
+let audio = new Audio();
+
+// AUTO ADMIN OPEN IF URL ENDS WITH /admin
+if (window.location.pathname.toLowerCase().includes("/admin")) {
+    openAdmin();
+}
+
+// LOAD
+async function loadMusics() {
+    const { data } = await supabase.from("musics").select("*").order("created_at", { ascending: false });
+    musics = filteredMusics = data || [];
+    renderMusicList();
+}
+loadMusics();
+
+// SEARCH + FILTER
+document.getElementById("searchInput").oninput = filterMusic;
+document.getElementById("genreFilter").onchange = filterMusic;
+
+function filterMusic() {
+    const q = searchInput.value.toLowerCase();
+    const genre = genreFilter.value.toLowerCase();
+
+    filteredMusics = musics.filter(m =>
+        m.title.toLowerCase().includes(q) &&
+        (genre === "" || m.tags.toLowerCase().includes(genre))
+    );
+
+    renderMusicList();
+}
+
+// RENDER LIST
+function renderMusicList() {
+    musicList.innerHTML = "";
+
+    filteredMusics.forEach((m, i) => {
+        musicList.innerHTML += `
+            <div class="bg-gray-800 hover:bg-gray-700 transition p-3 rounded-xl cursor-pointer shadow-xl"
+                 onclick="playMusic(${i})">
+                <img src="${m.cover_url}" class="w-full h-40 object-cover rounded-lg shadow mb-3">
+                <div class="font-bold text-sm sm:text-md">${m.title}</div>
+                <div class="text-gray-400 text-xs">${m.tags}</div>
+            </div>
+        `;
+    });
+}
+
+// PLAYER
+function playMusic(i) {
+    currentIndex = i;
+    const m = filteredMusics[i];
+
+    playerBar.classList.remove("hidden");
+
+    playerCover.src = m.cover_url;
+    playerCover.classList.remove("hidden");
+
+    playerTitle.innerText = m.title;
+    playerTags.innerText = m.tags;
+
+    audio.src = m.audio_url;
+    audio.play();
+    playPauseBtn.innerText = "⏸️";
+}
+
+playPauseBtn.onclick = () => {
+    if (audio.paused) { audio.play(); playPauseBtn.innerText = "⏸️"; }
+    else { audio.pause(); playPauseBtn.innerText = "▶️"; }
+};
+nextBtn.onclick = () => {
+    if (currentIndex < filteredMusics.length - 1) playMusic(currentIndex + 1);
+};
+prevBtn.onclick = () => {
+    if (currentIndex > 0) playMusic(currentIndex - 1);
+};
+
+downloadBtn.onclick = () => {
+    if (currentIndex < 0) return;
+    const url = filteredMusics[currentIndex].audio_url;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = url.split("/").pop();
+    a.click();
+};
+
+// ADMIN
+function openAdmin() {
+    const pass = prompt("Admin Şifresi:");
+    if (pass === "efe12345efe") {
+        adminPanel.classList.remove("hidden");
+        loadAdminList();
+    } else alert("Hatalı şifre!");
+}
+function closeAdminPanel() { adminPanel.classList.add("hidden"); }
+
+// ADMIN LIST
+async function loadAdminList() {
+    const { data } = await supabase.from("musics").select("*");
+    adminMusicList.innerHTML = "";
+
+    data.forEach(m => {
+        adminMusicList.innerHTML += `
+            <div class="bg-gray-800 p-3 rounded-lg shadow">
+                <img src="${m.cover_url}" class="w-full h-32 object-cover rounded mb-2">
+                <div class="text-sm font-bold">${m.title}</div>
+                <button class="w-full bg-red-700 hover:bg-red-800 p-1 mt-2 rounded text-sm"
+                    onclick="deleteMusic('${m.id}')">Sil</button>
+            </div>
+        `;
+    });
+}
+
+// UPLOAD
+async function uploadMusic() {
+    const title = newTitle.value;
+    const tags = newTags.value;
+    const audioFile = newAudio.files[0];
+    const coverFile = newCover.files[0];
+
+    if (!title || !audioFile || !coverFile) return alert("Boş alan olamaz!");
+
+    const audioPath = Date.now() + "_" + audioFile.name;
+    const coverPath = Date.now() + "_" + coverFile.name;
+
+    await supabase.storage.from("music").upload(audioPath, audioFile);
+    await supabase.storage.from("music").upload(coverPath, coverFile);
+
+    const audioURL = supabase.storage.from("music").getPublicUrl(audioPath).data.publicUrl;
+    const coverURL = supabase.storage.from("music").getPublicUrl(coverPath).data.publicUrl;
+
+    await supabase.from("musics").insert([{ title, tags, audio_url: audioURL, cover_url: coverURL }]);
+
+    loadMusics();
+    loadAdminList();
+}
+
+// DELETE
+async function deleteMusic(id) {
+    await supabase.from("musics").delete().eq("id", id);
+    loadMusics();
+    loadAdminList();
+}
+</script>
+
+</body>
+</html>
