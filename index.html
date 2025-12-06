@@ -53,6 +53,7 @@
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
     <a id="downloadBtn" download>⬇</a>
+    <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
   </div>
 </div>
 
@@ -65,6 +66,7 @@ let musics = [];
 let audio = new Audio();
 let currentIndex = 0;
 
+// Müzikleri yükle ve rastgele sırala
 async function loadMusics(){
   const res = await fetch(API_URL);
   const data = await res.json();
@@ -78,6 +80,7 @@ async function loadMusics(){
   renderMusics();
 }
 
+// Render müzik listesi
 function renderMusics(){
   const search = (document.getElementById("search").value || "").toLowerCase();
   const filter = document.getElementById("filter").value;
@@ -100,6 +103,7 @@ function renderMusics(){
   });
 }
 
+// Player fonksiyonları
 function playMusic(index){
   currentIndex = index;
   const m = musics[index];
@@ -125,6 +129,11 @@ function togglePlay(){
 
 function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
 function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
+
+function closePlayer(){
+  audio.pause();
+  document.getElementById("player").classList.add("hidden");
+}
 
 window.onload = loadMusics;
 </script>
