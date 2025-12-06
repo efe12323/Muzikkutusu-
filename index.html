@@ -134,24 +134,22 @@ Admin Panel
 </div>
 
 <script>
-// ✅ ADMIN ŞİFRESİ EN ÜSTTE
+// ================== SABİTLER ==================
 var ADMIN_PASS = "efe12345efe"
-
-// ========== CLOUDINARY ==========
 const CLOUD_NAME = "dq4iighak"
 const UPLOAD_PRESET = "music_upload"
-
-// ========== SUPABASE ==========
 const SUPABASE_URL = "https://lzyfyxcpqmgemguyoxny.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eWZ5eGNwcW1nZW1ndXlveG55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwMTM5OTEsImV4cCI6MjA4MDU4OTk5MX0.a7e0-KU14yANxbhU95XFKmZGtuLIkTC7STJxG7mB4aA"
-const db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) // değiştirildi
 
-// ========== GLOBAL ==========
+// ================== GLOBAL ==================
 let musics = []
 let audio = new Audio()
 let currentIndex = 0
 
-// ========== CLOUDINARY UPLOAD ==========
+// ================== SUPABASE ==================
+const db = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// ================== CLOUDINARY UPLOAD ==================
 function uploadToCloudinary(file, type){
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`
   let data = new FormData()
@@ -160,11 +158,11 @@ function uploadToCloudinary(file, type){
   return fetch(url, { method:"POST", body:data }).then(res => res.json())
 }
 
-// ========== ADMIN MODAL ==========
+// ================== ADMIN MODAL ==================
 function openAdminModal(){ document.getElementById("adminModal").classList.remove("hidden") }
 function closeAdminModal(){ document.getElementById("adminModal").classList.add("hidden") }
 
-// ========== LOGIN ==========
+// ================== LOGIN ==================
 function checkAdmin(){
   if(document.getElementById("adminPass").value === ADMIN_PASS){
     document.getElementById("adminLogin").classList.add("hidden")
@@ -175,14 +173,14 @@ function checkAdmin(){
   }
 }
 
-// ========== LOAD MUSICS ==========
+// ================== LOAD MUSICS ==================
 async function loadMusics(){
-  let { data } = await db.from("musics").select("*") // tablo adı düzeltildi
+  let { data } = await db.from("musics").select("*")
   musics = data || []
   renderMusics()
 }
 
-// ========== UPLOAD ==========
+// ================== UPLOAD ==================
 async function uploadMusic(){
   let title = musicTitle.value
   let tags = musicTags.value
@@ -199,7 +197,7 @@ async function uploadMusic(){
   let coverRes = await uploadToCloudinary(cover,"image")
   let audioRes = await uploadToCloudinary(file,"video")
 
-  await db.from("musics").insert([{ // tablo adı düzeltildi
+  await db.from("musics").insert([{
     title: title,
     tags: tags,
     cover_url: coverRes.secure_url,
@@ -211,17 +209,17 @@ async function uploadMusic(){
   status.innerText = "✅ Müzik eklendi"
 }
 
-// ========== DELETE ==========
+// ================== DELETE ==================
 async function deleteMusic(index){
   if(confirm("Silinsin mi?")){
     let music = musics[index]
-    await db.from("musics").delete().eq("audio_url", music.audio_url) // tablo adı düzeltildi
+    await db.from("musics").delete().eq("audio_url", music.audio_url)
     await loadMusics()
     renderAdminList()
   }
 }
 
-// ========== RENDER ==========
+// ================== RENDER ==================
 function renderMusics(){
   musicList.innerHTML = ""
   const search = document.getElementById("search").value.toLowerCase()
@@ -241,7 +239,6 @@ function renderMusics(){
   })
 }
 
-// ========== ADMIN LIST ==========
 function renderAdminList(){
   adminMusicList.innerHTML = ""
   musics.forEach((m,i)=>{
@@ -255,7 +252,7 @@ function renderAdminList(){
   })
 }
 
-// ========== PLAYER ==========
+// ================== PLAYER ==================
 function playMusic(index){
   currentIndex = index
   let m = musics[index]
@@ -279,7 +276,7 @@ function togglePlay(){
 function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
 function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
 
-// ========== LOAD ==========
+// ================== ONLOAD ==================
 window.onload = () => { loadMusics() }
 
 </script>
