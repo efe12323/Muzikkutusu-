@@ -22,9 +22,10 @@
 <body class="bg-dark text-white">
 
 <!-- HEADER -->
-<div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center shadow-lg">
+<div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex flex-col gap-1 shadow-lg">
   <h1 class="text-2xl font-bold text-primary">🎵 Müzik Kutusu</h1>
-  <div class="flex gap-3">
+  <p class="text-sm text-gray-400">%100 ücretsiz, telifsiz müzikler</p>
+  <div class="flex gap-3 mt-2">
     <input id="search" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-36 sm:w-56">
     <select id="filter" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-28 sm:w-48">
       <option value="all">Tümü</option>
@@ -45,15 +46,16 @@
 <!-- PLAYER -->
 <div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-5">
   <div class="flex items-center gap-4">
-    <img id="playerCover" class="w-14 h-14 rounded-md object-cover">
+    <img id="playerCover" class="w-14 h-14 rounded-md object-top object-cover">
     <p id="playerTitle" class="font-semibold"></p>
   </div>
-  <div class="flex items-center gap-5 text-2xl">
+  <div class="flex items-center gap-3 sm:gap-5 text-2xl">
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
     <a id="downloadBtn" download>⬇</a>
     <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
+    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
   </div>
 </div>
 
@@ -65,6 +67,7 @@ const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
 let musics = [];
 let audio = new Audio();
 let currentIndex = 0;
+let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 
 // Müzikleri yükle ve rastgele sırala
 async function loadMusics(){
@@ -92,11 +95,12 @@ function renderMusics(){
     (filter === "all" || (m.tags || "").includes(filter))
   ).forEach((m,i)=>{
     const card = document.createElement("div");
-    card.className = "bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer";
+    card.className = "bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer relative";
     card.innerHTML = `
-      <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
+      <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-top object-cover">
       <p class="font-semibold text-white">${m.title}</p>
       <p class="text-sm text-gray-400">${m.tags}</p>
+      <button onclick="toggleFavoriteFromList(${i}, event)" class="absolute top-2 right-2 text-xl text-yellow-400">${favorites.includes(m.objectId) ? "★" : "☆"}</button>
     `;
     card.onclick = () => playMusic(i);
     container.appendChild(card);
@@ -115,6 +119,7 @@ function playMusic(index){
   audio.src = m.audio_url;
   audio.play();
   document.getElementById("playPause").innerText = "⏸";
+  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
 }
 
 function togglePlay(){
@@ -133,6 +138,32 @@ function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
 function closePlayer(){
   audio.pause();
   document.getElementById("player").classList.add("hidden");
+}
+
+// Favorilere ekleme
+function toggleFavorite(){
+  const m = musics[currentIndex];
+  if(favorites.includes(m.objectId)){
+    favorites = favorites.filter(id => id !== m.objectId);
+  } else {
+    favorites.push(m.objectId);
+  }
+  localStorage.setItem("favorites", JSON.stringify(favorites));
+  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
+  renderMusics();
+}
+
+// Listeden favori butonuna tıklama
+function toggleFavoriteFromList(index, e){
+  e.stopPropagation(); // card onclick engelle
+  const m = musics[index];
+  if(favorites.includes(m.objectId)){
+    favorites = favorites.filter(id => id !== m.objectId);
+  } else {
+    favorites.push(m.objectId);
+  }
+  localStorage.setItem("favorites", JSON.stringify(favorites));
+  renderMusics();
 }
 
 window.onload = loadMusics;
