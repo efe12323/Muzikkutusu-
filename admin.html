@@ -100,7 +100,7 @@ async function uploadMusic(){
   if(!title || !tags || !cover || !file){ alert("Tüm alanları doldur"); return; }
 
   status.innerText = "Yükleniyor...";
-  // Cloudinary upload
+
   const coverRes = await fetch(`https://api.cloudinary.com/v1_1/dq4iighak/image/upload`, {
     method:"POST",
     body: (()=>{ let fd = new FormData(); fd.append("file", cover); fd.append("upload_preset","music_upload"); return fd; })()
