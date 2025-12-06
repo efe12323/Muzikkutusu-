@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Müzik Kutusu</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#1DB954',
+        dark: '#0f0f0f',
+        card: '#191919'
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="bg-dark text-white flex flex-col items-center min-h-screen p-4">
+
+<h1 class="text-3xl font-bold text-primary mb-6">Admin Panel</h1>
+
+<div id="adminLogin" class="w-full max-w-md flex flex-col gap-4">
+  <input id="adminPass" type="password" placeholder="Admin şifresi" class="w-full p-3 rounded bg-neutral-800">
+  <button onclick="checkAdmin()" class="w-full bg-primary text-black py-2 font-bold rounded">Giriş Yap</button>
+</div>
+
+<div id="adminPanel" class="hidden w-full max-w-xl flex flex-col gap-4">
+  <h2 class="text-xl font-bold text-primary">Yeni Müzik Ekle</h2>
+  <input id="musicTitle" placeholder="Başlık" class="w-full p-2 rounded bg-neutral-800">
+  <input id="musicTags" placeholder="Etiketler" class="w-full p-2 rounded bg-neutral-800">
+  <p class="text-sm text-gray-400">Kapak Resmi</p>
+  <input id="musicCover" type="file" accept="image/*" class="w-full mb-2">
+  <p class="text-sm text-gray-400">Müzik Dosyası (mp3)</p>
+  <input id="musicFile" type="file" accept="audio/*" class="w-full mb-2">
+  <button onclick="uploadMusic()" class="bg-primary text-black py-2 font-bold rounded">Müzik Yükle</button>
+  <p id="status" class="text-sm text-gray-400 text-center"></p>
+
+  <hr class="border-neutral-700 my-4">
+
+  <h2 class="text-xl font-bold text-primary">Yüklenen Müzikler</h2>
+  <div id="adminMusicList" class="flex flex-col gap-4"></div>
+</div>
+
+<script>
+const ADMIN_PASS = "efe12345efe";
+const APP_ID = "BURAYA_APP_ID";
+const REST_KEY = "BURAYA_REST_API_KEY";
+const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
+let musics = [];
+let audio = new Audio();
+
+function checkAdmin(){
+  if(document.getElementById("adminPass").value === ADMIN_PASS){
+    document.getElementById("adminLogin").classList.add("hidden");
+    document.getElementById("adminPanel").classList.remove("hidden");
+    loadMusics();
+  } else alert("Hatalı şifre");
+}
+
+async function loadMusics(){
+  const res = await fetch(API_URL);
+  const data = await res.json();
+  if(Array.isArray(data)) musics = data;
+  else if(data.data && Array.isArray(data.data)) musics = data.data;
+  else musics = [];
+  renderAdminList();
+}
+
+function renderAdminList(){
+  const container = document.getElementById("adminMusicList");
+  container.innerHTML = "";
+  musics.forEach((m,i)=>{
+    const div = document.createElement("div");
+    div.className = "bg-card p-3 rounded flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2";
+    div.innerHTML = `
+      <div class="flex gap-2 items-center">
+        <img src="${m.cover_url}" class="h-24 rounded">
+        <div>
+          <p class="font-bold text-white">${m.title}</p>
+          <p class="text-sm text-gray-400">${m.tags}</p>
+        </div>
+      </div>
+      <button onclick="deleteMusic(${i})" class="bg-red-600 px-3 py-1 rounded">Sil</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function uploadMusic(){
+  const title = musicTitle.value;
+  const tags = musicTags.value;
+  const cover = musicCover.files[0];
+  const file  = musicFile.files[0];
+  const status = document.getElementById("status");
+
+  if(!title || !tags || !cover || !file){ alert("Tüm alanları doldur"); return; }
+
+  status.innerText = "Yükleniyor...";
+  // Cloudinary upload
+  const coverRes = await fetch(`https://api.cloudinary.com/v1_1/dq4iighak/image/upload`, {
+    method:"POST",
+    body: (()=>{ let fd = new FormData(); fd.append("file", cover); fd.append("upload_preset","music_upload"); return fd; })()
+  }).then(r=>r.json());
+  const audioRes = await fetch(`https://api.cloudinary.com/v1_1/dq4iighak/video/upload`, {
+    method:"POST",
+    body: (()=>{ let fd = new FormData(); fd.append("file", file); fd.append("upload_preset","music_upload"); return fd; })()
+  }).then(r=>r.json());
+
+  await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({title,tags,cover_url:coverRes.secure_url,audio_url:audioRes.secure_url})
+  });
+
+  status.innerText = "✅ Müzik eklendi";
+  loadMusics();
+}
+
+async function deleteMusic(index){
+  if(confirm("Silinsin mi?")){
+    let music = musics[index];
+    if(!music.objectId){ alert("Kayıt ID bulunamadı"); return; }
+    await fetch(`${API_URL}/${music.objectId}`,{method:"DELETE"});
+    loadMusics();
+  }
+}
+</script>
+</body>
+</html>
