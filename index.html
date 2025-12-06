@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Müzik Kutusu</title>
-
 <script src="https://cdn.tailwindcss.com"></script>
 
 <script>
@@ -13,8 +12,8 @@ tailwind.config = {
     extend: {
       colors: {
         primary: '#1DB954',
-        dark: '#0B0B0B',
-        card: '#161616'
+        dark: '#0f0f0f',
+        card: '#191919'
       }
     }
   }
@@ -25,251 +24,325 @@ tailwind.config = {
 <body class="bg-dark text-white">
 
 <!-- HEADER -->
-<div class="p-5 flex flex-col md:flex-row justify-between items-center gap-4 bg-black/80 backdrop-blur shadow-lg sticky top-0 z-50">
-  <div class="flex items-center gap-2">
-    <h1 class="text-3xl font-extrabold text-primary tracking-wide">🎧 Müzik Kutusu</h1>
-  </div>
-  <p class="text-sm text-gray-400">%100 Ücretsiz • Telifsiz müzik platformu</p>
+<div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center shadow-lg">
+  <h1 class="text-2xl font-bold text-primary">🎵 Müzik Kutusu</h1>
 
-  <div class="flex gap-2">
-    <input id="search" oninput="renderMusics()" placeholder="Ara..."
-      class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
+  <div class="flex gap-3">
+    <input
+      id="search"
+      oninput="renderMusics()"
+      placeholder="Ara..."
+      class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-56"
+    >
     <select id="filter" onchange="renderMusics()"
-      class="bg-neutral-800 px-4 py-2 rounded-xl">
+      class="bg-neutral-800 px-4 py-2 rounded-xl outline-none">
       <option value="all">Tümü</option>
-      <option>Rap</option>
-      <option>Pop</option>
-      <option>Rock</option>
-      <option>Anadolu Rock</option>
-      <option>Chill</option>
-      <option>Jazz</option>
-      <option>Lo-Fi</option>
-      <option>Electronic</option>
+      <option value="Rap">Rap</option>
+      <option value="Chill">Chill</option>
+      <option value="Rock">Rock</option>
+      <option value="Anadolu Rock">Anadolu Rock</option>
     </select>
   </div>
 </div>
 
-<!-- MÜZİKLER -->
-<div id="musicList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-40"></div>
+<!-- GRID ALANI -->
+<div id="musicList" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-32"></div>
 
 <!-- PLAYER -->
 <div id="player"
-  class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg p-4 flex justify-between items-center border-t border-neutral-700">
+  class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex justify-between items-center">
 
-  <div class="flex items-center gap-3">
-    <img id="playerCover" class="w-14 h-14 rounded-lg object-cover">
+  <div class="flex items-center gap-4">
+    <img id="playerCover" class="w-14 h-14 rounded-md object-cover">
     <p id="playerTitle" class="font-semibold"></p>
   </div>
 
-  <div class="flex gap-6 text-2xl items-center">
+  <div class="flex items-center gap-5 text-2xl">
     <button onclick="prevMusic()">⏮</button>
-    <button id="playPause" onclick="togglePlay()">▶</button>
+    <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
-    <a id="downloadBtn" download class="text-primary">⬇</a>
+    <a id="downloadBtn" download>⬇</a>
   </div>
 </div>
 
-<!-- ADMIN BUTTON -->
-<button onclick="openAdminModal()"
-class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-primary text-black px-6 py-3 font-bold rounded-full shadow-xl hover:scale-105 transition">
+<!-- ADMIN BUTONU (EN ALT) -->
+<button
+  onclick="openAdminModal()"
+  class="fixed bottom-24 right-6 bg-primary text-black px-5 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition">
   Admin Panel
 </button>
 
 <!-- ADMIN MODAL -->
-<div id="adminModal" class="hidden fixed inset-0 bg-black/70 flex justify-center items-center z-50">
-  <div class="bg-card p-6 rounded-xl w-full max-w-xl">
+<div id="adminModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
 
-    <h2 class="text-xl font-bold text-primary mb-4">Admin Panel</h2>
+  <div class="bg-card w-full max-w-2xl p-6 rounded-xl shadow-2xl overflow-y-auto max-h-[90vh]">
 
+    <h2 class="text-2xl text-primary font-bold mb-4">Admin Panel</h2>
+
+    <!-- LOGIN -->
     <div id="adminLogin">
-      <input id="adminPass" type="password" placeholder="Şifre"
-      class="w-full p-3 bg-neutral-800 rounded mb-3">
+      <input id="adminPass" type="password" placeholder="Admin şifresi"
+        class="w-full p-3 rounded bg-neutral-800 mb-4">
       <button onclick="checkAdmin()"
-      class="w-full bg-primary text-black py-2 font-bold rounded">
+        class="w-full bg-primary py-2 text-black font-bold rounded">
         Giriş Yap
       </button>
     </div>
 
+    <!-- PANEL -->
     <div id="adminPanel" class="hidden">
 
-      <input id="musicTitle" placeholder="Müzik Başlığı"
-      class="w-full p-2 mb-2 bg-neutral-800 rounded">
+      <h3 class="text-lg mb-3">Yeni Müzik Ekle</h3>
 
-      <input id="musicTags" placeholder="Etiketler"
-      class="w-full p-2 mb-2 bg-neutral-800 rounded">
+      <input id="musicTitle" placeholder="Başlık"
+        class="w-full p-2 mb-2 rounded bg-neutral-800">
 
+      <input id="musicTags" placeholder="Etiketler (örn: Chill, Rap)"
+        class="w-full p-2 mb-2 rounded bg-neutral-800">
+
+      <p class="text-sm text-gray-400">Kapak Resmi</p>
       <input id="musicCover" type="file" accept="image/*"
-      class="mb-3 w-full">
+        class="w-full mb-2">
 
+      <p class="text-sm text-gray-400">Müzik Dosyası (mp3)</p>
       <input id="musicFile" type="file" accept="audio/*"
-      class="mb-4 w-full">
+        class="w-full mb-4">
 
       <button onclick="uploadMusic()"
-      class="w-full bg-primary text-black py-2 rounded font-bold">
+        class="w-full bg-primary text-black py-2 rounded font-bold">
         Müzik Yükle
       </button>
 
-      <p id="status" class="text-center text-sm mt-2"></p>
+      <p id="status" class="text-center text-sm text-gray-400 mt-2"></p>
 
-      <div id="adminMusicList" class="mt-6 space-y-3"></div>
+      <hr class="my-6 border-neutral-700">
+
+      <h3 class="text-lg mb-4">Yüklenen Müzikler</h3>
+      <div id="adminMusicList" class="space-y-4"></div>
 
       <button onclick="closeAdminModal()"
-      class="mt-6 w-full bg-neutral-800 py-2 rounded">
+        class="w-full mt-6 bg-neutral-800 py-2 rounded">
         Kapat
       </button>
 
     </div>
+
   </div>
 </div>
 
 <script>
+// ==== CLOUDINARY ====
 const CLOUD_NAME = "dq4iighak";
 const UPLOAD_PRESET = "music_upload";
-const ADMIN_PASS = "efe12345efe";
-const JSON_FILE = "music_list.json";
 
+// ==== GLOBAL ====
 let musics = [];
 let audio = new Audio();
 let currentIndex = 0;
+const ADMIN_PASS = "efe12345efe";
 
-function cloudUrl(name){
-  return `https://res.cloudinary.com/${CLOUD_NAME}/raw/upload/${name}`;
-}
-
-async function loadMusics(){
-  try {
-    const res = await fetch(cloudUrl(JSON_FILE));
-    musics = await res.json();
-  } catch {
-    musics = [];
-  }
-  renderMusics();
-}
-
-async function saveMusics(){
-  const blob = new Blob([JSON.stringify(musics)], { type: 'application/json' });
-  const data = new FormData();
-  data.append("file", blob);
-  data.append("upload_preset", UPLOAD_PRESET);
-  data.append("public_id", "music_list");
-  data.append("overwrite", "true");
-
-  await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`, { 
-    method: "POST", body: data
-  });
-}
-
+// ==== UPLOAD ====
 function uploadToCloudinary(file, type){
-  const data = new FormData();
-  data.append("file", file);
-  data.append("upload_preset", UPLOAD_PRESET);
-  return fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`,
-    { method: "POST", body: data }).then(r=>r.json());
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${type}/upload`
+  let data = new FormData()
+  data.append("file", file)
+  data.append("upload_preset", UPLOAD_PRESET)
+  return fetch(url,{method:"POST",body:data}).then(r=>r.json())
 }
 
+// ==== ADMIN ====
+function openAdminModal(){ 
+  document.getElementById("adminModal").classList.remove("hidden") 
+}
+function closeAdminModal(){ 
+  document.getElementById("adminModal").classList.add("hidden") 
+}
+
+function checkAdmin(){
+  if(document.getElementById("adminPass").value == ADMIN_PASS){
+    document.getElementById("adminLogin").classList.add("hidden")
+    document.getElementById("adminPanel").classList.remove("hidden")
+    renderAdminList()
+  } else alert("Hatalı şifre")
+}
+
+// ==== ADD MUSIC ====
 async function uploadMusic(){
-  let title = musicTitle.value;
-  let tags = musicTags.value;
-  let cover = musicCover.files[0];
-  let file = musicFile.files[0];
+  let title = musicTitle.value
+  let tags = musicTags.value
+  let cover = musicCover.files[0]
+  let file  = musicFile.files[0]
 
   if(!title || !tags || !cover || !file){
-    alert("Tüm alanları doldur");
-    return;
+    alert("Tüm alanları doldur")
+    return
   }
 
-  status.innerText = "Yükleniyor...";
+  status.innerText = "Yükleniyor..."
 
-  let coverRes = await uploadToCloudinary(cover,"image");
-  let musicRes = await uploadToCloudinary(file,"video");
+  let coverRes = await uploadToCloudinary(cover,"image")
+  let audioRes = await uploadToCloudinary(file,"video")
 
   musics.push({
     title,
     tags,
     cover_url: coverRes.secure_url,
-    audio_url: musicRes.secure_url
-  });
+    audio_url: audioRes.secure_url
+  })
 
-  await saveMusics();
-  renderMusics();
-  renderAdminList();
-  status.innerText = "Başarıyla eklendi ✅";
+  save()
+  renderMusics()
+  renderAdminList()
+
+  status.innerText = "Müzik eklendi"
 }
 
-function deleteMusic(i){
-  if(confirm("Silmek istediğinize emin misiniz?")){
-    musics.splice(i,1);
-    saveMusics().then(()=>{
-      renderMusics();
-      renderAdminList();
-    });
+// ==== DELETE ====
+function deleteMusic(index){
+  if(confirm("Silinsin mi?")){
+    musics.splice(index,1)
+    save()
+    renderMusics()
+    renderAdminList()
   }
 }
 
-function renderMusics(){
-  musicList.innerHTML="";
-  const s = search.value.toLowerCase();
-  const f = filter.value;
+// ==== EDIT ====
+async function updateCover(index, input){
+  let file = input.files[0]
+  if(!file) return
 
-  musics.filter(m =>
-    m.title.toLowerCase().includes(s) &&
-    (f=="all" || m.tags.includes(f))
-  ).forEach((m,i)=>{
+  let res = await uploadToCloudinary(file,"image")
+  musics[index].cover_url = res.secure_url
+  save()
+  renderMusics()
+  renderAdminList()
+}
+
+function updateTitle(index, val){
+  musics[index].title = val
+  save()
+  renderMusics()
+}
+
+function updateTags(index,val){
+  musics[index].tags = val
+  save()
+  renderMusics()
+}
+
+// ==== RENDER ====
+function renderMusics(){
+  musicList.innerHTML = ""
+
+  const search = searchInput = document.getElementById("search").value.toLowerCase()
+  const filter = document.getElementById("filter").value
+
+  musics.filter(m => 
+      m.title.toLowerCase().includes(search) &&
+      (filter == "all" || m.tags.includes(filter))
+    ).forEach((m,i)=>{
+
     musicList.innerHTML += `
     <div onclick="playMusic(${i})"
-    class="bg-card p-3 rounded-xl shadow hover:scale-105 transition cursor-pointer">
-    <img src="${m.cover_url}" class="rounded-lg h-48 w-full object-cover mb-2">
-    <p class="font-semibold">${m.title}</p>
-    <p class="text-sm text-gray-400">${m.tags}</p>
+      class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
+      <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
+      <p class="font-semibold">${m.title}</p>
+      <p class="text-sm text-gray-400">${m.tags}</p>
     </div>`
   })
 }
 
+// ==== ADMIN LIST ====
 function renderAdminList(){
-  adminMusicList.innerHTML="";
+  adminMusicList.innerHTML = ""
+
   musics.forEach((m,i)=>{
-    adminMusicList.innerHTML+=`
-    <div class="bg-neutral-800 p-2 rounded">
-      <img src="${m.cover_url}" class="h-20 mb-2 rounded">
-      <p>${m.title}</p>
-      <button onclick="deleteMusic(${i})"
-      class="bg-red-600 mt-2 px-3 py-1 rounded">Sil</button>
-    </div>`
-  });
+    adminMusicList.innerHTML += `
+      <div class="bg-neutral-800 p-3 rounded-lg">
+        <img src="${m.cover_url}" class="h-24 rounded mb-2">
+
+        <input value="${m.title}" 
+          onchange="updateTitle(${i}, this.value)"
+          class="w-full mb-2 p-1 bg-neutral-700 rounded">
+
+        <input value="${m.tags}" 
+          onchange="updateTags(${i}, this.value)"
+          class="w-full mb-2 p-1 bg-neutral-700 rounded">
+
+        <input type="file" accept="image/*"
+          onchange="updateCover(${i}, this)">
+
+        <button onclick="deleteMusic(${i})"
+          class="mt-2 bg-red-600 px-3 py-1 rounded">Sil</button>
+      </div>`
+  })
 }
 
-function playMusic(i){
-  currentIndex=i;
-  let m=musics[i];
-  player.classList.remove("hidden");
-  playerCover.src=m.cover_url;
-  playerTitle.innerText=m.title;
-  audio.src=m.audio_url;
-  downloadBtn.href=m.audio_url;
-  audio.play(); playPause.innerText="⏸";
+// ==== PLAYER ====
+function playMusic(index){
+  currentIndex = index
+  let m = musics[index]
+  player.classList.remove("hidden")
+  playerCover.src = m.cover_url
+  playerTitle.innerText = m.title
+  downloadBtn.href = m.audio_url
+
+  audio.src = m.audio_url
+  audio.play()
+  playPause.innerText = "⏸"
 }
+
 function togglePlay(){
-  if(audio.paused){audio.play();playPause.innerText="⏸";}
-  else{audio.pause();playPause.innerText="▶";}
+  if(audio.paused){
+    audio.play()
+    playPause.innerText = "⏸"
+  } else {
+    audio.pause()
+    playPause.innerText = "▶"
+  }
 }
-function nextMusic(){if(currentIndex<musics.length-1)playMusic(currentIndex+1);}
-function prevMusic(){if(currentIndex>0)playMusic(currentusicIndex-1);}
+function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
+function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
+// ==== CLOUDINARY JSON STORAGE ====
+const LIST_FILE = "music_list_json"; // cloudinary'de tutulacak dosya adı
 
-function openAdminModal(){
-  adminModal.classList.remove("hidden");
-}
-function closeAdminModal(){
-  adminModal.classList.add("hidden");
-}
-function checkAdmin(){
-  if(adminPass.value===ADMIN_PASS){
-    adminLogin.classList.add("hidden");
-    adminPanel.classList.remove("hidden");
-    renderAdminList();
-  } else alert("Hatalı şifre");
+async function loadFromCloud(){
+  try {
+    const res = await fetch(
+      `https://res.cloudinary.com/${CLOUD_NAME}/raw/upload/${LIST_FILE}.json?${Date.now()}`
+    )
+    musics = await res.json()
+  } catch (e){
+    musics = []
+  }
 }
 
-loadMusics();
+async function saveToCloud(){
+  const blob = new Blob([JSON.stringify(musics)], { type: "application/json" })
+  const form = new FormData()
+
+  form.append("file", blob)
+  form.append("upload_preset", UPLOAD_PRESET)
+  form.append("public_id", LIST_FILE)
+
+  await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`, {
+    method: "POST",
+    body: form
+  })
+}
+
+// ESKİ save() yerine bunu kullan
+function save(){
+  saveToCloud()
+}
+
+// Sayfa açıldığında Cloudinary’den çeksin
+window.onload = async () => {
+  await loadFromCloud()
+  renderMusics()
+      }
 </script>
+
 </body>
 </html>
