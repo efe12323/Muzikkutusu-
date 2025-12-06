@@ -55,7 +55,7 @@
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
-    <a id="downloadBtn" download>⬇</a>
+    <a id="downloadBtn" href="#" onclick="openInNewWindow(event)">⬇</a>
     <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
     <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
   </div>
@@ -171,6 +171,15 @@ function toggleFavoriteFromList(index, e){
   }
   localStorage.setItem("favorites", JSON.stringify(favorites));
   renderMusics();
+}
+
+// Download butonu yeni pencerede açsın
+function openInNewWindow(e){
+  e.preventDefault();
+  const m = musics[currentIndex];
+  if(m && m.audio_url){
+    window.open(m.audio_url, "_blank", "width=600,height=100");
+  }
 }
 
 window.onload = loadMusics;
