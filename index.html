@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Müzik Kutusu</title>
+
+<!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // ==================== TAILWIND CONFIG ====================
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '#1DB954', // yeşil
+          dark: '#0f0f0f',    // arka plan
+          card: '#191919'     // kart arka planı
+        }
+      }
+    }
+  }
+</script>
 </head>
 <body class="bg-dark text-white">
 
@@ -78,7 +94,7 @@
 <script>
 // ==================== CONFIG ====================
 const ADMIN_PASS = "efe12345efe";
-const APP_ID = "637D6A77-BB29-401E-924F-375EBB7DD458";         // Backendless App ID
+const APP_ID = "bu637D6A77-BB29-401E-924F-375EBB7DD458";         // Backendless App ID
 const REST_KEY = "6F69C295-2945-4FBE-9D27-F9FED5ADFC9B"; // Backendless REST API Key
 const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
 
@@ -178,7 +194,7 @@ function renderMusics(){
     musicList.innerHTML += `
     <div onclick="playMusic(${i})" class="bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer">
       <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-cover">
-      <p class="font-semibold">${m.title}</p>
+      <p class="font-semibold text-white">${m.title}</p>
       <p class="text-sm text-gray-400">${m.tags}</p>
     </div>`;
   });
@@ -188,9 +204,9 @@ function renderAdminList(){
   adminMusicList.innerHTML = "";
   musics.forEach((m,i)=>{
     adminMusicList.innerHTML += `
-      <div class="bg-neutral-800 p-3 rounded-lg">
+      <div class="bg-card p-3 rounded-lg">
         <img src="${m.cover_url}" class="h-24 rounded mb-2">
-        <p class="font-bold">${m.title}</p>
+        <p class="font-bold text-white">${m.title}</p>
         <p class="text-sm text-gray-400">${m.tags}</p>
         <button onclick="deleteMusic(${i})" class="mt-2 bg-red-600 px-3 py-1 rounded">Sil</button>
       </div>`;
