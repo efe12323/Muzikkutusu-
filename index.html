@@ -55,9 +55,19 @@
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
-    <a id="downloadBtn" href="#" onclick="openInNewWindow(event)">⬇</a>
+    <button onclick="openDownloadModal()">⬇</button>
     <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
     <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
+  </div>
+</div>
+
+<!-- DOWNLOAD MODAL -->
+<div id="downloadModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+  <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-2xl relative">
+    <button onclick="closeDownloadModal()" class="absolute top-3 right-3 text-red-500 text-xl font-bold">✖️</button>
+    <h2 class="text-lg text-primary font-bold mb-4">Müziği Dinle / İndir</h2>
+    <audio id="modalAudio" controls class="w-full mb-4"></audio>
+    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded font-bold block text-center" download>İndir</a>
   </div>
 </div>
 
@@ -122,13 +132,13 @@ function playMusic(index){
   player.classList.remove("hidden");
   document.getElementById("playerCover").src = m.cover_url;
   document.getElementById("playerTitle").innerText = m.title;
-  document.getElementById("downloadBtn").href = m.audio_url;
   audio.src = m.audio_url;
   audio.play();
   document.getElementById("playPause").innerText = "⏸";
   document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
 }
 
+// Player kontrolleri
 function togglePlay(){
   if(audio.paused){
     audio.play();
@@ -138,14 +148,9 @@ function togglePlay(){
     document.getElementById("playPause").innerText="▶";
   }
 }
-
 function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
 function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
-
-function closePlayer(){
-  audio.pause();
-  document.getElementById("player").classList.add("hidden");
-}
+function closePlayer(){ audio.pause(); document.getElementById("player").classList.add("hidden"); }
 
 // Favorilere ekleme
 function toggleFavorite(){
@@ -159,10 +164,8 @@ function toggleFavorite(){
   document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
   renderMusics();
 }
-
-// Listeden favori butonuna tıklama
 function toggleFavoriteFromList(index, e){
-  e.stopPropagation(); // card onclick engelle
+  e.stopPropagation();
   const m = musics[index];
   if(favorites.includes(m.objectId)){
     favorites = favorites.filter(id => id !== m.objectId);
@@ -173,13 +176,23 @@ function toggleFavoriteFromList(index, e){
   renderMusics();
 }
 
-// Download butonu yeni pencerede açsın
-function openInNewWindow(e){
-  e.preventDefault();
+// DOWNLOAD MODAL
+function openDownloadModal(){
   const m = musics[currentIndex];
-  if(m && m.audio_url){
-    window.open(m.audio_url, "_blank", "width=600,height=100");
-  }
+  if(!m) return;
+  document.getElementById("downloadModal").classList.remove("hidden");
+  const audioEl = document.getElementById("modalAudio");
+  audioEl.src = m.audio_url;
+  audioEl.play();
+  const downloadLink = document.getElementById("modalDownload");
+  downloadLink.href = m.audio_url;
+  downloadLink.setAttribute("download", m.title + ".mp3");
+}
+
+function closeDownloadModal(){
+  const audioEl = document.getElementById("modalAudio");
+  audioEl.pause();
+  document.getElementById("downloadModal").classList.add("hidden");
 }
 
 window.onload = loadMusics;
