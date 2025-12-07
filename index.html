@@ -21,17 +21,22 @@ tailwind.config = {
   }
 }
 </script>
+
+<style>
+img { object-fit: cover; object-position: center center; }
+.glass { background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); }
+</style>
 </head>
 
 <body class="bg-dark text-white">
 
 <!-- HEADER -->
-<div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex flex-col gap-1 shadow-lg">
+<div class="w-full p-4 bg-black/70 backdrop-blur-md sticky top-0 z-50 flex flex-col gap-1 shadow-lg">
 
   <div class="flex justify-between items-center">
     <div>
       <h1 class="text-2xl font-bold text-primary">🎵 Müzik Kutusu</h1>
-      <p class="text-sm text-gray-400">%100 ücretsiz, telifsiz & yapay zeka müzikler</p>
+      <p class="text-sm text-gray-400">%100 ücretsiz, telifsiz müzik platformu</p>
     </div>
 
     <div class="flex gap-2">
@@ -44,24 +49,25 @@ tailwind.config = {
     <input id="searchInput" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-36 sm:w-56">
     <select id="filterSelect" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-28 sm:w-48">
       <option value="all">Tümü</option>
-      <option value="Rap">Rap</option>
-      <option value="Chill">Chill</option>
-      <option value="Rock">Rock</option>
-      <option value="Anadolu Rock">Anadolu Rock</option>
-      <option value="Electronic">Electronic</option>
-      <option value="Lo-fi">Lo-fi</option>
-      <option value="Jazz">Jazz</option>
-      <option value="Pop">Pop</option>
-      <option value="Türkü">Türkü</option>
+      <option>Rap</option>
+      <option>Chill</option>
+      <option>Rock</option>
+      <option>Anadolu Rock</option>
+      <option>Electronic</option>
+      <option>Lo-fi</option>
+      <option>Jazz</option>
+      <option>Pop</option>
+      <option>Türkü</option>
     </select>
   </div>
 </div>
 
 <div id="musicList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 pb-32"></div>
 
-<div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-5">
+<!-- PLAYER -->
+<div id="player" class="hidden fixed bottom-0 left-0 right-0 glass border-t border-neutral-700 p-4 flex justify-between items-center">
   <div class="flex items-center gap-4">
-    <img id="playerCover" class="w-14 h-14 rounded-md object-cover">
+    <img id="playerCover" class="w-14 h-14 rounded-md">
     <p id="playerTitle" class="font-semibold"></p>
   </div>
 
@@ -69,215 +75,163 @@ tailwind.config = {
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
-
     <button onclick="saveOffline()">📥</button>
-    <button onclick="openDownloadModal()">⬇</button>
-
+    <button onclick="openDownloadModal()" class="text-sm">⬇</button>
     <button onclick="closePlayer()" class="text-red-500">✖</button>
-    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400">★</button>
+    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400">☆</button>
   </div>
 </div>
 
 <!-- FAVORITES -->
-<div id="favoritePanel" class="hidden fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
-  <div class="bg-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 rounded-xl">
-    <h2 class="text-xl text-primary mb-4">⭐ Favoriler</h2>
-    <div id="favoriteList" class="space-y-2"></div>
-    <button onclick="closeFavorites()" class="mt-4 bg-red-500 w-full py-2 rounded">Kapat</button>
-  </div>
+<div id="favoritePanel" class="hidden fixed inset-0 glass z-50 p-6 overflow-y-auto">
+  <h2 class="text-2xl text-primary mb-4">⭐ Favoriler</h2>
+  <div id="favoriteList" class="space-y-3"></div>
+  <button onclick="closeFavorites()" class="bg-red-500 w-full py-2 mt-6 rounded">Kapat</button>
 </div>
 
 <!-- OFFLINE -->
-<div id="offlinePanel" class="hidden fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
-  <div class="bg-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 rounded-xl">
-    <h2 class="text-xl text-primary mb-4">⬇ Offline Listem</h2>
-    <div id="offlineList" class="space-y-2"></div>
-    <button onclick="closeOffline()" class="mt-4 bg-red-500 w-full py-2 rounded">Kapat</button>
-  </div>
+<div id="offlinePanel" class="hidden fixed inset-0 glass z-50 p-6 overflow-y-auto">
+  <h2 class="text-2xl text-primary mb-4">⬇ Offline Listem</h2>
+  <div id="offlineList" class="space-y-3"></div>
+  <button onclick="closeOffline()" class="bg-red-500 w-full py-2 mt-6 rounded">Kapat</button>
 </div>
 
-<!-- DOWNLOAD MODAL -->
-<div id="downloadModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+<!-- DOWNLOAD -->
+<div id="downloadModal" class="hidden fixed inset-0 glass flex items-center justify-center z-50">
   <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-2xl relative">
-    <button onclick="closeDownloadModal()" class="absolute top-3 right-3 text-red-500 text-xl">✖</button>
-    <h2 class="text-lg text-primary mb-4">Müziği Dinle / İndir</h2>
+    <button onclick="closeDownloadModal()" class="absolute top-3 right-3 text-red-500">✖</button>
     <audio id="modalAudio" controls class="w-full mb-3"></audio>
-    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded block text-center text-sm" download>İndir</a>
+    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded block text-center">İndir</a>
   </div>
 </div>
 
 <script>
+const API_URL = "https://api.backendless.com/637D6A77-BB29-401E-924F-375EBB7DD458/6F69C295-2945-4FBE-9D27-F9FED5ADFC9B/data/musics";
 
-const APP_ID = "637D6A77-BB29-401E-924F-375EBB7DD458";
-const REST_KEY = "6F69C295-2945-4FBE-9D27-F9FED5ADFC9B";
-const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
-
-let musics = [];
-let audio = new Audio();
-let currentIndex = 0;
-let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
-let offline = JSON.parse(localStorage.getItem("offline") || "[]");
-
-const searchInput = document.getElementById("searchInput");
-const filterSelect = document.getElementById("filterSelect");
+let musics=[];
+let audio=new Audio();
+let currentIndex=0;
+let favorites=JSON.parse(localStorage.getItem("favorites")||"[]");
+let offline=JSON.parse(localStorage.getItem("offline")||"[]");
 
 async function loadMusics(){
-  const res = await fetch(API_URL);
-  const data = await res.json();
-  musics = data.data || data;
+  const r=await fetch(API_URL);
+  const d=await r.json();
+  musics=d.data||d;
   renderMusics();
 }
 
 function renderMusics(){
-  const search = searchInput.value.toLowerCase();
-  const filter = filterSelect.value;
+  musicList.innerHTML="";
+  const s=searchInput.value.toLowerCase();
+  const f=filterSelect.value;
 
-  musicList.innerHTML = "";
-
-  musics.filter(m => {
-    const title = (m.title || "").toLowerCase();
-    const tags = (m.tags || "").toString();
-    return title.includes(search) && (filter === "all" || tags.includes(filter));
+  musics.filter(m=>{
+    const t=(m.title||"").toLowerCase();
+    return t.includes(s)&&(f==="all"||(""+m.tags).includes(f));
   }).forEach(m=>{
-    const i = musics.indexOf(m);
-
-    const div = document.createElement("div");
-    div.className = "bg-card p-3 rounded-xl cursor-pointer relative";
-
-    div.innerHTML = `
-      <img src="${m.cover_url}" class="rounded mb-2 h-48 object-cover w-full">
-      <p class="font-bold">${m.title}</p>
-      <p class="text-sm text-gray-400">${m.tags}</p>
-      <button onclick="toggleFavoriteFromList(${i},event)" class="absolute top-2 right-2 text-xl">${favorites.includes(m.objectId) ? "★":"☆"}</button>
+    const i=musics.indexOf(m);
+    const div=document.createElement("div");
+    div.className="bg-card p-3 rounded-xl";
+    div.innerHTML=`
+      <img src="${m.cover_url}" class="rounded mb-2 h-48 w-full">
+      <p>${m.title}</p>
+      <button onclick="toggleFavoriteFromList(${i},event)" class="absolute top-2 right-2 text-xl">${favorites.includes(m.objectId)?"★":"☆"}</button>
     `;
-
-    div.onclick = () => playMusic(i);
+    div.onclick=()=>playMusic(i);
     musicList.appendChild(div);
-  });
+  })
 }
 
 function playMusic(i){
-  const m = musics[i];
-  if(!m) return;
-
+  const m=musics[i];
   closeDownloadModal();
-  currentIndex = i;
-
+  currentIndex=i;
   player.classList.remove("hidden");
-  playerCover.src = m.cover_url;
-  playerTitle.innerText = m.title;
-
+  playerCover.src=m.cover_url;
+  playerTitle.textContent=m.title;
   audio.pause();
-  audio = new Audio(m.audio_url);
+  audio=new Audio(m.audio_url);
   audio.play();
-
-  playPause.innerText="⏸";
-  favBtn.innerText = favorites.includes(m.objectId) ? "★":"☆";
+  playPause.textContent="⏸";
+  favBtn.textContent=favorites.includes(m.objectId)?"★":"☆";
 }
 
 function openDownloadModal(){
-  const m = musics[currentIndex];
-  if(!m) return;
-
   audio.pause();
-
-  modalAudio.src = m.audio_url;
-  modalDownload.href = m.audio_url;
-
+  modalAudio.src=musics[currentIndex].audio_url;
+  modalDownload.href=modalAudio.src;
   downloadModal.classList.remove("hidden");
 }
 
 function closeDownloadModal(){
+  if(!player.classList.contains("hidden")) audio.play();
   modalAudio.pause();
   downloadModal.classList.add("hidden");
 }
 
 function saveOffline(){
-  const m = musics[currentIndex];
+  const m=musics[currentIndex];
   if(!offline.includes(m.objectId)){
     offline.push(m.objectId);
     localStorage.setItem("offline",JSON.stringify(offline));
-    alert("Offline listeye eklendi ✅");
+    alert("Offline eklendi");
   }
 }
 
 function openOffline(){
   offlinePanel.classList.remove("hidden");
-  const list = document.getElementById("offlineList");
-  list.innerHTML="";
-
+  offlineList.innerHTML="";
   offline.forEach(id=>{
-    const m = musics.find(x=>x.objectId === id);
+    const m=musics.find(x=>x.objectId===id);
     if(!m) return;
-
-    const div = document.createElement("div");
-    div.className="bg-neutral-800 flex items-center gap-2 p-2 rounded cursor-pointer";
-    div.innerHTML = `<img src="${m.cover_url}" class="w-10 h-10 rounded object-cover"><p>${m.title}</p>`;
-    div.onclick=()=>{ playMusic(musics.indexOf(m)); closeOffline();}
-    list.appendChild(div);
-  });
-
-  new Sortable(list, { animation:150 });
+    let d=document.createElement("div");
+    d.className="bg-neutral-800 p-3 rounded flex gap-2 items-center";
+    d.innerHTML=`<img src="${m.cover_url}" class="w-10 h-10 rounded"><span>${m.title}</span>`;
+    d.onclick=()=>playMusic(musics.indexOf(m));
+    offlineList.appendChild(d);
+  })
+  new Sortable(offlineList,{animation:150,onEnd:()=>saveOrder("offline")});
 }
-
-function closeOffline(){ offlinePanel.classList.add("hidden"); }
 
 function openFavorites(){
   favoritePanel.classList.remove("hidden");
-  const list = document.getElementById("favoriteList");
-  list.innerHTML="";
-
+  favoriteList.innerHTML="";
   favorites.forEach(id=>{
-    const m = musics.find(x=>x.objectId === id);
+    const m=musics.find(x=>x.objectId===id);
     if(!m) return;
-
-    const div = document.createElement("div");
-    div.className="bg-neutral-800 flex items-center gap-2 p-2 rounded cursor-pointer";
-    div.innerHTML = `<img src="${m.cover_url}" class="w-10 h-10 rounded object-cover"><p>${m.title}</p>`;
-    div.onclick=()=>{ playMusic(musics.indexOf(m)); closeFavorites();}
-    list.appendChild(div);
-  });
-
-  new Sortable(list, { animation:150 });
+    let d=document.createElement("div");
+    d.className="bg-neutral-800 p-3 rounded flex gap-2 items-center";
+    d.innerHTML=`<img src="${m.cover_url}" class="w-10 h-10 rounded"><span>${m.title}</span>`;
+    d.onclick=()=>playMusic(musics.indexOf(m));
+    favoriteList.appendChild(d);
+  })
+  new Sortable(favoriteList,{animation:150,onEnd:()=>saveOrder("favorites")});
 }
 
-function closeFavorites(){ favoritePanel.classList.add("hidden"); }
+function saveOrder(type){
+  const ids=[...document.getElementById(type+"List").children]
+  .map(el=>musics.find(m=>m.title===el.innerText)?.objectId).filter(Boolean);
+  if(type=="favorites"){favorites=ids;localStorage.setItem("favorites",JSON.stringify(ids))}
+  else{offline=ids;localStorage.setItem("offline",JSON.stringify(ids))}
+}
 
 function toggleFavorite(){
-  const m = musics[currentIndex];
-  if(!m) return;
-
-  favorites = favorites.includes(m.objectId)
-    ? favorites.filter(x=>x!==m.objectId)
-    : [...favorites,m.objectId];
-
+  const m=musics[currentIndex];
+  favorites=favorites.includes(m.objectId)?favorites.filter(x=>x!==m.objectId):[...favorites,m.objectId];
   localStorage.setItem("favorites",JSON.stringify(favorites));
-  favBtn.innerText=favorites.includes(m.objectId)?"★":"☆";
+  favBtn.textContent=favorites.includes(m.objectId)?"★":"☆";
 }
 
-function toggleFavoriteFromList(i,e){
-  e.stopPropagation();
-  currentIndex=i;
-  toggleFavorite();
-  renderMusics();
-}
+function toggleFavoriteFromList(i,e){e.stopPropagation();currentIndex=i;toggleFavorite();renderMusics();}
+function togglePlay(){audio.paused?audio.play():audio.pause();}
+function nextMusic(){playMusic(Math.min(currentIndex+1,musics.length-1))}
+function prevMusic(){playMusic(Math.max(currentIndex-1,0))}
+function closePlayer(){audio.pause();player.classList.add("hidden");}
+const closeFavorites=()=>favoritePanel.classList.add("hidden");
+const closeOffline=()=>offlinePanel.classList.add("hidden");
 
-function togglePlay(){
-  if(audio.paused){
-    audio.play();
-    playPause.innerText="⏸"
-  } else {
-    audio.pause();
-    playPause.innerText="▶"
-  }
-}
-
-function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex + 1) }
-function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
-function closePlayer(){ audio.pause(); player.classList.add("hidden"); }
-
-window.onload = loadMusics;
-
+window.onload=loadMusics;
 </script>
 
 </body>
