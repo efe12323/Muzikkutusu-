@@ -94,7 +94,7 @@ async function loadMusics(){
   renderMusics();
 }
 
-// Render müzik listesi
+// ✅ DÜZELTİLEN KISIM
 function renderMusics(){
   const search = (document.getElementById("search").value || "").toLowerCase();
   const filter = document.getElementById("filter").value;
@@ -104,7 +104,10 @@ function renderMusics(){
   musics.filter(m =>
     (m.title || "").toLowerCase().includes(search) &&
     (filter === "all" || (m.tags || "").includes(filter))
-  ).forEach((m,i)=>{
+  ).forEach((m)=>{
+
+    const realIndex = musics.indexOf(m); // ✅ GERÇEK INDEX
+
     const card = document.createElement("div");
     card.className = "bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer relative";
     card.innerHTML = `
@@ -114,9 +117,12 @@ function renderMusics(){
         <span class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">AI</span>
       </div>
       <p class="text-sm text-gray-400">${m.tags}</p>
-      <button onclick="toggleFavoriteFromList(${i}, event)" class="absolute top-2 right-2 text-xl text-yellow-400">${favorites.includes(m.objectId) ? "★" : "☆"}</button>
+      <button onclick="toggleFavoriteFromList(${realIndex}, event)" class="absolute top-2 right-2 text-xl text-yellow-400">
+        ${favorites.includes(m.objectId) ? "★" : "☆"}
+      </button>
     `;
-    card.onclick = () => playMusic(i);
+
+    card.onclick = () => playMusic(realIndex); // ✅ GERÇEK INDEX
     container.appendChild(card);
   });
 }
@@ -135,7 +141,6 @@ function playMusic(index){
   document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
 }
 
-// Player kontrolleri
 function togglePlay(){
   if(audio.paused){
     audio.play();
@@ -145,11 +150,23 @@ function togglePlay(){
     document.getElementById("playPause").innerText="▶";
   }
 }
-function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex+1) }
-function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
-function closePlayer(){ audio.pause(); document.getElementById("player").classList.add("hidden"); }
 
-// Favorilere ekleme
+function nextMusic(){ 
+  if(currentIndex < musics.length - 1) 
+    playMusic(currentIndex+1);
+}
+
+function prevMusic(){ 
+  if(currentIndex > 0) 
+    playMusic(currentIndex - 1);
+}
+
+function closePlayer(){ 
+  audio.pause(); 
+  document.getElementById("player").classList.add("hidden"); 
+}
+
+// Favoriler
 function toggleFavorite(){
   const m = musics[currentIndex];
   if(favorites.includes(m.objectId)){
@@ -161,6 +178,7 @@ function toggleFavorite(){
   document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
   renderMusics();
 }
+
 function toggleFavoriteFromList(index, e){
   e.stopPropagation();
   const m = musics[index];
@@ -178,12 +196,12 @@ function openDownloadModal(){
   const m = musics[currentIndex];
   if(!m) return;
 
-  // Normal player’ı durdur ve durumunu kaydet
   wasPlaying = !audio.paused;
   audio.pause();
 
   const modal = document.getElementById("downloadModal");
   modal.classList.remove("hidden");
+
   const audioEl = document.getElementById("modalAudio");
   audioEl.src = m.audio_url;
   if(wasPlaying) audioEl.play();
@@ -198,11 +216,11 @@ function closeDownloadModal(){
   audioEl.pause();
   document.getElementById("downloadModal").classList.add("hidden");
 
-  // Normal player devam etsin
   if(wasPlaying) audio.play();
 }
 
 window.onload = loadMusics;
 </script>
+
 </body>
 </html>
