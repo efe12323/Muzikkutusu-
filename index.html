@@ -41,8 +41,8 @@ tailwind.config = {
   </div>
 
   <div class="flex gap-3 mt-2">
-    <input id="search" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-36 sm:w-56">
-    <select id="filter" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-28 sm:w-48">
+    <input id="searchInput" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-36 sm:w-56">
+    <select id="filterSelect" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-28 sm:w-48">
       <option value="all">Tümü</option>
       <option value="Rap">Rap</option>
       <option value="Chill">Chill</option>
@@ -57,17 +57,15 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- GRID -->
 <div id="musicList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 pb-32"></div>
 
-<!-- PLAYER -->
 <div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-5">
   <div class="flex items-center gap-4">
-    <img id="playerCover" class="w-14 h-14 rounded-md object-top object-cover">
+    <img id="playerCover" class="w-14 h-14 rounded-md object-cover">
     <p id="playerTitle" class="font-semibold"></p>
   </div>
 
-  <div class="flex items-center gap-3 sm:gap-5 text-2xl">
+  <div class="flex items-center gap-4 text-xl">
     <button onclick="prevMusic()">⏮</button>
     <button id="playPause" onclick="togglePlay()">▶️</button>
     <button onclick="nextMusic()">⏭</button>
@@ -75,12 +73,12 @@ tailwind.config = {
     <button onclick="saveOffline()">📥</button>
     <button onclick="openDownloadModal()">⬇</button>
 
-    <button onclick="closePlayer()" class="text-red-500 text-xl">✖</button>
-    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
+    <button onclick="closePlayer()" class="text-red-500">✖</button>
+    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400">★</button>
   </div>
 </div>
 
-<!-- FAVORITES PANEL -->
+<!-- FAVORITES -->
 <div id="favoritePanel" class="hidden fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
   <div class="bg-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 rounded-xl">
     <h2 class="text-xl text-primary mb-4">⭐ Favoriler</h2>
@@ -89,10 +87,10 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- OFFLINE PANEL -->
+<!-- OFFLINE -->
 <div id="offlinePanel" class="hidden fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
   <div class="bg-card w-full max-w-lg max-h-[80vh] overflow-y-auto p-5 rounded-xl">
-    <h2 class="text-xl text-primary mb-4">⬇ Offline Müzikler</h2>
+    <h2 class="text-xl text-primary mb-4">⬇ Offline Listem</h2>
     <div id="offlineList" class="space-y-2"></div>
     <button onclick="closeOffline()" class="mt-4 bg-red-500 w-full py-2 rounded">Kapat</button>
   </div>
@@ -103,8 +101,8 @@ tailwind.config = {
   <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-2xl relative">
     <button onclick="closeDownloadModal()" class="absolute top-3 right-3 text-red-500 text-xl">✖</button>
     <h2 class="text-lg text-primary mb-4">Müziği Dinle / İndir</h2>
-    <audio id="modalAudio" controls class="w-full mb-4"></audio>
-    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded block text-center" download>İndir</a>
+    <audio id="modalAudio" controls class="w-full mb-3"></audio>
+    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded block text-center text-sm" download>İndir</a>
   </div>
 </div>
 
@@ -120,6 +118,9 @@ let currentIndex = 0;
 let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let offline = JSON.parse(localStorage.getItem("offline") || "[]");
 
+const searchInput = document.getElementById("searchInput");
+const filterSelect = document.getElementById("filterSelect");
+
 async function loadMusics(){
   const res = await fetch(API_URL);
   const data = await res.json();
@@ -133,10 +134,11 @@ function renderMusics(){
 
   musicList.innerHTML = "";
 
-  musics.filter(m =>
-    m.title.toLowerCase().includes(search) &&
-    (filter === "all" || m.tags.includes(filter))
-  ).forEach(m=>{
+  musics.filter(m => {
+    const title = (m.title || "").toLowerCase();
+    const tags = (m.tags || "").toString();
+    return title.includes(search) && (filter === "all" || tags.includes(filter));
+  }).forEach(m=>{
     const i = musics.indexOf(m);
 
     const div = document.createElement("div");
@@ -146,24 +148,48 @@ function renderMusics(){
       <img src="${m.cover_url}" class="rounded mb-2 h-48 object-cover w-full">
       <p class="font-bold">${m.title}</p>
       <p class="text-sm text-gray-400">${m.tags}</p>
-      <button onclick="toggleFavoriteFromList(${i},event)" class="absolute top-2 right-2">${favorites.includes(m.objectId) ? "★":"☆"}</button>
+      <button onclick="toggleFavoriteFromList(${i},event)" class="absolute top-2 right-2 text-xl">${favorites.includes(m.objectId) ? "★":"☆"}</button>
     `;
 
-    div.onclick=()=>playMusic(i);
+    div.onclick = () => playMusic(i);
     musicList.appendChild(div);
   });
 }
 
 function playMusic(i){
-  currentIndex=i;
   const m = musics[i];
+  if(!m) return;
+
+  closeDownloadModal();
+  currentIndex = i;
+
   player.classList.remove("hidden");
-  playerCover.src=m.cover_url;
-  playerTitle.innerText=m.title;
-  audio.src=m.audio_url;
+  playerCover.src = m.cover_url;
+  playerTitle.innerText = m.title;
+
+  audio.pause();
+  audio = new Audio(m.audio_url);
   audio.play();
+
   playPause.innerText="⏸";
   favBtn.innerText = favorites.includes(m.objectId) ? "★":"☆";
+}
+
+function openDownloadModal(){
+  const m = musics[currentIndex];
+  if(!m) return;
+
+  audio.pause();
+
+  modalAudio.src = m.audio_url;
+  modalDownload.href = m.audio_url;
+
+  downloadModal.classList.remove("hidden");
+}
+
+function closeDownloadModal(){
+  modalAudio.pause();
+  downloadModal.classList.add("hidden");
 }
 
 function saveOffline(){
@@ -185,8 +211,8 @@ function openOffline(){
     if(!m) return;
 
     const div = document.createElement("div");
-    div.className="bg-neutral-800 p-2 rounded cursor-pointer";
-    div.innerText=m.title;
+    div.className="bg-neutral-800 flex items-center gap-2 p-2 rounded cursor-pointer";
+    div.innerHTML = `<img src="${m.cover_url}" class="w-10 h-10 rounded object-cover"><p>${m.title}</p>`;
     div.onclick=()=>{ playMusic(musics.indexOf(m)); closeOffline();}
     list.appendChild(div);
   });
@@ -206,8 +232,8 @@ function openFavorites(){
     if(!m) return;
 
     const div = document.createElement("div");
-    div.className="bg-neutral-800 p-2 rounded cursor-pointer";
-    div.innerText=m.title;
+    div.className="bg-neutral-800 flex items-center gap-2 p-2 rounded cursor-pointer";
+    div.innerHTML = `<img src="${m.cover_url}" class="w-10 h-10 rounded object-cover"><p>${m.title}</p>`;
     div.onclick=()=>{ playMusic(musics.indexOf(m)); closeFavorites();}
     list.appendChild(div);
   });
@@ -219,8 +245,12 @@ function closeFavorites(){ favoritePanel.classList.add("hidden"); }
 
 function toggleFavorite(){
   const m = musics[currentIndex];
-  favorites = favorites.includes(m.objectId) ? 
-    favorites.filter(x=>x!==m.objectId) : [...favorites,m.objectId];
+  if(!m) return;
+
+  favorites = favorites.includes(m.objectId)
+    ? favorites.filter(x=>x!==m.objectId)
+    : [...favorites,m.objectId];
+
   localStorage.setItem("favorites",JSON.stringify(favorites));
   favBtn.innerText=favorites.includes(m.objectId)?"★":"☆";
 }
@@ -233,15 +263,22 @@ function toggleFavoriteFromList(i,e){
 }
 
 function togglePlay(){
-  if(audio.paused){audio.play();playPause.innerText="⏸"}
-  else {audio.pause();playPause.innerText="▶"}
+  if(audio.paused){
+    audio.play();
+    playPause.innerText="⏸"
+  } else {
+    audio.pause();
+    playPause.innerText="▶"
+  }
 }
-function nextMusic(){ if(currentIndex<musics.length-1) playMusic(currentIndex+1) }
-function prevMusic(){ if(currentIndex>0) playMusic(currentIndex-1) }
-function closePlayer(){ audio.pause(); player.classList.add("hidden") }
+
+function nextMusic(){ if(currentIndex < musics.length - 1) playMusic(currentIndex + 1) }
+function prevMusic(){ if(currentIndex > 0) playMusic(currentIndex - 1) }
+function closePlayer(){ audio.pause(); player.classList.add("hidden"); }
 
 window.onload = loadMusics;
+
 </script>
 
 </body>
-  </html>
+</html>
