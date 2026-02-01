@@ -3,36 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sahte WhatsApp - Gerçek Header</title>
+  <title>Gerçekçi Sahte WhatsApp Sohbeti</title>
   <style>
     :root {
-      --bg: #efeae2;
-      --bg-dark: #111b21;
-      --header: #00a884;
-      --sent: #d9fdd3;
+      --header-bg: #00a884;
+      --bg-chat-light: #efeae2;
+      --bg-chat-dark: #111b21;
+      --sent-light: #d9fdd3;
       --sent-dark: #005e54;
-      --received: #ffffff;
+      --received-light: #ffffff;
       --received-dark: #202c33;
-      --text: #111b21;
+      --text-light: #111b21;
       --text-dark: #e9edef;
-      --time: #667781;
+      --time-light: #667781;
       --time-dark: #8696a0;
+      --tick-read: #53bdeb;
     }
-    body.light { background: var(--bg); color: var(--text); }
-    body.dark  { background: var(--bg-dark); color: var(--text-dark); }
+
+    body.light {
+      --bg: var(--bg-chat-light);
+      --sent: var(--sent-light);
+      --received: var(--received-light);
+      --text: var(--text-light);
+      --time: var(--time-light);
+    }
+
+    body.dark {
+      --bg: var(--bg-chat-dark);
+      --sent: var(--sent-dark);
+      --received: var(--received-dark);
+      --text: var(--text-dark);
+      --time: var(--time-dark);
+    }
 
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      overflow-x: hidden;
+      line-height: 1.4;
     }
 
-    /* Header - Gerçek WhatsApp gibi */
     .header {
-      background: var(--header);
+      background: var(--header-bg);
       color: white;
-      height: 60px;
+      height: 59px;
       padding: 0 16px;
       display: flex;
       align-items: center;
@@ -40,66 +56,119 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
-    .header .back { font-size: 28px; cursor: default; }
+
+    .header .back {
+      font-size: 28px;
+      font-weight: 300;
+    }
+
     .header .avatar {
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      background: #ccc;
+      background: #ddd;
       object-fit: cover;
     }
-    .header .info { flex: 1; }
-    .header h3 { font-size: 17px; font-weight: 600; line-height: 1.2; }
-    .header .status { font-size: 14px; opacity: 0.9; line-height: 1.2; }
-    .header .icons { display: flex; gap: 24px; font-size: 22px; }
 
-    /* Sohbet alanı */
+    .header .info {
+      flex: 1;
+    }
+
+    .header h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .header .status {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 1px;
+    }
+
+    .header .actions {
+      display: flex;
+      gap: 24px;
+      font-size: 24px;
+    }
+
     .chat-container {
       background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') repeat;
       background-size: 100% auto;
-      min-height: calc(100vh - 60px);
-      padding: 8px 10px 80px;
+      min-height: calc(100vh - 59px);
+      padding: 10px 8px 20px;
     }
+
     body.dark .chat-container {
       background: #0b141a url('https://i.imgur.com/8Z6Z6Z6.png') repeat;
+      background-size: 100% auto;
     }
 
-    .date-divider {
+    .date {
       text-align: center;
-      margin: 16px 0 8px;
-      color: var(--time);
+      margin: 16px 0 10px;
       font-size: 12px;
-      background: rgba(255,255,255,0.6);
+      color: var(--time);
+      background: rgba(255,255,255,0.5);
       display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
+      padding: 4px 12px;
+      border-radius: 7px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
-    body.dark .date-divider { background: rgba(30,40,50,0.7); color: var(--time-dark); }
 
-    .message {
-      max-width: 76%;
-      margin: 4px 0 10px;
-      padding: 6px 10px 4px;
+    body.dark .date {
+      background: rgba(30,40,50,0.6);
+    }
+
+    .msg {
+      max-width: 75%;
+      margin: 4px 0 12px;
+      padding: 6px 9px 4px;
       border-radius: 7.5px;
       position: relative;
       font-size: 15.1px;
-      line-height: 1.35;
-      box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+      background: var(--received);
+      box-shadow: 0 1px .5px rgba(0,0,0,.13);
     }
-    .message.sent {
+
+    .msg.sent {
       background: var(--sent);
       margin-left: auto;
       border-bottom-right-radius: 2px;
     }
-    .message.received {
-      background: var(--received);
+
+    .msg.received {
       margin-right: auto;
       border-bottom-left-radius: 2px;
     }
-    body.dark .message.sent { background: var(--sent-dark); }
-    body.dark .message.received { background: var(--received-dark); }
+
+    /* Gerçek tail (kuyruk) efekti */
+    .msg.sent::after,
+    .msg.received::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      width: 0;
+      height: 0;
+      border: 6px solid transparent;
+    }
+
+    .msg.sent::after {
+      right: -6px;
+      border-left-color: var(--sent);
+      border-right: 0;
+    }
+
+    .msg.received::after {
+      left: -6px;
+      border-right-color: var(--received);
+      border-left: 0;
+    }
+
+    body.dark .msg.sent::after { border-left-color: var(--sent-dark); }
+    body.dark .msg.received::after { border-right-color: var(--received-dark); }
 
     .meta {
       font-size: 11px;
@@ -109,25 +178,45 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 4px;
+      gap: 3px;
     }
-    body.dark .meta { color: var(--time-dark); }
 
-    .tick { font-size: 14px; }
-    .sent-tick { color: var(--time); }
-    .delivered-tick { color: var(--time); }
-    .read-tick { color: #53bdeb; }
+    .tick {
+      font-size: 14px;
+      line-height: 1;
+    }
 
-    /* Kontroller (kullanım için) */
+    .tick-sent { color: var(--time); }
+    .tick-delivered { color: var(--time); }
+    .tick-read { color: var(--tick-read); }
+
+    .delete-btn {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: #ff3b30;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 11px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .msg:hover .delete-btn { display: block; }
+
     .controls {
-      background: rgba(0,0,0,0.04);
-      padding: 10px;
+      background: rgba(0,0,0,0.03);
+      padding: 10px 12px;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 4px;
     }
-    body.dark .controls { background: rgba(255,255,255,0.04); }
+
+    body.dark .controls { background: rgba(255,255,255,0.03); }
 
     .controls input, .controls select, .controls button {
       padding: 8px 12px;
@@ -135,143 +224,108 @@
       border-radius: 6px;
       font-size: 14px;
     }
-    .controls input[type="text"] { flex: 1; min-width: 120px; }
-    .controls button { background: var(--header); color: white; cursor: pointer; }
-    .controls button.clear { background: #ff3b30; }
 
-    /* Input alanı gizli (ekran görüntüsü için) */
-    .input-area { display: none; }
+    .controls input[type="text"] { flex: 1; min-width: 100px; }
+    .controls button { background: #00a884; color: white; cursor: pointer; }
+    .controls .clear { background: #ff3b30; }
 
     @media print {
-      .controls, .input-area { display: none !important; }
+      .controls { display: none !important; }
       body { background: white; }
-      .chat-container { padding-bottom: 40px; min-height: auto; }
     }
   </style>
 </head>
 <body class="light">
 
-<!-- Kontrol Paneli (kullanırken görünür, ekran görüntüsü alırken gizlenebilir) -->
 <div class="controls">
-  <input type="text" id="contactName" placeholder="İsim" value="Doktor Murat">
-  <input type="text" id="profileUrl" placeholder="Profil URL (isteğe bağlı)">
-  <select id="msgType">
+  <input type="text" id="name" placeholder="İsim" value="Doktor Murat">
+  <input type="text" id="pp" placeholder="Profil resim URL">
+  <select id="who">
     <option value="received">Karşı taraf</option>
     <option value="sent">Sen</option>
   </select>
-  <select id="tickType">
+  <select id="tick">
     <option value="">zaman</option>
     <option value="sent">✓ gri</option>
     <option value="delivered">✓✓ gri</option>
     <option value="read">✓✓ mavi</option>
   </select>
-  <button onclick="addMessage()">Mesaj Ekle</button>
-  <button class="clear" onclick="clearChat()">Tümünü Sil</button>
-  <button onclick="toggleDark()">Karanlık/Açık</button>
+  <button onclick="addMsg()">Ekle</button>
+  <button class="clear" onclick="document.getElementById('chat').innerHTML=''; lastDate=null;">Temizle</button>
+  <button onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light');">Koyu/Açık</button>
 </div>
 
-<!-- Gerçek Header -->
 <div class="header">
   <div class="back">←</div>
-  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/128C7E/fff?text=Dr" alt="Profil">
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/128C7E/fff?text=Dr" alt="">
   <div class="info">
     <h3 id="chatName">Doktor Murat</h3>
     <div class="status">çevrimiçi</div>
   </div>
-  <div class="icons">
+  <div class="actions">
     <span>📹</span>
     <span>📞</span>
     <span>⋯</span>
   </div>
 </div>
 
-<!-- Sohbet Alanı -->
-<div class="chat-container" id="chatArea">
-  <!-- Örnek mesajı otomatik ekliyoruz -->
-</div>
+<div class="chat-container" id="chat"></div>
 
 <script>
-  const chatArea = document.getElementById('chatArea');
-  const nameInput = document.getElementById('contactName');
-  const ppInput = document.getElementById('profileUrl');
-  const typeSelect = document.getElementById('msgType');
-  const tickSelect = document.getElementById('tickType');
-
+  const chat = document.getElementById('chat');
+  const nameEl = document.getElementById('name');
+  const ppEl = document.getElementById('pp');
   let lastDate = null;
 
-  // Header güncelleme
-  function updateHeader() {
-    document.getElementById('chatName').textContent = nameInput.value.trim() || "Doktor Murat";
-    const url = ppInput.value.trim();
-    document.getElementById('avatar').src = url || "https://via.placeholder.com/80/128C7E/fff?text=Dr";
-  }
-  nameInput.oninput = ppInput.oninput = updateHeader;
+  nameEl.oninput = ppEl.oninput = () => {
+    document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kişi';
+    document.getElementById('avatar').src = ppEl.value.trim() || 'https://via.placeholder.com/80/128C7E/fff?text=Dr';
+  };
 
-  function addMessage(text = null) {
-    if (!text) {
-      text = prompt("Mesaj yaz:", "")?.trim();
-      if (!text) return;
-    }
+  function addMsg() {
+    const txt = prompt('Mesajı yaz:')?.trim();
+    if (!txt) return;
 
-    const type = typeSelect.value;
-    const tick = tickSelect.value;
+    const who = document.getElementById('who').value;
+    const tickVal = document.getElementById('tick').value;
 
     const now = new Date();
     const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
-    const dateKey = now.toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' });
+    const dateStr = now.toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' });
 
-    if (dateKey !== lastDate) {
-      const divider = document.createElement('div');
-      divider.className = 'date-divider';
-      divider.textContent = dateKey;
-      chatArea.appendChild(divider);
-      lastDate = dateKey;
+    if (dateStr !== lastDate) {
+      const d = document.createElement('div');
+      d.className = 'date';
+      d.textContent = dateStr;
+      chat.appendChild(d);
+      lastDate = dateStr;
     }
 
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${type}`;
-    msgDiv.innerHTML = text.replace(/\n/g, '<br>');
+    const m = document.createElement('div');
+    m.className = `msg ${who}`;
+    m.innerHTML = txt.replace(/\n/g, '<br>');
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    let tickHtml = '';
-    if (tick === 'sent') tickHtml = '<span class="tick sent-tick">✓</span>';
-    else if (tick === 'delivered') tickHtml = '<span class="tick delivered-tick">✓✓</span>';
-    else if (tick === 'read') tickHtml = '<span class="tick read-tick">✓✓</span>';
-    meta.innerHTML = time + ' ' + tickHtml;
+    let t = '';
+    if (tickVal === 'sent') t = '<span class="tick tick-sent">✓</span>';
+    else if (tickVal === 'delivered') t = '<span class="tick tick-delivered">✓✓</span>';
+    else if (tickVal === 'read') t = '<span class="tick tick-read">✓✓</span>';
+    meta.innerHTML = time + ' ' + t;
 
-    const delBtn = document.createElement('button');
-    delBtn.style.cssText = 'position:absolute; top:-8px; right:-8px; background:#ff3b30; color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; cursor:pointer; display:none;';
-    delBtn.textContent = '×';
-    delBtn.onclick = () => msgDiv.remove();
-    msgDiv.onmouseenter = () => delBtn.style.display = 'block';
-    msgDiv.onmouseleave = () => delBtn.style.display = 'none';
+    const del = document.createElement('button');
+    del.className = 'delete-btn';
+    del.textContent = '×';
+    del.onclick = () => m.remove();
 
-    msgDiv.appendChild(meta);
-    msgDiv.appendChild(delBtn);
-    chatArea.appendChild(msgDiv);
-    chatArea.scrollTop = chatArea.scrollHeight;
+    m.appendChild(meta);
+    m.appendChild(del);
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
   }
 
-  function clearChat() {
-    if (confirm('Tüm sohbet silinsin mi?')) {
-      chatArea.innerHTML = '';
-      lastDate = null;
-    }
-  }
-
-  function toggleDark() {
-    document.body.classList.toggle('dark');
-    document.body.classList.toggle('light');
-  }
-
-  // Başlangıç: Senin verdiğin örneği otomatik ekle
-  window.onload = () => {
-    updateHeader();
-    // Örnek mesajı ekle
-    addMessage("Mehmet bey randevunuz vardı\nneden hastaneye gelmediniz");
-    // Zamanı elle 11:42 yapabilirsin ama otomatik olsun
-  };
+  // Başlangıç header güncelle
+  nameEl.dispatchEvent(new Event('input'));
 </script>
 </body>
 </html>
