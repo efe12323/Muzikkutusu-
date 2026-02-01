@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sahte WhatsApp - Ekran Görüntüsü İçin</title>
+  <title>Sahte WhatsApp - Gerçek Header</title>
   <style>
     :root {
       --bg: #efeae2;
       --bg-dark: #111b21;
+      --header: #00a884;
       --sent: #d9fdd3;
       --sent-dark: #005e54;
       --received: #ffffff;
@@ -16,7 +17,6 @@
       --text-dark: #e9edef;
       --time: #667781;
       --time-dark: #8696a0;
-      --accent: #00a884;
     }
     body.light { background: var(--bg); color: var(--text); }
     body.dark  { background: var(--bg-dark); color: var(--text-dark); }
@@ -25,65 +25,67 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100vh;
-      padding: 0;
-      margin: 0;
       overflow-x: hidden;
     }
 
+    /* Header - Gerçek WhatsApp gibi */
     .header {
-      background: var(--accent);
+      background: var(--header);
       color: white;
-      padding: 8px 16px;
+      height: 60px;
+      padding: 0 16px;
       display: flex;
       align-items: center;
       gap: 12px;
       position: sticky;
       top: 0;
       z-index: 10;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    .header .back { font-size: 28px; font-weight: bold; }
-    .header img {
-      width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #ccc;
+    .header .back { font-size: 28px; cursor: default; }
+    .header .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #ccc;
+      object-fit: cover;
     }
     .header .info { flex: 1; }
     .header h3 { font-size: 17px; font-weight: 600; line-height: 1.2; }
-    .header p { font-size: 13px; opacity: 0.9; line-height: 1.2; }
+    .header .status { font-size: 14px; opacity: 0.9; line-height: 1.2; }
+    .header .icons { display: flex; gap: 24px; font-size: 22px; }
 
+    /* Sohbet alanı */
     .chat-container {
       background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') repeat;
       background-size: 100% auto;
       min-height: calc(100vh - 60px);
-      padding: 10px 8px 20px;
+      padding: 8px 10px 80px;
     }
     body.dark .chat-container {
       background: #0b141a url('https://i.imgur.com/8Z6Z6Z6.png') repeat;
-      background-size: 100% auto;
     }
 
     .date-divider {
       text-align: center;
-      margin: 18px 0 10px;
+      margin: 16px 0 8px;
       color: var(--time);
-      font-size: 12.5px;
-      font-weight: 500;
-      background: rgba(255,255,255,0.7);
+      font-size: 12px;
+      background: rgba(255,255,255,0.6);
       display: inline-block;
-      padding: 4px 12px;
+      padding: 4px 10px;
       border-radius: 6px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
-    body.dark .date-divider { background: rgba(30,40,50,0.8); color: var(--time-dark); }
+    body.dark .date-divider { background: rgba(30,40,50,0.7); color: var(--time-dark); }
 
     .message {
-      max-width: 75%;
-      margin: 3px 0 10px;
-      padding: 6px 10px 3px;
+      max-width: 76%;
+      margin: 4px 0 10px;
+      padding: 6px 10px 4px;
       border-radius: 7.5px;
       position: relative;
-      font-size: 15px;
+      font-size: 15.1px;
       line-height: 1.35;
-      word-wrap: break-word;
       box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
     }
     .message.sent {
@@ -111,32 +113,21 @@
     }
     body.dark .meta { color: var(--time-dark); }
 
-    .tick { font-size: 14px; line-height: 1; }
-    .sent-tick     { color: var(--time); }
+    .tick { font-size: 14px; }
+    .sent-tick { color: var(--time); }
     .delivered-tick { color: var(--time); }
-    .read-tick     { color: #53bdeb; }
+    .read-tick { color: #53bdeb; }
 
-    .delete-btn {
-      position: absolute;
-      top: -8px; right: -8px;
-      background: #ff3b30; color: white;
-      border: none; border-radius: 50%; width: 20px; height: 20px;
-      font-size: 12px; cursor: pointer; display: none;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    .message:hover .delete-btn { display: block; }
-
-    .input-area { display: none; } /* Ekran görüntüsü için gizli */
-
+    /* Kontroller (kullanım için) */
     .controls {
-      background: rgba(0,0,0,0.05);
+      background: rgba(0,0,0,0.04);
       padding: 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
-    body.dark .controls { background: rgba(255,255,255,0.05); }
+    body.dark .controls { background: rgba(255,255,255,0.04); }
 
     .controls input, .controls select, .controls button {
       padding: 8px 12px;
@@ -144,101 +135,121 @@
       border-radius: 6px;
       font-size: 14px;
     }
-    .controls input[type=text] { flex: 1; min-width: 140px; }
-    .controls button { background: var(--accent); color: white; cursor: pointer; }
+    .controls input[type="text"] { flex: 1; min-width: 120px; }
+    .controls button { background: var(--header); color: white; cursor: pointer; }
     .controls button.clear { background: #ff3b30; }
 
-    @media print, (min-width: 800px) {
+    /* Input alanı gizli (ekran görüntüsü için) */
+    .input-area { display: none; }
+
+    @media print {
       .controls, .input-area { display: none !important; }
-      .chat-container { min-height: auto; padding-bottom: 40px; }
-      body { background: white; } /* Ekran görüntüsü temiz çıksın diye */
+      body { background: white; }
+      .chat-container { padding-bottom: 40px; min-height: auto; }
     }
   </style>
 </head>
 <body class="light">
 
+<!-- Kontrol Paneli (kullanırken görünür, ekran görüntüsü alırken gizlenebilir) -->
 <div class="controls">
-  <input type="text" id="contactName" placeholder="Kişi adı" value="Mehmet">
-  <input type="text" id="profileUrl" placeholder="Profil URL (boş bırakabilirsin)">
+  <input type="text" id="contactName" placeholder="İsim" value="Doktor Murat">
+  <input type="text" id="profileUrl" placeholder="Profil URL (isteğe bağlı)">
   <select id="msgType">
-    <option value="sent">Sen</option>
     <option value="received">Karşı taraf</option>
+    <option value="sent">Sen</option>
   </select>
   <select id="tickType">
-    <option value="">sadece zaman</option>
+    <option value="">zaman</option>
     <option value="sent">✓ gri</option>
     <option value="delivered">✓✓ gri</option>
     <option value="read">✓✓ mavi</option>
   </select>
-  <button onclick="addMessage()">Ekle</button>
+  <button onclick="addMessage()">Mesaj Ekle</button>
   <button class="clear" onclick="clearChat()">Tümünü Sil</button>
-  <button onclick="document.body.classList.toggle('dark');document.body.classList.toggle('light');">Karanlık/Açık</button>
+  <button onclick="toggleDark()">Karanlık/Açık</button>
 </div>
 
+<!-- Gerçek Header -->
 <div class="header">
   <div class="back">←</div>
-  <img id="pp" src="https://via.placeholder.com/80/128C7E/fff?text=+" alt="">
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/128C7E/fff?text=Dr" alt="Profil">
   <div class="info">
-    <h3 id="chatName">Kişi Adı</h3>
-    <p>çevrimiçi</p>
+    <h3 id="chatName">Doktor Murat</h3>
+    <div class="status">çevrimiçi</div>
+  </div>
+  <div class="icons">
+    <span>📹</span>
+    <span>📞</span>
+    <span>⋯</span>
   </div>
 </div>
 
-<div class="chat-container" id="chatArea"></div>
+<!-- Sohbet Alanı -->
+<div class="chat-container" id="chatArea">
+  <!-- Örnek mesajı otomatik ekliyoruz -->
+</div>
 
 <script>
   const chatArea = document.getElementById('chatArea');
   const nameInput = document.getElementById('contactName');
   const ppInput = document.getElementById('profileUrl');
-  const msgType = document.getElementById('msgType');
-  const tickType = document.getElementById('tickType');
+  const typeSelect = document.getElementById('msgType');
+  const tickSelect = document.getElementById('tickType');
 
   let lastDate = null;
 
-  nameInput.oninput = ppInput.oninput = () => {
-    document.getElementById('chatName').textContent = nameInput.value.trim() || "Kişi Adı";
-    document.getElementById('pp').src = ppInput.value.trim() || "https://via.placeholder.com/80/128C7E/fff?text=+";
-  };
+  // Header güncelleme
+  function updateHeader() {
+    document.getElementById('chatName').textContent = nameInput.value.trim() || "Doktor Murat";
+    const url = ppInput.value.trim();
+    document.getElementById('avatar').src = url || "https://via.placeholder.com/80/128C7E/fff?text=Dr";
+  }
+  nameInput.oninput = ppInput.oninput = updateHeader;
 
-  function addMessage() {
-    const text = prompt("Mesajı yaz:", "")?.trim();
-    if (!text) return;
+  function addMessage(text = null) {
+    if (!text) {
+      text = prompt("Mesaj yaz:", "")?.trim();
+      if (!text) return;
+    }
 
-    const type = msgType.value;
-    const tick = tickType.value;
+    const type = typeSelect.value;
+    const tick = tickSelect.value;
 
     const now = new Date();
     const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
-    const dateStr = now.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const dateKey = now.toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' });
 
-    if (dateStr !== lastDate) {
-      const div = document.createElement('div');
-      div.className = 'date-divider';
-      div.textContent = dateStr;
-      chatArea.appendChild(div);
-      lastDate = dateStr;
+    if (dateKey !== lastDate) {
+      const divider = document.createElement('div');
+      divider.className = 'date-divider';
+      divider.textContent = dateKey;
+      chatArea.appendChild(divider);
+      lastDate = dateKey;
     }
 
-    const msg = document.createElement('div');
-    msg.className = `message ${type}`;
-    msg.innerHTML = `<div>${text.replace(/\n/g, '<br>')}</div>`;
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${type}`;
+    msgDiv.innerHTML = text.replace(/\n/g, '<br>');
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    let ticks = '';
-    if (tick === 'sent') ticks = '<span class="tick sent-tick">✓</span>';
-    else if (tick === 'delivered') ticks = '<span class="tick delivered-tick">✓✓</span>';
-    else if (tick === 'read') ticks = '<span class="tick read-tick">✓✓</span>';
-    meta.innerHTML = time + ' ' + ticks;
+    let tickHtml = '';
+    if (tick === 'sent') tickHtml = '<span class="tick sent-tick">✓</span>';
+    else if (tick === 'delivered') tickHtml = '<span class="tick delivered-tick">✓✓</span>';
+    else if (tick === 'read') tickHtml = '<span class="tick read-tick">✓✓</span>';
+    meta.innerHTML = time + ' ' + tickHtml;
 
-    const del = document.createElement('button');
-    del.className = 'delete-btn';
-    del.textContent = '×';
-    del.onclick = () => msg.remove();
+    const delBtn = document.createElement('button');
+    delBtn.style.cssText = 'position:absolute; top:-8px; right:-8px; background:#ff3b30; color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; cursor:pointer; display:none;';
+    delBtn.textContent = '×';
+    delBtn.onclick = () => msgDiv.remove();
+    msgDiv.onmouseenter = () => delBtn.style.display = 'block';
+    msgDiv.onmouseleave = () => delBtn.style.display = 'none';
 
-    msg.appendChild(meta);
-    msg.appendChild(del);
-    chatArea.appendChild(msg);
+    msgDiv.appendChild(meta);
+    msgDiv.appendChild(delBtn);
+    chatArea.appendChild(msgDiv);
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
@@ -249,9 +260,18 @@
     }
   }
 
-  // Başlangıç
-  nameInput.dispatchEvent(new Event('input'));
-</script>
+  function toggleDark() {
+    document.body.classList.toggle('dark');
+    document.body.classList.toggle('light');
+  }
 
+  // Başlangıç: Senin verdiğin örneği otomatik ekle
+  window.onload = () => {
+    updateHeader();
+    // Örnek mesajı ekle
+    addMessage("Mehmet bey randevunuz vardı\nneden hastaneye gelmediniz");
+    // Zamanı elle 11:42 yapabilirsin ama otomatik olsun
+  };
+</script>
 </body>
 </html>
