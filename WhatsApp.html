@@ -89,8 +89,6 @@
     }
 
     .header .actions {
-      display: flex;
-      gap: 24px;
       font-size: 24px;
     }
 
@@ -144,7 +142,7 @@
       border-bottom-left-radius: 2px;
     }
 
-    /* Gerçek tail (kuyruk) efekti */
+    /* Balon kuyruğu */
     .msg.sent::after,
     .msg.received::after {
       content: "";
@@ -262,11 +260,7 @@
     <h3 id="chatName">Doktor Murat</h3>
     <div class="status">çevrimiçi</div>
   </div>
-  <div class="actions">
-    <span>📹</span>
-    <span>📞</span>
-    <span>⋯</span>
-  </div>
+  <div class="actions">⋯</div>
 </div>
 
 <div class="chat-container" id="chat"></div>
@@ -324,7 +318,7 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  // Başlangıç header güncelle
+  // Başlangıç header güncelle (otomatik mesaj yok)
   nameEl.dispatchEvent(new Event('input'));
 </script>
 </body>
