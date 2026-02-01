@@ -3,237 +3,311 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sahte WhatsApp Sohbeti Oluştur</title>
-  <link href="https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>Gerçekçi Sahte WhatsApp</title>
   <style>
+    :root {
+      --bg-chat: #e5ddd5;
+      --bg-chat-dark: #0b141a;
+      --sent: #d9fdd3;
+      --sent-dark: #005e54;
+      --received: #ffffff;
+      --received-dark: #202c33;
+      --text: #111;
+      --text-dark: #e9edef;
+      --time: #666;
+      --time-dark: #8696a0;
+      --accent: #00a884;
+      --accent-dark: #00a884;
+    }
+    body.light { --bg-chat: #e5ddd5; --sent: #d9fdd3; --received: #ffffff; --text: #111; --time: #666; }
+    body.dark  { --bg-chat: #0b141a; --sent: #005e54; --received: #202c33; --text: #e9edef; --time: #8696a0; background:#111; color:var(--text); }
+
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Helvetica Neue', Arial, sans-serif;
-      background: #e5ddd5;
-      color: #111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background: var(--bg-chat);
+      color: var(--text);
       min-height: 100vh;
-      padding: 15px;
+      padding: 10px;
     }
-    .container {
-      max-width: 640px;
-      margin: 0 auto;
-    }
+    .container { max-width: 720px; margin: 0 auto; }
+
     .header {
-      background: #00a884;
+      background: var(--accent);
       color: white;
-      padding: 12px 16px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       gap: 12px;
-      border-radius: 0 0 8px 8px;
+      border-radius: 0 0 10px 10px;
       position: sticky;
       top: 0;
-      z-index: 10;
-    }
-    .header .back { font-size: 24px; cursor: pointer; }
-    .header .info {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      z-index: 20;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     .header img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #ddd;
-      object-fit: cover;
+      width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background:#ddd;
     }
-    .header .name-time h3 { font-size: 17px; }
-    .header .name-time p { font-size: 13px; opacity: 0.9; }
+    .header .info { flex:1; }
+    .header h3 { font-size: 17px; font-weight: 600; }
+    .header p { font-size: 14px; opacity: 0.9; }
+
+    .controls {
+      background: rgba(0,0,0,0.1);
+      padding: 10px;
+      border-radius: 10px;
+      margin: 12px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .controls input, .controls select, .controls button {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    .controls input[type=text] { flex:1; min-width:180px; }
+    .controls button { background:var(--accent); color:white; cursor:pointer; font-weight:500; }
+    .controls button:hover { opacity:0.9; }
+    #darkToggle { background:#444; }
 
     .chat-area {
       background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') repeat;
       background-size: 100% auto;
-      min-height: 70vh;
-      padding: 20px 12px;
-      border-radius: 8px;
-      margin: 10px 0;
-      overflow-y: auto;
+      min-height: 60vh;
       max-height: 75vh;
+      overflow-y: auto;
+      padding: 20px 12px 80px;
+      border-radius: 10px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    }
+    body.dark .chat-area { background: #0b141a url('https://i.imgur.com/8Z6Z6Z6.png') repeat; }
+
+    .date-divider {
+      text-align:center; margin:16px 0; color:var(--time); font-size:12px; font-weight:500;
     }
 
     .message {
-      max-width: 80%;
-      margin: 6px 0;
-      padding: 8px 12px;
+      max-width: 78%;
+      margin: 4px 0 12px;
+      padding: 7px 12px 4px;
       border-radius: 8px;
       position: relative;
-      font-size: 15px;
-      line-height: 1.4;
+      font-size: 15.2px;
+      line-height: 1.35;
       word-wrap: break-word;
+      box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
     }
     .message.sent {
-      background: #d9fdd3;
+      background: var(--sent);
       margin-left: auto;
-      border-bottom-right-radius: 2px;
+      border-bottom-right-radius: 3px;
     }
     .message.received {
-      background: white;
+      background: var(--received);
       margin-right: auto;
-      border-bottom-left-radius: 2px;
+      border-bottom-left-radius: 3px;
     }
-    .time-tick {
+    .message .content { margin-bottom: 4px; }
+    .message .meta {
       font-size: 11px;
-      opacity: 0.6;
-      position: absolute;
-      bottom: 3px;
-      right: 8px;
+      color: var(--time);
+      text-align: right;
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       gap: 4px;
     }
-    .tick { font-size: 14px; }
-    .delivered  { color: #666; }
-    .read       { color: #4fc3f7; }
-    .double     { color: #4fc3f7; }
+    .tick { font-size: 14px; line-height:1; }
+    .sent-tick     { color: var(--time); }
+    .delivered-tick { color: var(--time); }
+    .read-tick     { color: #53bdeb; }
+
+    .message:hover .delete-btn {
+      display: block;
+    }
+    .delete-btn {
+      position: absolute;
+      top: -6px; right: -6px;
+      background: #e74c3c; color:white;
+      border:none; border-radius:50%; width:20px; height:20px;
+      font-size:11px; cursor:pointer; display:none;
+      box-shadow:0 1px 3px rgba(0,0,0,0.4);
+    }
 
     .input-area {
-      background: #f0f0f0;
-      padding: 12px;
-      border-radius: 12px;
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 40px);
+      max-width: 720px;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(6px);
+      padding: 10px;
+      border-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 15px;
+      gap: 8px;
     }
-    .input-area input, .input-area select, .input-area button {
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 15px;
+    body.dark .input-area { background: rgba(30,40,50,0.9); }
+    .input-area textarea {
+      flex:1; padding:10px 14px; border:none; border-radius:18px;
+      font-size:15px; resize:none; min-height:42px; max-height:120px;
+      background:rgba(0,0,0,0.07);
+      color:var(--text);
     }
-    .input-area input[type="text"] { flex: 1; min-width: 160px; }
-    .input-area button {
-      background: #00a884;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .input-area button:hover { background: #008c6e; }
-    .msg-type { width: 110px; }
-    .clear-btn {
-      background: #e74c3c;
-      margin-left: auto;
-    }
-    .clear-btn:hover { background: #c0392b; }
+    body.dark .input-area textarea { background:rgba(255,255,255,0.08); }
 
-    @media (max-width: 500px) {
-      .input-area { flex-direction: column; }
-      .input-area input[type="text"] { width: 100%; }
+    @media (max-width:600px) {
+      .controls { flex-direction:column; }
+      .input-area { width: calc(100% - 20px); }
     }
   </style>
 </head>
-<body>
+<body class="light">
 
 <div class="container">
   <div class="header">
-    <div class="back">←</div>
+    <img id="pp" src="https://via.placeholder.com/80/25D366/fff?text=WA" alt="Profil">
     <div class="info">
-      <img id="pp" src="https://via.placeholder.com/80/25D366/fff?text=+" alt="Profil">
-      <div class="name-time">
-        <h3 id="chatName">Kişi Adı</h3>
-        <p>çevrimiçi</p>
-      </div>
+      <h3 id="chatName">Kişi</h3>
+      <p id="status">çevrimiçi</p>
     </div>
+    <button id="darkToggle">🌙 Karanlık</button>
   </div>
 
-  <div class="chat-area" id="chatArea"></div>
-
-  <div class="input-area">
-    <input type="text" id="contactName" placeholder="Kişi adı" value="Ahmet">
-    <input type="text" id="profileUrl" placeholder="Profil resmi URL (isteğe bağlı)">
-    
-    <input type="text" id="messageInput" placeholder="Mesaj yaz...">
-    <select id="msgType" class="msg-type">
+  <div class="controls">
+    <input type="text" id="contactName" placeholder="Kişi adı" value="Ayşe">
+    <input type="text" id="profileUrl" placeholder="Profil URL (isteğe bağlı)">
+    <select id="msgType">
       <option value="sent">Sen →</option>
       <option value="received">← Karşı taraf</option>
     </select>
     <select id="tickType">
       <option value="">zaman</option>
-      <option value="delivered">✓✓ gri</option>
       <option value="sent">✓ gri</option>
+      <option value="delivered">✓✓ gri</option>
       <option value="read">✓✓ mavi</option>
     </select>
     <button onclick="addMessage()">Ekle</button>
-    <button class="clear-btn" onclick="clearChat()">Tümünü Sil</button>
+    <button style="background:#e74c3c;" onclick="clearChat()">Tümünü Sil</button>
+  </div>
+
+  <div class="chat-area" id="chatArea"></div>
+
+  <div class="input-area">
+    <textarea id="messageInput" placeholder="Mesaj yaz... (Enter ile ekle)" rows="1"></textarea>
+    <button onclick="addMessage()">➤</button>
   </div>
 </div>
 
 <script>
-  const chatArea = document.getElementById('chatArea');
-  const contactNameInput = document.getElementById('contactName');
-  const profileUrlInput   = document.getElementById('profileUrl');
-  const msgInput          = document.getElementById('messageInput');
-  const msgTypeSelect     = document.getElementById('msgType');
-  const tickSelect        = document.getElementById('tickType');
+  const chatArea     = document.getElementById('chatArea');
+  const nameInput    = document.getElementById('contactName');
+  const ppInput      = document.getElementById('profileUrl');
+  const msgInput     = document.getElementById('messageInput');
+  const typeSelect   = document.getElementById('msgType');
+  const tickSelect   = document.getElementById('tickType');
+  const statusEl     = document.getElementById('status');
+  const darkToggle   = document.getElementById('darkToggle');
 
-  // Profil resmi ve isim güncelleme (her değişiklikte)
-  contactNameInput.addEventListener('input', updateHeader);
-  profileUrlInput.addEventListener('input', updateHeader);
+  let lastDate = null;
+
+  nameInput.oninput = ppInput.oninput = updateHeader;
 
   function updateHeader() {
-    document.getElementById('chatName').textContent = contactNameInput.value.trim() || "Kişi Adı";
-    const url = profileUrlInput.value.trim();
-    document.getElementById('pp').src = url || "https://via.placeholder.com/80/25D366/fff?text=+";
+    document.getElementById('chatName').textContent = nameInput.value.trim() || "Kişi";
+    const url = ppInput.value.trim();
+    document.getElementById('pp').src = url || "https://via.placeholder.com/80/25D366/fff?text=WA";
+  }
+
+  function getCurrentDateKey() {
+    return new Date().toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' });
   }
 
   function addMessage() {
-    const text = msgInput.value.trim();
+    let text = msgInput.value.trim();
     if (!text) return;
 
-    const type = msgTypeSelect.value;
+    const type = typeSelect.value;
     const tick = tickSelect.value;
 
-    const div = document.createElement('div');
-    div.className = `message ${type}`;
-    div.innerHTML = text.replace(/\n/g, '<br>');
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+    const dateKey = now.toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' });
 
-    const time = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${type}`;
+
+    // Tarih ayırıcı
+    if (dateKey !== lastDate) {
+      const divider = document.createElement('div');
+      divider.className = 'date-divider';
+      divider.textContent = dateKey;
+      chatArea.appendChild(divider);
+      lastDate = dateKey;
+    }
+
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.innerHTML = text.replace(/\n/g, '<br>').replace(/:\)/g,'😊').replace(/:\(/g,'☹️'); // basit emoji desteği
+    msgDiv.appendChild(content);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+
     let tickHtml = '';
+    if (tick === 'sent')      tickHtml = '<span class="tick sent-tick">✓</span>';
+    else if (tick === 'delivered') tickHtml = '<span class="tick delivered-tick">✓✓</span>';
+    else if (tick === 'read') tickHtml = '<span class="tick read-tick">✓✓</span>';
 
-    if (tick === 'sent')     tickHtml = '<span class="tick delivered">✓</span>';
-    else if (tick === 'delivered') tickHtml = '<span class="tick delivered">✓✓</span>';
-    else if (tick === 'read') tickHtml = '<span class="tick double read">✓✓</span>';
+    meta.innerHTML = timeStr + ' ' + tickHtml;
+    msgDiv.appendChild(meta);
 
-    const footer = document.createElement('div');
-    footer.className = 'time-tick';
-    footer.innerHTML = time + ' ' + tickHtml;
+    // Sil butonu
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-btn';
+    delBtn.textContent = '×';
+    delBtn.onclick = () => {
+      if (confirm('Bu mesaj silinsin mi?')) msgDiv.remove();
+    };
+    msgDiv.appendChild(delBtn);
 
-    div.appendChild(footer);
-    chatArea.appendChild(div);
-
-    // En alta kaydır
+    chatArea.appendChild(msgDiv);
     chatArea.scrollTop = chatArea.scrollHeight;
 
-    // Temizle
     msgInput.value = '';
     msgInput.focus();
   }
 
   function clearChat() {
-    if (confirm("Tüm mesajlar silinecek. Emin misin?")) {
+    if (confirm('Tüm sohbet silinecek. Emin misiniz?')) {
       chatArea.innerHTML = '';
+      lastDate = null;
     }
   }
 
-  // Enter tuşu ile ekleme
-  msgInput.addEventListener('keypress', e => {
+  // Enter ile gönderme (Shift+Enter ile satır atla)
+  msgInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       addMessage();
     }
   });
 
-  // Başlangıçta header'ı güncelle
-  updateHeader();
-</script>
+  // Karanlık mod
+  darkToggle.onclick = () => {
+    document.body.classList.toggle('dark');
+    document.body.classList.toggle('light');
+    darkToggle.textContent = document.body.classList.contains('dark') ? '☀️ Açık' : '🌙 Karanlık';
+  };
 
+  // Başlangıç
+  updateHeader();
+  msgInput.focus();
+</script>
 </body>
 </html>
