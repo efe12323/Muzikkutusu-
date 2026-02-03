@@ -3,221 +3,170 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Metin → Ses (Komik + Kilise) - Düzgün Ses Seçimi</title>
+  <title>Ücretsiz TTS - MP3 İndir + Komik Efekt</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f0f1a;
-      color: #e0e0ff;
-      padding: 20px;
-      max-width: 720px;
-      margin: auto;
-    }
-    h2 { color: #a78bfa; }
-    textarea {
-      width: 100%;
-      height: 160px;
-      padding: 14px;
-      font-size: 17px;
-      border-radius: 10px;
-      border: 1px solid #444;
-      background: #1a1a2e;
-      color: #fff;
-      resize: vertical;
-    }
-    .controls {
-      margin: 24px 0;
-      display: grid;
-      gap: 18px;
-    }
-    button {
-      padding: 14px 28px;
-      font-size: 17px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      color: white;
-      font-weight: bold;
-    }
-    #speak { background: #6d28d9; }
-    #speak:hover { background: #8b5cf6; }
-    #stop { background: #dc2626; }
-    #stop:hover { background: #ef4444; }
-    #download { background: #059669; }
-    #download:hover { background: #10b981; }
-    select, input[type=range] {
-      padding: 10px;
-      font-size: 16px;
-      background: #1e293b;
-      color: #e0e0ff;
-      border: 1px solid #4b5563;
-      border-radius: 8px;
-      width: 100%;
-    }
-    label { display: block; margin-bottom: 8px; font-weight: 600; color: #c4b5fd; }
-    #status { margin-top: 16px; color: #a5b4fc; font-style: italic; }
-    .flex { display: flex; gap: 12px; flex-wrap: wrap; }
+    body { font-family: Arial, sans-serif; background: #0d1117; color: #c9d1d9; padding: 20px; max-width: 800px; margin: auto; }
+    h2 { color: #58a6ff; }
+    textarea { width: 100%; height: 140px; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #fff; resize: vertical; }
+    .controls { margin: 20px 0; display: grid; gap: 16px; }
+    select, input[type=range], input[type=checkbox] { padding: 10px; font-size: 15px; background: #21262d; color: #fff; border: 1px solid #30363d; border-radius: 6px; }
+    button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; color: white; }
+    #speak { background: #238636; }
+    #speak:hover { background: #2ea043; }
+    #stop { background: #da3633; }
+    #stop:hover { background: #f85149; }
+    #download { background: #1f6feb; }
+    #download:hover { background: #388bfd; }
+    label { font-weight: bold; color: #8b949e; display: block; margin-bottom: 6px; }
+    #status { margin-top: 16px; color: #8b949e; font-style: italic; }
   </style>
 </head>
 <body>
 
-<h2>Metni Sese Çevir – Erkek / Kadın Seç + Komik Efekt + Kilise</h2>
-
-<textarea id="text" placeholder="Buraya yaz...">Hahaha şimdi çok tiz bi sesle konuşuyorum, dikkat et burnumdan konuşuyorum gibi olacak!</textarea>
+<h2>Ücretsiz Metin → Ses (MP3 İndir + Komik/Kilise Efekti)</h2>
+<textarea id="text" placeholder="Buraya yaz...">Hahaha şimdi çok komik bi sesle konuşuyorum, yankılı kilise modunda!</textarea>
 
 <div class="controls">
-
   <div>
-    <label for="voiceSelect">Ses Seç (Erkek / Kadın):</label>
-    <select id="voiceSelect">
-      <option value="">Sesler yükleniyor... lütfen bekle</option>
+    <label for="voice">Ses Seç (Erkek / Kadın):</label>
+    <select id="voice">
+      <option value="tr-TR-AhmetNeural">Ahmet (Erkek - Türkçe)</option>
+      <option value="tr-TR-EmelNeural" selected>Emel (Kadın - Türkçe)</option>
+      <option value="tr-TR-FilizNeural">Filiz (Kadın - Türkçe)</option>
+      <option value="en-US-GuyNeural">Guy (Erkek - İngilizce)</option>
+      <option value="en-US-JennyNeural">Jenny (Kadın - İngilizce)</option>
+      <!-- Daha fazla ses istersen buraya ekleyebilirsin: https://github.com/rany2/edge-tts/blob/master/edge_tts/voices.txt -->
     </select>
   </div>
 
   <div>
-    <label for="pitch">Perde (komiklik) → 0.3 derin erkek – 2.0 cırtlak</label>
-    <input type="range" id="pitch" min="0.3" max="2" step="0.1" value="1">
-    <span id="pitchValue">1.0</span>
+    <label for="pitch">Perde (komiklik): düşük → derin / yüksek → cırtlak</label>
+    <input type="range" id="pitch" min="-10" max="10" step="1" value="0">
+    <span id="pitchVal">0</span>
   </div>
 
   <div>
     <label for="rate">Hız:</label>
-    <input type="range" id="rate" min="0.6" max="2" step="0.1" value="1">
-    <span id="rateValue">1.0</span>
+    <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+    <span id="rateVal">1.0</span>
   </div>
 
   <div>
-    <label>
-      <input type="checkbox" id="churchEffect"> Kilise yankısı / echo efekti
-    </label>
+    <label><input type="checkbox" id="church"> Kilise yankısı (echo + reverb simülasyonu)</label>
   </div>
 
-  <div class="flex">
-    <button id="speak">Konuş!</button>
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <button id="speak">Konuş & Oluştur</button>
     <button id="stop">Durdur</button>
-    <button id="download">İndir (WAV olarak)</button>
+    <button id="download">MP3 İndir</button>
   </div>
-
 </div>
 
-<div id="status">Sesler yükleniyor... (Chrome'da biraz sürebilir)</div>
+<div id="status">Hazır... (İnternet bağlantısı gerekli)</div>
+
+<audio id="audioPlayer" controls style="width:100%; margin-top:20px; display:none;"></audio>
 
 <script>
-const synth = window.speechSynthesis || null;
-if (!synth) {
-  document.getElementById('status').textContent = "Bu tarayıcıda konuşma özelliği yok 😔";
-}
+const textEl = document.getElementById('text');
+const voiceSel = document.getElementById('voice');
+const pitchEl = document.getElementById('pitch');
+const pitchVal = document.getElementById('pitchVal');
+const rateEl = document.getElementById('rate');
+const rateVal = document.getElementById('rateVal');
+const churchEl = document.getElementById('church');
+const status = document.getElementById('status');
+const audioPlayer = document.getElementById('audioPlayer');
 
-const textEl       = document.getElementById('text');
-const voiceSelect  = document.getElementById('voiceSelect');
-const pitchEl      = document.getElementById('pitch');
-const pitchVal     = document.getElementById('pitchValue');
-const rateEl       = document.getElementById('rate');
-const rateVal      = document.getElementById('rateValue');
-const churchCheck  = document.getElementById('churchEffect');
-const status       = document.getElementById('status');
+let audioUrl = null;
 
-let voices = [];
-let selectedVoiceIndex = -1;
-
-function updateVoiceList() {
-  voices = synth.getVoices();
-  if (voices.length === 0) return;
-
-  voiceSelect.innerHTML = '';
-  voices.forEach((voice, index) => {
-    const option = document.createElement('option');
-    option.value = index;
-
-    let gender = '';
-    const nameLower = voice.name.toLowerCase();
-    if (nameLower.includes('female') || nameLower.includes('woman') || nameLower.includes('girl') || nameLower.includes('zira') || nameLower.includes('siri')) {
-      gender = ' 👩‍🦰 Kadın';
-    } else if (nameLower.includes('male') || nameLower.includes('man') || nameLower.includes('boy') || nameLower.includes('david') || nameLower.includes('google uk english male')) {
-      gender = ' 👨 Erkek';
-    }
-
-    option.textContent = `\( {voice.name} ( \){voice.lang})${gender}`;
-    voiceSelect.appendChild(option);
-  });
-
-  // Varsayılan olarak ilk Türkçe veya İngilizce sesi seçmeye çalış
-  let defIndex = voices.findIndex(v => v.lang.startsWith('tr'));
-  if (defIndex === -1) defIndex = voices.findIndex(v => v.lang.startsWith('en'));
-  if (defIndex === -1) defIndex = 0;
-  voiceSelect.value = defIndex;
-  selectedVoiceIndex = defIndex;
-
-  status.textContent = `Sesler yüklendi (${voices.length} adet) ✓`;
-}
-
-function loadVoices() {
-  if (synth.getVoices().length > 0) {
-    updateVoiceList();
-  }
-}
-
-// Birçok tarayıcıda ilk başta boş döner → event + periyodik kontrol
-synth.onvoiceschanged = () => {
-  updateVoiceList();
-  clearInterval(voiceLoadInterval);
-};
-
-const voiceLoadInterval = setInterval(() => {
-  loadVoices();
-  if (voices.length > 0) clearInterval(voiceLoadInterval);
-}, 400);
-
-// İlk yüklemede dene
-loadVoices();
-
-// Değer göstergeleri
 pitchEl.oninput = () => pitchVal.textContent = pitchEl.value;
 rateEl.oninput   = () => rateVal.textContent   = rateEl.value;
 
-function speakNow() {
-  if (synth.speaking) synth.cancel();
+// Edge TTS → MP3 URL oluştur (ücretsiz Microsoft servisi)
+async function generateTTS() {
+  const text = textEl.value.trim();
+  if (!text) { status.textContent = "Metin boş!"; return null; }
 
-  const txt = textEl.value.trim();
-  if (!txt) {
-    status.textContent = "Metin boş, neyi okuyayım ki? 😏";
-    return;
+  status.textContent = "Ses oluşturuluyor...";
+
+  const voice = voiceSel.value;
+  const rateVal = parseFloat(rateEl.value);
+  const pitchVal = parseInt(pitchEl.value);
+
+  // Edge TTS URL formatı
+  let ssmlRate = rateVal === 1 ? "" : ` rate="${rateVal}"`;
+  let ssmlPitch = pitchVal === 0 ? "" : ` pitch="${pitchVal}%"`;
+
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="tr-TR">
+    <voice name="\( {voice}"><prosody \){ssmlRate}\( {ssmlPitch}> \){text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</prosody></voice>
+  </speak>`;
+
+  const url = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&Sec-MS-GEC=EDGE-V\( {Date.now()}&Sec-MS-GEC-Version=1- \){Date.now()}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/ssml+xml' },
+      body: ssml
+    });
+
+    if (!response.ok) throw new Error("Edge TTS hatası");
+
+    const blob = await response.blob();
+    const mp3Url = URL.createObjectURL(blob);
+
+    status.textContent = "Hazır! Dinle veya indir.";
+    audioPlayer.src = mp3Url;
+    audioPlayer.style.display = 'block';
+    audioPlayer.play().catch(() => {});
+
+    return mp3Url;
+  } catch (err) {
+    status.textContent = "Hata: " + err.message + " (Edge TTS bazen sınırlı çalışır)";
+    return null;
   }
-
-  status.textContent = "Konuşuyor...";
-
-  const utterance = new SpeechSynthesisUtterance(txt);
-
-  if (voiceSelect.value !== '' && voices[voiceSelect.value]) {
-    utterance.voice = voices[voiceSelect.value];
-  }
-
-  utterance.pitch = parseFloat(pitchEl.value);
-  utterance.rate  = parseFloat(rateEl.value);
-  utterance.volume = 1;
-
-  if (!churchCheck.checked) {
-    synth.speak(utterance);
-  } else {
-    status.textContent = "Kilise efekti tarayıcıda sınırlı → normal + biraz gecikmeli çalıyor";
-    synth.speak(utterance); // gerçek reverb için API lazım
-  }
-
-  utterance.onend = () => status.textContent = "Bitti 🎤";
-  utterance.onerror = (e) => status.textContent = "Hata: " + (e.error || 'bilinmeyen');
 }
 
-document.getElementById('speak').onclick = speakNow;
+document.getElementById('speak').onclick = async () => {
+  audioUrl = await generateTTS();
+};
+
+document.getElementById('download').onclick = async () => {
+  if (!audioUrl) {
+    audioUrl = await generateTTS();
+    if (!audioUrl) return;
+  }
+  const a = document.createElement('a');
+  a.href = audioUrl;
+  a.download = 'komik_ses.mp3';
+  a.click();
+};
 
 document.getElementById('stop').onclick = () => {
-  synth.cancel();
-  status.textContent = "Durduruldu 🚫";
+  audioPlayer.pause();
+  audioPlayer.currentTime = 0;
+  status.textContent = "Durduruldu";
 };
 
-document.getElementById('download').onclick = () => {
-  alert("Tarayıcıda direkt MP3/WAV kaydetme şu an mümkün değil.\n\nÇözüm:\n1) Konuş butonuna bas\n2) Bilgisayarın sesini Audacity, OBS veya telefonun ekran kaydedici ile kaydet\n\nİleride ElevenLabs gibi servislerle tam MP3 indirebiliriz.");
-};
+// Kilise efekti → basit echo (gerçek reverb için AudioContext kullanılır)
+audioPlayer.onplay = () => {
+  if (!churchEl.checked) return;
 
+  // Basit echo efekti eklemek için AudioContext
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const source = ctx.createMediaElementSource(audioPlayer);
+  const delay = ctx.createDelay(0.5);
+  const gain = ctx.createGain();
+
+  delay.delayTime.value = 0.4; // yankı gecikmesi
+  gain.gain.value = 0.4;       // yankı şiddeti
+
+  source.connect(ctx.destination);
+  source.connect(delay);
+  delay.connect(gain);
+  gain.connect(delay); // feedback için
+  gain.connect(ctx.destination);
+};
 </script>
 </body>
 </html>
