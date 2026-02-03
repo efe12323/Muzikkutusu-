@@ -1,133 +1,223 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<title>Komik Ses Oluşturucu</title>
-<style>
-body {
-    font-family: Arial, sans-serif;
-    background:#111;
-    color:#fff;
-    padding:20px;
-}
-textarea, select, button {
-    width:100%;
-    margin-top:10px;
-    padding:10px;
-    font-size:16px;
-}
-button {
-    cursor:pointer;
-    background:#ff9800;
-    border:none;
-    font-weight:bold;
-}
-button:hover { opacity:0.8; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Metin → Ses (Komik + Kilise) - Düzgün Ses Seçimi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0ff;
+      padding: 20px;
+      max-width: 720px;
+      margin: auto;
+    }
+    h2 { color: #a78bfa; }
+    textarea {
+      width: 100%;
+      height: 160px;
+      padding: 14px;
+      font-size: 17px;
+      border-radius: 10px;
+      border: 1px solid #444;
+      background: #1a1a2e;
+      color: #fff;
+      resize: vertical;
+    }
+    .controls {
+      margin: 24px 0;
+      display: grid;
+      gap: 18px;
+    }
+    button {
+      padding: 14px 28px;
+      font-size: 17px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+    }
+    #speak { background: #6d28d9; }
+    #speak:hover { background: #8b5cf6; }
+    #stop { background: #dc2626; }
+    #stop:hover { background: #ef4444; }
+    #download { background: #059669; }
+    #download:hover { background: #10b981; }
+    select, input[type=range] {
+      padding: 10px;
+      font-size: 16px;
+      background: #1e293b;
+      color: #e0e0ff;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      width: 100%;
+    }
+    label { display: block; margin-bottom: 8px; font-weight: 600; color: #c4b5fd; }
+    #status { margin-top: 16px; color: #a5b4fc; font-style: italic; }
+    .flex { display: flex; gap: 12px; flex-wrap: wrap; }
+  </style>
 </head>
 <body>
 
-<h2>🎤 Metni Komik Sese Çevir</h2>
+<h2>Metni Sese Çevir – Erkek / Kadın Seç + Komik Efekt + Kilise</h2>
 
-<textarea id="text" rows="5" placeholder="Metni buraya yaz..."></textarea>
+<textarea id="text" placeholder="Buraya yaz...">Hahaha şimdi çok tiz bi sesle konuşuyorum, dikkat et burnumdan konuşuyorum gibi olacak!</textarea>
 
-<select id="voiceSelect"></select>
+<div class="controls">
 
-<select id="effect">
-    <option value="normal">Normal</option>
-    <option value="funny">Komik Ses</option>
-    <option value="church">Church (Kilise Yankısı)</option>
-</select>
+  <div>
+    <label for="voiceSelect">Ses Seç (Erkek / Kadın):</label>
+    <select id="voiceSelect">
+      <option value="">Sesler yükleniyor... lütfen bekle</option>
+    </select>
+  </div>
 
-<button onclick="speak()">🔊 Dinlet</button>
-<button onclick="record()">💾 MP3 Olarak İndir</button>
+  <div>
+    <label for="pitch">Perde (komiklik) → 0.3 derin erkek – 2.0 cırtlak</label>
+    <input type="range" id="pitch" min="0.3" max="2" step="0.1" value="1">
+    <span id="pitchValue">1.0</span>
+  </div>
+
+  <div>
+    <label for="rate">Hız:</label>
+    <input type="range" id="rate" min="0.6" max="2" step="0.1" value="1">
+    <span id="rateValue">1.0</span>
+  </div>
+
+  <div>
+    <label>
+      <input type="checkbox" id="churchEffect"> Kilise yankısı / echo efekti
+    </label>
+  </div>
+
+  <div class="flex">
+    <button id="speak">Konuş!</button>
+    <button id="stop">Durdur</button>
+    <button id="download">İndir (WAV olarak)</button>
+  </div>
+
+</div>
+
+<div id="status">Sesler yükleniyor... (Chrome'da biraz sürebilir)</div>
 
 <script>
+const synth = window.speechSynthesis || null;
+if (!synth) {
+  document.getElementById('status').textContent = "Bu tarayıcıda konuşma özelliği yok 😔";
+}
+
+const textEl       = document.getElementById('text');
+const voiceSelect  = document.getElementById('voiceSelect');
+const pitchEl      = document.getElementById('pitch');
+const pitchVal     = document.getElementById('pitchValue');
+const rateEl       = document.getElementById('rate');
+const rateVal      = document.getElementById('rateValue');
+const churchCheck  = document.getElementById('churchEffect');
+const status       = document.getElementById('status');
+
 let voices = [];
-const voiceSelect = document.getElementById("voiceSelect");
+let selectedVoiceIndex = -1;
+
+function updateVoiceList() {
+  voices = synth.getVoices();
+  if (voices.length === 0) return;
+
+  voiceSelect.innerHTML = '';
+  voices.forEach((voice, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+
+    let gender = '';
+    const nameLower = voice.name.toLowerCase();
+    if (nameLower.includes('female') || nameLower.includes('woman') || nameLower.includes('girl') || nameLower.includes('zira') || nameLower.includes('siri')) {
+      gender = ' 👩‍🦰 Kadın';
+    } else if (nameLower.includes('male') || nameLower.includes('man') || nameLower.includes('boy') || nameLower.includes('david') || nameLower.includes('google uk english male')) {
+      gender = ' 👨 Erkek';
+    }
+
+    option.textContent = `\( {voice.name} ( \){voice.lang})${gender}`;
+    voiceSelect.appendChild(option);
+  });
+
+  // Varsayılan olarak ilk Türkçe veya İngilizce sesi seçmeye çalış
+  let defIndex = voices.findIndex(v => v.lang.startsWith('tr'));
+  if (defIndex === -1) defIndex = voices.findIndex(v => v.lang.startsWith('en'));
+  if (defIndex === -1) defIndex = 0;
+  voiceSelect.value = defIndex;
+  selectedVoiceIndex = defIndex;
+
+  status.textContent = `Sesler yüklendi (${voices.length} adet) ✓`;
+}
 
 function loadVoices() {
-    voices = speechSynthesis.getVoices();
-    voiceSelect.innerHTML = "";
-    voices.forEach((voice, i) => {
-        if (voice.lang.includes("tr") || voice.lang.includes("en")) {
-            let option = document.createElement("option");
-            option.value = i;
-            option.textContent = voice.name + " (" + voice.lang + ")";
-            voiceSelect.appendChild(option);
-        }
-    });
+  if (synth.getVoices().length > 0) {
+    updateVoiceList();
+  }
 }
-speechSynthesis.onvoiceschanged = loadVoices;
+
+// Birçok tarayıcıda ilk başta boş döner → event + periyodik kontrol
+synth.onvoiceschanged = () => {
+  updateVoiceList();
+  clearInterval(voiceLoadInterval);
+};
+
+const voiceLoadInterval = setInterval(() => {
+  loadVoices();
+  if (voices.length > 0) clearInterval(voiceLoadInterval);
+}, 400);
+
+// İlk yüklemede dene
 loadVoices();
 
-function createUtterance() {
-    let utter = new SpeechSynthesisUtterance(
-        document.getElementById("text").value
-    );
-    let v = voices[voiceSelect.value];
-    utter.voice = v;
+// Değer göstergeleri
+pitchEl.oninput = () => pitchVal.textContent = pitchEl.value;
+rateEl.oninput   = () => rateVal.textContent   = rateEl.value;
 
-    let effect = document.getElementById("effect").value;
-    if (effect === "funny") {
-        utter.pitch = 2;
-        utter.rate = 1.4;
-    } else {
-        utter.pitch = 1;
-        utter.rate = 1;
-    }
-    return utter;
+function speakNow() {
+  if (synth.speaking) synth.cancel();
+
+  const txt = textEl.value.trim();
+  if (!txt) {
+    status.textContent = "Metin boş, neyi okuyayım ki? 😏";
+    return;
+  }
+
+  status.textContent = "Konuşuyor...";
+
+  const utterance = new SpeechSynthesisUtterance(txt);
+
+  if (voiceSelect.value !== '' && voices[voiceSelect.value]) {
+    utterance.voice = voices[voiceSelect.value];
+  }
+
+  utterance.pitch = parseFloat(pitchEl.value);
+  utterance.rate  = parseFloat(rateEl.value);
+  utterance.volume = 1;
+
+  if (!churchCheck.checked) {
+    synth.speak(utterance);
+  } else {
+    status.textContent = "Kilise efekti tarayıcıda sınırlı → normal + biraz gecikmeli çalıyor";
+    synth.speak(utterance); // gerçek reverb için API lazım
+  }
+
+  utterance.onend = () => status.textContent = "Bitti 🎤";
+  utterance.onerror = (e) => status.textContent = "Hata: " + (e.error || 'bilinmeyen');
 }
 
-function speak() {
-    speechSynthesis.cancel();
-    let utter = createUtterance();
-    speechSynthesis.speak(utter);
-}
+document.getElementById('speak').onclick = speakNow;
 
-async function record() {
-    const text = document.getElementById("text").value;
-    if (!text) return alert("Metin gir!");
+document.getElementById('stop').onclick = () => {
+  synth.cancel();
+  status.textContent = "Durduruldu 🚫";
+};
 
-    const audioCtx = new AudioContext();
-    const dest = audioCtx.createMediaStreamDestination();
-    const recorder = new MediaRecorder(dest.stream);
-    let chunks = [];
+document.getElementById('download').onclick = () => {
+  alert("Tarayıcıda direkt MP3/WAV kaydetme şu an mümkün değil.\n\nÇözüm:\n1) Konuş butonuna bas\n2) Bilgisayarın sesini Audacity, OBS veya telefonun ekran kaydedici ile kaydet\n\nİleride ElevenLabs gibi servislerle tam MP3 indirebiliriz.");
+};
 
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/mp3" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "ses.mp3";
-        a.click();
-    };
-
-    recorder.start();
-
-    let utter = createUtterance();
-    const source = audioCtx.createMediaStreamSource(dest.stream);
-
-    let gain = audioCtx.createGain();
-    let delay = audioCtx.createDelay();
-    delay.delayTime.value = 0.25;
-
-    let effect = document.getElementById("effect").value;
-    if (effect === "church") {
-        source.connect(delay);
-        delay.connect(gain);
-    } else {
-        source.connect(gain);
-    }
-
-    gain.connect(dest);
-
-    speechSynthesis.speak(utter);
-
-    utter.onend = () => recorder.stop();
-}
 </script>
-
 </body>
 </html>
