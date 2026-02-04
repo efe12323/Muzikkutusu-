@@ -6,7 +6,8 @@
   <title>Gerçekçi Sahte WhatsApp Sohbeti</title>
   <style>
     :root {
-      --header-bg: #00a884;
+      --header-bg: #f0f0f0;
+      --header-text: #111111;
       --bg-chat-light: #efeae2;
       --bg-chat-dark: #111b21;
       --sent-light: #d9fdd3;
@@ -47,7 +48,7 @@
 
     .header {
       background: var(--header-bg);
-      color: white;
+      color: var(--header-text);
       height: 59px;
       padding: 0 16px;
       display: flex;
@@ -56,14 +57,16 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    .header .back {
-      font-size: 28px;
-      font-weight: 300;
+    body.dark .header {
+      background: #1f2c34;
+      color: #e9edef;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
 
+    .header .back { font-size: 28px; font-weight: 300; }
     .header .avatar {
       width: 40px;
       height: 40px;
@@ -71,26 +74,18 @@
       background: #ddd;
       object-fit: cover;
     }
-
-    .header .info {
-      flex: 1;
-    }
-
+    .header .info { flex: 1; }
     .header h3 {
       font-size: 17px;
       font-weight: 600;
       margin: 0;
     }
-
     .header .status {
       font-size: 14px;
       opacity: 0.9;
       margin-top: 1px;
     }
-
-    .header .actions {
-      font-size: 24px;
-    }
+    .header .actions { font-size: 24px; }
 
     .chat-container {
       background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') repeat;
@@ -102,22 +97,6 @@
     body.dark .chat-container {
       background: #0b141a url('https://i.imgur.com/8Z6Z6Z6.png') repeat;
       background-size: 100% auto;
-    }
-
-    .date {
-      text-align: center;
-      margin: 16px 0 10px;
-      font-size: 12px;
-      color: var(--time);
-      background: rgba(255,255,255,0.5);
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 7px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    body.dark .date {
-      background: rgba(30,40,50,0.6);
     }
 
     .msg {
@@ -142,7 +121,6 @@
       border-bottom-left-radius: 2px;
     }
 
-    /* Balon kuyruğu */
     .msg.sent::after,
     .msg.received::after {
       content: "";
@@ -165,8 +143,8 @@
       border-left: 0;
     }
 
-    body.dark .msg.sent::after { border-left-color: var(--sent-dark); }
-    body.dark .msg.received::after { border-right-color: var(--received-dark); }
+    body.dark .msg.sent::after { border-left-color: var(--sent); }
+    body.dark .msg.received::after { border-right-color: var(--received); }
 
     .meta {
       font-size: 11px;
@@ -179,13 +157,8 @@
       gap: 3px;
     }
 
-    .tick {
-      font-size: 14px;
-      line-height: 1;
-    }
-
-    .tick-sent { color: var(--time); }
-    .tick-delivered { color: var(--time); }
+    .tick { font-size: 14px; line-height: 1; }
+    .tick-sent, .tick-delivered { color: var(--time); }
     .tick-read { color: var(--tick-read); }
 
     .delete-btn {
@@ -249,7 +222,7 @@
     <option value="read">✓✓ mavi</option>
   </select>
   <button onclick="addMsg()">Ekle</button>
-  <button class="clear" onclick="document.getElementById('chat').innerHTML=''; lastDate=null;">Temizle</button>
+  <button class="clear" onclick="document.getElementById('chat').innerHTML='';">Temizle</button>
   <button onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light');">Koyu/Açık</button>
 </div>
 
@@ -269,7 +242,6 @@
   const chat = document.getElementById('chat');
   const nameEl = document.getElementById('name');
   const ppEl = document.getElementById('pp');
-  let lastDate = null;
 
   nameEl.oninput = ppEl.oninput = () => {
     document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kişi';
@@ -285,15 +257,6 @@
 
     const now = new Date();
     const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
-    const dateStr = now.toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long' });
-
-    if (dateStr !== lastDate) {
-      const d = document.createElement('div');
-      d.className = 'date';
-      d.textContent = dateStr;
-      chat.appendChild(d);
-      lastDate = dateStr;
-    }
 
     const m = document.createElement('div');
     m.className = `msg ${who}`;
@@ -318,7 +281,6 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  // Başlangıç header güncelle (otomatik mesaj yok)
   nameEl.dispatchEvent(new Event('input'));
 </script>
 </body>
