@@ -3,17 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sahte Instagram DM - Mor Balon</title>
+  <title>Sahte Instagram DM</title>
   <style>
     :root {
-      --bg: #000000;                /* Karanlık arka plan (senin ekran gibi) */
-      --header-bg: #000000;
-      --sent: #9b59b6;              /* Mor balon – Instagram 2025+ purple */
-      --received: #1e1e1e;          /* Alınan mesaj gri-koyu */
-      --text: #ffffff;
-      --time: #aaaaaa;
-      --reply-bg: #2a2a2a;
-      --story-reply: #6b48ff;       /* Mor ton reply için */
+      --header-bg: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+      --bg-light: #fafafa;
+      --bg-dark: #121212;
+      --sent-light: #c13584;          /* sadece burayı mor yaptım (Instagram moru) */
+      --sent-dark: #a0206e;           /* koyu mod için biraz daha koyu mor */
+      --received-light: #ffffff;
+      --received-dark: #262626;
+      --text-light: #262626;
+      --text-dark: #e0e0e0;
+      --time-light: #8e8e8e;
+      --time-dark: #a8a8a8;
+      --seen: #4fc3f7;
+    }
+
+    body.light {
+      --bg: var(--bg-light);
+      --sent: var(--sent-light);
+      --received: var(--received-light);
+      --text: var(--text-light);
+      --time: var(--time-light);
+    }
+
+    body.dark {
+      --bg: var(--bg-dark);
+      --sent: var(--sent-dark);
+      --received: var(--received-dark);
+      --text: var(--text-dark);
+      --time: var(--time-dark);
     }
 
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -27,112 +47,68 @@
 
     .header {
       background: var(--header-bg);
-      height: 50px;
-      padding: 0 12px;
+      color: white;
+      height: 54px;
+      padding: 0 16px;
       display: flex;
       align-items: center;
       gap: 12px;
       position: sticky;
       top: 0;
       z-index: 10;
-      border-bottom: 1px solid #222;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
 
-    .header .back { font-size: 26px; font-weight: 300; }
+    .header .back { font-size: 28px; font-weight: 300; }
     .header .avatar {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
-      background: #444;
+      background: #ddd;
       object-fit: cover;
+      border: 2px solid white;
     }
     .header .info { flex: 1; }
-    .header h3 { font-size: 16px; font-weight: 600; margin: 0; }
-    .header .username { font-size: 13px; color: #aaa; }
+    .header h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .header .status {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-top: 1px;
+    }
+    .header .call { font-size: 22px; margin-left: 8px; }
 
     .chat-container {
-      padding: 12px 10px 70px;
-      min-height: calc(100vh - 50px);
+      min-height: calc(100vh - 54px);
+      padding: 12px 10px 80px;
+      background: var(--bg);
     }
-
-    .reply-notif {
-      text-align: center;
-      color: #aaa;
-      font-size: 13px;
-      margin: 16px 0;
-      padding: 0 20px;
-    }
-
-    .story-reply {
-      display: flex;
-      align-items: flex-start;
-      margin: 10px 0;
-      max-width: 85%;
-    }
-
-    .story-reply.received { margin-right: auto; }
-    .story-reply.sent { margin-left: auto; flex-direction: row-reverse; }
-
-    .story-thumb {
-      width: 60px;
-      height: 80px;
-      border-radius: 10px;
-      background: #333;
-      margin: 0 8px;
-      position: relative;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    .story-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .story-text {
-      background: var(--story-reply);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 18px;
-      max-width: 70%;
-      font-size: 15px;
-      position: relative;
-    }
-
-    .story-text.sent { background: #8e44ad; }
 
     .msg {
-      max-width: 78%;
+      max-width: 72%;
       margin: 6px 0 14px;
-      padding: 9px 13px 6px;
-      border-radius: 20px;
-      font-size: 15.5px;
+      padding: 8px 12px 6px;
+      border-radius: 18px;
       position: relative;
+      font-size: 15.5px;
+      background: var(--received);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
       word-wrap: break-word;
     }
 
     .msg.sent {
       background: var(--sent);
-      color: white;
       margin-left: auto;
-      border-bottom-right-radius: 6px;
+      border-bottom-right-radius: 4px;
+      color: white;                    /* mor kutuda yazı beyaz olsun diye */
     }
 
     .msg.received {
-      background: var(--received);
       margin-right: auto;
-      border-bottom-left-radius: 6px;
-    }
-
-    .reply-to {
-      background: var(--reply-bg);
-      border-radius: 14px;
-      padding: 6px 10px 4px;
-      margin-bottom: 6px;
-      font-size: 13px;
-      opacity: 0.9;
-      border-left: 3px solid #9b59b6;
+      border-bottom-left-radius: 4px;
     }
 
     .meta {
@@ -140,142 +116,134 @@
       color: var(--time);
       text-align: right;
       margin-top: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
     }
 
-    .star { color: #f1c40f; font-size: 14px; margin-left: 4px; }
+    .seen {
+      color: var(--seen);
+      font-size: 14px;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ed4956;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .msg:hover .delete-btn { display: block; }
 
     .controls {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #111;
-      padding: 10px;
+      background: rgba(0,0,0,0.04);
+      padding: 12px;
       display: flex;
-      gap: 8px;
-      border-top: 1px solid #222;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: sticky;
+      bottom: 0;
       z-index: 5;
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    body.dark .controls {
+      background: rgba(255,255,255,0.05);
+      border-top-color: rgba(255,255,255,0.08);
     }
 
     .controls input, .controls select, .controls button {
       padding: 10px 14px;
       border: none;
-      border-radius: 20px;
+      border-radius: 8px;
       font-size: 15px;
     }
 
-    .controls input[type="text"] { flex: 1; background: #222; color: white; }
-    .controls button { background: #0095f6; color: white; cursor: pointer; }
-    .controls .clear { background: #e74c3c; }
+    .controls input[type="text"] { flex: 1; min-width: 140px; }
+    .controls button { background: #0095f6; color: white; cursor: pointer; font-weight: 600; }
+    .controls .clear { background: #db4437; }
 
-    .bottom-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 50px;
-      background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      font-size: 24px;
-      color: #aaa;
-      border-top: 1px solid #222;
+    @media print {
+      .controls, .delete-btn { display: none !important; }
     }
-
-    @media print { .controls, .bottom-bar { display: none !important; } }
   </style>
 </head>
-<body>
+<body class="light">
 
 <div class="controls">
-  <input type="text" id="name" placeholder="İsim" value="Gökçe">
-  <input type="text" id="username" placeholder="Kullanıcı adı" value="gokc3_44">
+  <input type="text" id="name" placeholder="Karşı taraf isim" value="murat_xx">
+  <input type="text" id="pp" placeholder="Profil resim URL (isteğe bağlı)">
   <select id="who">
     <option value="received">Karşı taraf</option>
-    <option value="sent">Sen (mor)</option>
-    <option value="story-reply">Story reply (mor kutu)</option>
+    <option value="sent">Sen</option>
   </select>
-  <button onclick="addMsg()">Ekle</button>
+  <select id="seen">
+    <option value="">zaman</option>
+    <option value="seen">✓✓ mavi (görüldü)</option>
+  </select>
+  <button onclick="addMsg()">Mesaj Ekle</button>
   <button class="clear" onclick="document.getElementById('chat').innerHTML='';">Temizle</button>
+  <button onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light');">Koyu/Açık</button>
 </div>
 
 <div class="header">
   <div class="back">←</div>
-  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/9b59b6/fff?text=G" alt="">
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/0095f6/fff?text=IG" alt="">
   <div class="info">
-    <h3 id="chatName">Gökçe</h3>
-    <div class="username" id="chatUsername">gokc3_44</div>
+    <h3 id="chatName">murat_xx</h3>
+    <div class="status">Çevrimiçi</div>
   </div>
+  <div class="call">📞</div>
 </div>
 
-<div class="chat-container" id="chat">
-  <!-- Mesajlar buraya eklenecek -->
-</div>
-
-<div class="bottom-bar">
-  <span>📷</span>
-  <span>Mesaj...</span>
-  <span>🎤</span>
-  <span>🖼️</span>
-  <span>😀</span>
-  <span>+</span>
-</div>
+<div class="chat-container" id="chat"></div>
 
 <script>
   const chat = document.getElementById('chat');
   const nameEl = document.getElementById('name');
-  const usernameEl = document.getElementById('username');
+  const ppEl = document.getElementById('pp');
 
-  nameEl.oninput = usernameEl.oninput = () => {
-    document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kişi';
-    document.getElementById('chatUsername').textContent = usernameEl.value.trim() || 'kullanici';
+  nameEl.oninput = ppEl.oninput = () => {
+    document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kullanıcı';
+    document.getElementById('avatar').src = ppEl.value.trim() || 'https://via.placeholder.com/80/0095f6/fff?text=IG';
   };
 
   function addMsg() {
-    const txt = prompt('Mesaj yaz (yanıt için önce ">> metin" yazabilirsin):')?.trim();
+    const txt = prompt('Mesaj yaz:')?.trim();
     if (!txt) return;
 
     const who = document.getElementById('who').value;
+    const seenVal = document.getElementById('seen').value;
 
     const now = new Date();
     const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
 
     const m = document.createElement('div');
+    m.className = `msg ${who}`;
+    m.innerHTML = txt.replace(/\n/g, '<br>');
 
-    if (who === 'story-reply') {
-      m.className = 'story-reply received';
-      m.innerHTML = `
-        <div class="story-thumb"><img src="https://via.placeholder.com/60x80/333/fff?text=Story" alt="story"></div>
-        <div class="story-text">${txt.replace(/\n/g, '<br>')}</div>
-      `;
-    } else {
-      m.className = `msg ${who}`;
-      let content = txt.replace(/\n/g, '<br>');
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    let seenIcon = '';
+    if (seenVal === 'seen') seenIcon = '<span class="seen">✓✓</span>';
+    meta.innerHTML = time + ' ' + seenIcon;
 
-      // Yanıt varsa >> ile ayrılmış kabul et
-      if (txt.includes('>>')) {
-        const [reply, main] = txt.split('>>').map(s => s.trim());
-        content = `<div class="reply-to">\( {reply}</div> \){main}`;
-      }
+    const del = document.createElement('button');
+    del.className = 'delete-btn';
+    del.textContent = '×';
+    del.onclick = () => m.remove();
 
-      m.innerHTML = content;
-
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.innerHTML = time;
-      if (who === 'received') meta.innerHTML += ' <span class="star">★</span>';
-      m.appendChild(meta);
-    }
-
-    // Yanıt bildirimi eklemek istersen manuel koyabilirsin
-    if (Math.random() > 0.7) {  // rastgele bazen eklesin
-      const notif = document.createElement('div');
-      notif.className = 'reply-notif';
-      notif.textContent = 'Kendisi paylaşımına yanıt verdi • Yanıt verdin';
-      chat.appendChild(notif);
-    }
-
+    m.appendChild(meta);
+    m.appendChild(del);
     chat.appendChild(m);
     chat.scrollTop = chat.scrollHeight;
   }
