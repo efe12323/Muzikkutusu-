@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sahte Instagram DM - Mor Balon</title>
+  <style>
+    :root {
+      --bg: #000000;                /* Karanlık arka plan (senin ekran gibi) */
+      --header-bg: #000000;
+      --sent: #9b59b6;              /* Mor balon – Instagram 2025+ purple */
+      --received: #1e1e1e;          /* Alınan mesaj gri-koyu */
+      --text: #ffffff;
+      --time: #aaaaaa;
+      --reply-bg: #2a2a2a;
+      --story-reply: #6b48ff;       /* Mor ton reply için */
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    .header {
+      background: var(--header-bg);
+      height: 50px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid #222;
+    }
+
+    .header .back { font-size: 26px; font-weight: 300; }
+    .header .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #444;
+      object-fit: cover;
+    }
+    .header .info { flex: 1; }
+    .header h3 { font-size: 16px; font-weight: 600; margin: 0; }
+    .header .username { font-size: 13px; color: #aaa; }
+
+    .chat-container {
+      padding: 12px 10px 70px;
+      min-height: calc(100vh - 50px);
+    }
+
+    .reply-notif {
+      text-align: center;
+      color: #aaa;
+      font-size: 13px;
+      margin: 16px 0;
+      padding: 0 20px;
+    }
+
+    .story-reply {
+      display: flex;
+      align-items: flex-start;
+      margin: 10px 0;
+      max-width: 85%;
+    }
+
+    .story-reply.received { margin-right: auto; }
+    .story-reply.sent { margin-left: auto; flex-direction: row-reverse; }
+
+    .story-thumb {
+      width: 60px;
+      height: 80px;
+      border-radius: 10px;
+      background: #333;
+      margin: 0 8px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .story-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .story-text {
+      background: var(--story-reply);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 18px;
+      max-width: 70%;
+      font-size: 15px;
+      position: relative;
+    }
+
+    .story-text.sent { background: #8e44ad; }
+
+    .msg {
+      max-width: 78%;
+      margin: 6px 0 14px;
+      padding: 9px 13px 6px;
+      border-radius: 20px;
+      font-size: 15.5px;
+      position: relative;
+      word-wrap: break-word;
+    }
+
+    .msg.sent {
+      background: var(--sent);
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 6px;
+    }
+
+    .msg.received {
+      background: var(--received);
+      margin-right: auto;
+      border-bottom-left-radius: 6px;
+    }
+
+    .reply-to {
+      background: var(--reply-bg);
+      border-radius: 14px;
+      padding: 6px 10px 4px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      opacity: 0.9;
+      border-left: 3px solid #9b59b6;
+    }
+
+    .meta {
+      font-size: 11px;
+      color: var(--time);
+      text-align: right;
+      margin-top: 3px;
+    }
+
+    .star { color: #f1c40f; font-size: 14px; margin-left: 4px; }
+
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #111;
+      padding: 10px;
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid #222;
+      z-index: 5;
+    }
+
+    .controls input, .controls select, .controls button {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 20px;
+      font-size: 15px;
+    }
+
+    .controls input[type="text"] { flex: 1; background: #222; color: white; }
+    .controls button { background: #0095f6; color: white; cursor: pointer; }
+    .controls .clear { background: #e74c3c; }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      font-size: 24px;
+      color: #aaa;
+      border-top: 1px solid #222;
+    }
+
+    @media print { .controls, .bottom-bar { display: none !important; } }
+  </style>
+</head>
+<body>
+
+<div class="controls">
+  <input type="text" id="name" placeholder="İsim" value="Gökçe">
+  <input type="text" id="username" placeholder="Kullanıcı adı" value="gokc3_44">
+  <select id="who">
+    <option value="received">Karşı taraf</option>
+    <option value="sent">Sen (mor)</option>
+    <option value="story-reply">Story reply (mor kutu)</option>
+  </select>
+  <button onclick="addMsg()">Ekle</button>
+  <button class="clear" onclick="document.getElementById('chat').innerHTML='';">Temizle</button>
+</div>
+
+<div class="header">
+  <div class="back">←</div>
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/9b59b6/fff?text=G" alt="">
+  <div class="info">
+    <h3 id="chatName">Gökçe</h3>
+    <div class="username" id="chatUsername">gokc3_44</div>
+  </div>
+</div>
+
+<div class="chat-container" id="chat">
+  <!-- Mesajlar buraya eklenecek -->
+</div>
+
+<div class="bottom-bar">
+  <span>📷</span>
+  <span>Mesaj...</span>
+  <span>🎤</span>
+  <span>🖼️</span>
+  <span>😀</span>
+  <span>+</span>
+</div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const nameEl = document.getElementById('name');
+  const usernameEl = document.getElementById('username');
+
+  nameEl.oninput = usernameEl.oninput = () => {
+    document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kişi';
+    document.getElementById('chatUsername').textContent = usernameEl.value.trim() || 'kullanici';
+  };
+
+  function addMsg() {
+    const txt = prompt('Mesaj yaz (yanıt için önce ">> metin" yazabilirsin):')?.trim();
+    if (!txt) return;
+
+    const who = document.getElementById('who').value;
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+
+    const m = document.createElement('div');
+
+    if (who === 'story-reply') {
+      m.className = 'story-reply received';
+      m.innerHTML = `
+        <div class="story-thumb"><img src="https://via.placeholder.com/60x80/333/fff?text=Story" alt="story"></div>
+        <div class="story-text">${txt.replace(/\n/g, '<br>')}</div>
+      `;
+    } else {
+      m.className = `msg ${who}`;
+      let content = txt.replace(/\n/g, '<br>');
+
+      // Yanıt varsa >> ile ayrılmış kabul et
+      if (txt.includes('>>')) {
+        const [reply, main] = txt.split('>>').map(s => s.trim());
+        content = `<div class="reply-to">\( {reply}</div> \){main}`;
+      }
+
+      m.innerHTML = content;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = time;
+      if (who === 'received') meta.innerHTML += ' <span class="star">★</span>';
+      m.appendChild(meta);
+    }
+
+    // Yanıt bildirimi eklemek istersen manuel koyabilirsin
+    if (Math.random() > 0.7) {  // rastgele bazen eklesin
+      const notif = document.createElement('div');
+      notif.className = 'reply-notif';
+      notif.textContent = 'Kendisi paylaşımına yanıt verdi • Yanıt verdin';
+      chat.appendChild(notif);
+    }
+
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  nameEl.dispatchEvent(new Event('input'));
+</script>
+</body>
+</html>
