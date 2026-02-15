@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Telefon Üzerinden Metin Gönderme</title>
+<style>
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;text-align:center}
+textarea{width:85%;height:120px;margin:10px;background:#020617;color:#22c55e;border:1px solid #334155}
+button{padding:12px 18px;margin:5px;font-size:15px;background:#1f2937;color:white;border:none;border-radius:8px}
+#out{white-space:pre-wrap;border:1px solid #334155;padding:10px;margin-top:10px;min-height:80px}
+</style>
+</head>
+<body>
+
+<h2>📞 İnternetsiz Sesli Mesajlaşma (Demo)</h2>
+
+<textarea id="text" placeholder="Gönderilecek mesaj"></textarea><br>
+<button onclick="send()">Gönder</button>
+<button onclick="startRecv()">Dinlemeye Başla</button>
+
+<h3>Alınan:</h3>
+<div id="out"></div>
+
+<script>
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+
+const MAP="abcdefghijklmnopqrstuvwxyz0123456789 .,!?";
+const START=420;
+const STEP=35;
+const CHAR_TIME=0.18;
+
+// frekans hesapla
+function encodeFreq(c){
+ let i=MAP.indexOf(c);
+ if(i<0)i=MAP.indexOf(" ");
+ return START+i*STEP;
+}
+
+// ton üret
+async function tone(freq){
+ let osc=ctx.createOscillator();
+ let gain=ctx.createGain();
+ osc.frequency.value=freq;
+ gain.gain.value=0.28;
+ osc.connect(gain);
+ gain.connect(ctx.destination);
+ osc.start();
+ await new Promise(r=>setTimeout(r,CHAR_TIME*1000));
+ osc.stop();
+ await new Promise(r=>setTimeout(r,40));
+}
+
+// gönder
+async function send(){
+ let txt="^"+document.getElementById("text").value.toLowerCase()+"$";
+ for(let c of txt){
+  await tone(encodeFreq(c));
+ }
+}
+
+// alıcı
+let started=false;
+async function startRecv(){
+ if(started)return;
+ started=true;
+
+ let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+ let src=ctx.createMediaStreamSource(stream);
+ let analyser=ctx.createAnalyser();
+ analyser.fftSize=4096;
+ src.connect(analyser);
+
+ let data=new Float32Array(analyser.frequencyBinCount);
+ let out=document.getElementById("out");
+ let buffer="";
+ let active=false;
+
+ setInterval(()=>{
+  analyser.getFloatFrequencyData(data);
+
+  let max=-999,index=0;
+  for(let i=0;i<data.length;i++){
+    if(data[i]>max){max=data[i];index=i;}
+  }
+
+  let freq=index*ctx.sampleRate/analyser.fftSize;
+
+  let charIndex=Math.round((freq-START)/STEP);
+  if(charIndex>=0 && charIndex<MAP.length){
+    let ch=MAP[charIndex];
+
+    if(ch==="^"){buffer="";active=true;return;}
+    if(ch==="$"){active=false;out.textContent+=buffer+"\n";return;}
+
+    if(active) buffer+=ch;
+  }
+
+ },160);
+}
+</script>
+
+</body>
+</html>
