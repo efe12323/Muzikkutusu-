@@ -8,15 +8,20 @@ body{background:#0f172a;color:#e5e7eb;font-family:Arial;text-align:center}
 textarea{width:85%;height:120px;margin:10px;background:#020617;color:#22c55e;border:1px solid #334155}
 button{padding:12px 18px;margin:5px;font-size:15px;background:#1f2937;color:white;border:none;border-radius:8px}
 #out{white-space:pre-wrap;border:1px solid #334155;padding:10px;margin-top:10px;min-height:80px}
+#status{margin-top:10px;font-weight:bold}
+.ok{color:#22c55e}
+.err{color:#ef4444}
 </style>
 </head>
 <body>
 
-<h2>📞 İnternetsiz Sesli Mesajlaşma (Demo)</h2>
+<h2>📞 İnternetsiz Sesli Mesajlaşma</h2>
 
 <textarea id="text" placeholder="Gönderilecek mesaj"></textarea><br>
 <button onclick="send()">Gönder</button>
-<button onclick="startRecv()">Dinlemeye Başla</button>
+<button onclick="requestMic()">🎤 Mikrofonu Etkinleştir</button>
+
+<div id="status" class="err">Mikrofon kapalı</div>
 
 <h3>Alınan:</h3>
 <div id="out"></div>
@@ -29,14 +34,12 @@ const START=420;
 const STEP=35;
 const CHAR_TIME=0.18;
 
-// frekans hesapla
 function encodeFreq(c){
  let i=MAP.indexOf(c);
  if(i<0)i=MAP.indexOf(" ");
  return START+i*STEP;
 }
 
-// ton üret
 async function tone(freq){
  let osc=ctx.createOscillator();
  let gain=ctx.createGain();
@@ -50,7 +53,6 @@ async function tone(freq){
  await new Promise(r=>setTimeout(r,40));
 }
 
-// gönder
 async function send(){
  let txt="^"+document.getElementById("text").value.toLowerCase()+"$";
  for(let c of txt){
@@ -58,17 +60,30 @@ async function send(){
  }
 }
 
-// alıcı
+let analyser;
 let started=false;
-async function startRecv(){
+
+async function requestMic(){
+ try{
+   let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   document.getElementById("status").textContent="Mikrofon açık";
+   document.getElementById("status").className="ok";
+
+   const src=ctx.createMediaStreamSource(stream);
+   analyser=ctx.createAnalyser();
+   analyser.fftSize=4096;
+   src.connect(analyser);
+
+   listen();
+ }catch(e){
+   document.getElementById("status").textContent="Mikrofon izni reddedildi!";
+   document.getElementById("status").className="err";
+ }
+}
+
+function listen(){
  if(started)return;
  started=true;
-
- let stream=await navigator.mediaDevices.getUserMedia({audio:true});
- let src=ctx.createMediaStreamSource(stream);
- let analyser=ctx.createAnalyser();
- analyser.fftSize=4096;
- src.connect(analyser);
 
  let data=new Float32Array(analyser.frequencyBinCount);
  let out=document.getElementById("out");
@@ -84,8 +99,8 @@ async function startRecv(){
   }
 
   let freq=index*ctx.sampleRate/analyser.fftSize;
-
   let charIndex=Math.round((freq-START)/STEP);
+
   if(charIndex>=0 && charIndex<MAP.length){
     let ch=MAP[charIndex];
 
