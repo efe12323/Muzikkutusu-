@@ -2,26 +2,23 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Telefon Üzerinden Metin Gönderme</title>
+<title>Turbo Sesli Mesajlaşma</title>
 <style>
 body{background:#0f172a;color:#e5e7eb;font-family:Arial;text-align:center}
 textarea{width:85%;height:120px;margin:10px;background:#020617;color:#22c55e;border:1px solid #334155}
 button{padding:12px 18px;margin:5px;font-size:15px;background:#1f2937;color:white;border:none;border-radius:8px}
 #out{white-space:pre-wrap;border:1px solid #334155;padding:10px;margin-top:10px;min-height:80px}
-#status{margin-top:10px;font-weight:bold}
 .ok{color:#22c55e}
 .err{color:#ef4444}
 </style>
 </head>
 <body>
 
-<h2>📞 İnternetsiz Sesli Mesajlaşma</h2>
+<h2>📞 Turbo İnternetsiz Mesajlaşma</h2>
 
-<textarea id="text" placeholder="Gönderilecek mesaj"></textarea><br>
+<textarea id="text" placeholder="Mesaj"></textarea><br>
 <button onclick="send()">Gönder</button>
-<button onclick="requestMic()">🎤 Mikrofonu Etkinleştir</button>
-
-<div id="status" class="err">Mikrofon kapalı</div>
+<button onclick="requestMic()">🎤 Mikrofonu Aç</button>
 
 <h3>Alınan:</h3>
 <div id="out"></div>
@@ -29,88 +26,86 @@ button{padding:12px 18px;margin:5px;font-size:15px;background:#1f2937;color:whit
 <script>
 const ctx=new (window.AudioContext||window.webkitAudioContext)();
 
-const MAP="abcdefghijklmnopqrstuvwxyz0123456789 .,!?";
-const START=420;
-const STEP=35;
-const CHAR_TIME=0.18;
+// 16 frekans = 4 bit
+const BASE=700;
+const STEP=90;
+const SYMBOL=0.09;
 
-function encodeFreq(c){
- let i=MAP.indexOf(c);
- if(i<0)i=MAP.indexOf(" ");
- return START+i*STEP;
+function freqOf(n){return BASE+n*STEP}
+
+// metni binarye çevir
+function textToBytes(str){
+ return new TextEncoder().encode(str);
 }
 
-async function tone(freq){
- let osc=ctx.createOscillator();
- let gain=ctx.createGain();
- osc.frequency.value=freq;
- gain.gain.value=0.28;
- osc.connect(gain);
- gain.connect(ctx.destination);
- osc.start();
- await new Promise(r=>setTimeout(r,CHAR_TIME*1000));
- osc.stop();
- await new Promise(r=>setTimeout(r,40));
+async function play(freq){
+ let o=ctx.createOscillator();
+ let g=ctx.createGain();
+ o.frequency.value=freq;
+ g.gain.value=0.3;
+ o.connect(g);
+ g.connect(ctx.destination);
+ o.start();
+ await new Promise(r=>setTimeout(r,SYMBOL*1000));
+ o.stop();
+ await new Promise(r=>setTimeout(r,15));
 }
 
 async function send(){
- let txt="^"+document.getElementById("text").value.toLowerCase()+"$";
- for(let c of txt){
-  await tone(encodeFreq(c));
+ let bytes=textToBytes("^"+document.getElementById("text").value+"$");
+
+ for(let b of bytes){
+   let hi=(b>>4)&15;
+   let lo=b&15;
+   await play(freqOf(hi));
+   await play(freqOf(lo));
  }
 }
 
+// ===== ALICI =====
 let analyser;
-let started=false;
 
 async function requestMic(){
- try{
-   let stream=await navigator.mediaDevices.getUserMedia({audio:true});
-   document.getElementById("status").textContent="Mikrofon açık";
-   document.getElementById("status").className="ok";
-
-   const src=ctx.createMediaStreamSource(stream);
-   analyser=ctx.createAnalyser();
-   analyser.fftSize=4096;
-   src.connect(analyser);
-
-   listen();
- }catch(e){
-   document.getElementById("status").textContent="Mikrofon izni reddedildi!";
-   document.getElementById("status").className="err";
- }
+ let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+ const src=ctx.createMediaStreamSource(stream);
+ analyser=ctx.createAnalyser();
+ analyser.fftSize=2048;
+ src.connect(analyser);
+ listen();
 }
 
-function listen(){
- if(started)return;
- started=true;
+let collecting=false;
+let byteHalf=null;
+let text="";
 
+function listen(){
  let data=new Float32Array(analyser.frequencyBinCount);
- let out=document.getElementById("out");
- let buffer="";
- let active=false;
 
  setInterval(()=>{
   analyser.getFloatFrequencyData(data);
 
-  let max=-999,index=0;
-  for(let i=0;i<data.length;i++){
-    if(data[i]>max){max=data[i];index=i;}
+  let max=-999,idx=0;
+  for(let i=0;i<data.length;i++)
+   if(data[i]>max){max=data[i];idx=i;}
+
+  let freq=idx*ctx.sampleRate/analyser.fftSize;
+  let val=Math.round((freq-BASE)/STEP);
+
+  if(val<0||val>15)return;
+
+  if(byteHalf===null) byteHalf=val;
+  else{
+    let b=(byteHalf<<4)|val;
+    byteHalf=null;
+    let ch=String.fromCharCode(b);
+
+    if(ch==="^"){text="";collecting=true;return;}
+    if(ch==="$"){collecting=false;document.getElementById("out").textContent+=text+"\n";return;}
+
+    if(collecting) text+=ch;
   }
 
-  let freq=index*ctx.sampleRate/analyser.fftSize;
-  let charIndex=Math.round((freq-START)/STEP);
-
-  if(charIndex>=0 && charIndex<MAP.length){
-    let ch=MAP[charIndex];
-
-    if(ch==="^"){buffer="";active=true;return;}
-    if(ch==="$"){active=false;out.textContent+=buffer+"\n";return;}
-
-    if(active) buffer+=ch;
-  }
-
- },160);
+ },70);
 }
 </script>
 
