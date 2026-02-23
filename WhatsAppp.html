@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gerçekçi Sahte WhatsApp Sohbeti + Fotoğraf</title>
+  <style>
+    /* Mevcut stillerin tamamını buraya kopyala (değişiklik yok, sadece aşağıya ekleyeceğiz) */
+
+    .msg img {
+      max-width: 100%;
+      border-radius: 10px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .msg.image-only .meta {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      background: rgba(0,0,0,0.4);
+      color: white;
+      padding: 3px 7px;
+      border-radius: 10px;
+      font-size: 10px;
+    }
+
+    .msg.image-only .meta .tick {
+      color: white !important;
+    }
+
+    /* Mevcut stiller devam... */
+  </style>
+</head>
+<body class="light">
+
+<div class="controls">
+  <input type="text" id="name" placeholder="İsim" value="Doktor Murat">
+  <input type="text" id="pp" placeholder="Profil resim URL">
+  <select id="who">
+    <option value="received">Karşı taraf</option>
+    <option value="sent">Sen</option>
+  </select>
+  <select id="tick">
+    <option value="">zaman</option>
+    <option value="sent">✓ gri</option>
+    <option value="delivered">✓✓ gri</option>
+    <option value="read">✓✓ mavi</option>
+  </select>
+  <button onclick="addMsg()">Metin Ekle</button>
+  
+  <!-- Yeni: Fotoğraf seçme kısmı -->
+  <label for="imageUpload" style="background:#00a884; color:white; padding:8px 12px; border-radius:6px; cursor:pointer;">
+    Fotoğraf Ekle
+  </label>
+  <input type="file" id="imageUpload" accept="image/*" style="display:none;">
+  
+  <button class="clear" onclick="document.getElementById('chat').innerHTML='';">Temizle</button>
+  <button onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light');">Koyu/Açık</button>
+</div>
+
+<div class="header">
+  <div class="back">←</div>
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/128C7E/fff?text=Dr" alt="">
+  <div class="info">
+    <h3 id="chatName">Doktor Murat</h3>
+    <div class="status">çevrimiçi</div>
+  </div>
+  <div class="actions">⋯</div>
+</div>
+
+<div class="chat-container" id="chat"></div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const nameEl = document.getElementById('name');
+  const ppEl = document.getElementById('pp');
+
+  nameEl.oninput = ppEl.oninput = () => {
+    document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kişi';
+    document.getElementById('avatar').src = ppEl.value.trim() || 'https://via.placeholder.com/80/128C7E/fff?text=Dr';
+  };
+
+  // Metin mesaj ekleme (eski fonksiyon, isim değişti)
+  function addMsg() {
+    const txt = prompt('Mesajı yaz:')?.trim();
+    if (!txt) return;
+    createMessage(txt, false);
+  }
+
+  // Yeni: Görsel + metin destekli genel mesaj oluşturma fonksiyonu
+  function createMessage(content, isImage = false, file = null) {
+    const who = document.getElementById('who').value;
+    const tickVal = document.getElementById('tick').value;
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+
+    const m = document.createElement('div');
+    m.className = `msg ${who}`;
+    if (isImage) m.classList.add('image-only');
+
+    if (isImage && file) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      img.alt = "Gönderilen fotoğraf";
+      m.appendChild(img);
+    } else {
+      m.innerHTML = content.replace(/\n/g, '<br>');
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    let t = '';
+    if (tickVal === 'sent') t = '<span class="tick tick-sent">✓</span>';
+    else if (tickVal === 'delivered') t = '<span class="tick tick-delivered">✓✓</span>';
+    else if (tickVal === 'read') t = '<span class="tick tick-read">✓✓</span>';
+    meta.innerHTML = time + ' ' + t;
+
+    const del = document.createElement('button');
+    del.className = 'delete-btn';
+    del.textContent = '×';
+    del.onclick = () => m.remove();
+
+    m.appendChild(meta);
+    m.appendChild(del);
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // Fotoğraf seçildiğinde çalışacak olay
+  document.getElementById('imageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // İstersen metin de ekleyebilirsin (caption)
+    const caption = prompt('Fotoğraf altına yazı (caption) eklemek ister misin? (boş bırakabilirsin):')?.trim() || '';
+
+    createMessage(caption, true, file);
+
+    // Input'u temizle ki aynı dosyayı tekrar seçebilesin
+    e.target.value = '';
+  });
+
+  nameEl.dispatchEvent(new Event('input'));
+</script>
+</body>
+</html>
