@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gerçekçi Sahte WhatsApp Sohbeti + Fotoğraf + Sesli</title>
+  <title>Gerçekçi Sahte WhatsApp + Fotoğraf + Sesli Animasyon</title>
   <style>
     :root {
       --header-bg: #f0f0f0;
@@ -152,7 +152,7 @@
     .controls button { background: #00a884; color: white; cursor: pointer; }
     .controls .clear { background: #ff3b30; }
 
-    /* Fotoğraf */
+    /* Fotoğraf stilleri */
     .msg img {
       max-width: 100%;
       border-radius: 10px;
@@ -173,61 +173,77 @@
 
     .msg.image-only .meta .tick { color: white !important; }
 
-    /* Sesli mesaj */
+    /* ──────────────────────────────────────────────── */
+    /* SESLİ MESAJ – Daha gerçekçi dalga animasyonu     */
+    /* ──────────────────────────────────────────────── */
     .voice-msg {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      min-width: 220px;
+      gap: 12px;
+      padding: 8px 14px;
+      min-width: 260px;
     }
 
     .play-btn {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       background: #00a884;
       color: white;
-      font-size: 18px;
+      font-size: 20px;
       border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      transition: transform 0.15s;
     }
+
+    .play-btn:active { transform: scale(0.92); }
 
     .waveform {
       flex: 1;
-      height: 36px;
+      height: 42px;
       display: flex;
-      align-items: flex-end;
-      gap: 3px;
+      align-items: center;
+      gap: 2.5px;
     }
 
     .bar {
-      width: 4px;
+      width: 3.5px;
       background: currentColor;
-      opacity: 0.8;
-      border-radius: 2px;
-      animation: wave 1.2s infinite ease-in-out;
+      border-radius: 3px;
+      animation: voiceWave 1.6s infinite ease-in-out;
       animation-play-state: paused;
+      transform-origin: bottom;
     }
 
-    .voice-msg.playing .bar { animation-play-state: running; }
+    .voice-msg.playing .bar {
+      animation-play-state: running;
+    }
 
-    .bar:nth-child(1) { height: 40%; animation-delay: 0s; }
-    .bar:nth-child(2) { height: 60%; animation-delay: 0.1s; }
-    .bar:nth-child(3) { height: 80%; animation-delay: 0.2s; }
-    .bar:nth-child(4) { height: 100%; animation-delay: 0.3s; }
-    .bar:nth-child(5) { height: 70%; animation-delay: 0.4s; }
-    .bar:nth-child(6) { height: 50%; animation-delay: 0.5s; }
-    .bar:nth-child(7) { height: 90%; animation-delay: 0.6s; }
-    .bar:nth-child(8) { height: 30%; animation-delay: 0.7s; }
+    /* Her çubuğa farklı yükseklik ve gecikme */
+    .bar:nth-child(1)  { height: 35%; animation-delay: 0s; }
+    .bar:nth-child(2)  { height: 55%; animation-delay: 0.08s; }
+    .bar:nth-child(3)  { height: 80%; animation-delay: 0.16s; }
+    .bar:nth-child(4)  { height: 100%; animation-delay: 0.24s; }
+    .bar:nth-child(5)  { height: 65%; animation-delay: 0.32s; }
+    .bar:nth-child(6)  { height: 45%; animation-delay: 0.4s; }
+    .bar:nth-child(7)  { height: 90%; animation-delay: 0.48s; }
+    .bar:nth-child(8)  { height: 30%; animation-delay: 0.56s; }
+    .bar:nth-child(9)  { height: 75%; animation-delay: 0.64s; }
+    .bar:nth-child(10) { height: 50%; animation-delay: 0.72s; }
+    .bar:nth-child(11) { height: 85%; animation-delay: 0.8s; }
+    .bar:nth-child(12) { height: 40%; animation-delay: 0.88s; }
 
-    @keyframes wave {
-      0%, 100% { transform: scaleY(0.4); }
-      50%      { transform: scaleY(1.2); }
+    @keyframes voiceWave {
+      0%, 100% {
+        transform: scaleY(0.35);
+      }
+      50% {
+        transform: scaleY(1.15);
+      }
     }
 
     .msg.voice .meta { margin-top: 0; }
@@ -315,7 +331,7 @@
       
       const waveform = document.createElement('div');
       waveform.className = 'waveform';
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 12; i++) {   // 12 çubuk daha dolu görünüm için
         const bar = document.createElement('div');
         bar.className = 'bar';
         waveform.appendChild(bar);
@@ -325,6 +341,7 @@
       voiceDiv.appendChild(waveform);
       m.appendChild(voiceDiv);
 
+      // Tıklama ile oynat/durdur
       playBtn.onclick = () => {
         const isPlaying = m.classList.toggle('playing');
         playBtn.textContent = isPlaying ? '‖' : '▶';
