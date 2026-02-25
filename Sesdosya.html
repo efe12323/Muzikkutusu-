@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gerçekçi Sahte WhatsApp + Fotoğraf + Gerçekçi Sesli Animasyon</title>
+  <style>
+    :root {
+      --header-bg: #f0f0f0;
+      --header-text: #111111;
+      --bg-chat-light: #efeae2;
+      --bg-chat-dark: #111b21;
+      --sent-light: #d9fdd3;
+      --sent-dark: #005e54;
+      --received-light: #ffffff;
+      --received-dark: #202c33;
+      --text-light: #111b21;
+      --text-dark: #e9edef;
+      --time-light: #667781;
+      --time-dark: #8696a0;
+      --tick-read: #53bdeb;
+    }
+
+    body.light { --bg: var(--bg-chat-light); --sent: var(--sent-light); --received: var(--received-light); --text: var(--text-light); --time: var(--time-light); }
+    body.dark  { --bg: var(--bg-chat-dark);  --sent: var(--sent-dark);  --received: var(--received-dark);  --text: var(--text-dark);  --time: var(--time-dark); }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    /* Header, chat-container, msg stilleri aynı kaldı – kısalttım burayı */
+
+    .header { background: var(--header-bg); color: var(--header-text); height: 59px; padding: 0 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    body.dark .header { background: #1f2c34; color: #e9edef; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    .header .back { font-size: 28px; font-weight: 300; }
+    .header .avatar { width: 40px; height: 40px; border-radius: 50%; background: #ddd; object-fit: cover; }
+    .header .info { flex: 1; }
+    .header h3 { font-size: 17px; font-weight: 600; margin: 0; }
+    .header .status { font-size: 14px; opacity: 0.9; margin-top: 1px; }
+    .header .actions { font-size: 24px; }
+
+    .chat-container {
+      background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') repeat;
+      background-size: 100% auto;
+      min-height: calc(100vh - 59px);
+      padding: 10px 8px 20px;
+    }
+    body.dark .chat-container { background: #0b141a url('https://i.imgur.com/8Z6Z6Z6.png') repeat; background-size: 100% auto; }
+
+    .msg {
+      max-width: 75%;
+      margin: 4px 0 12px;
+      padding: 6px 9px 4px;
+      border-radius: 7.5px;
+      position: relative;
+      font-size: 15.1px;
+      background: var(--received);
+      box-shadow: 0 1px .5px rgba(0,0,0,.13);
+    }
+    .msg.sent { background: var(--sent); margin-left: auto; border-bottom-right-radius: 2px; }
+    .msg.received { margin-right: auto; border-bottom-left-radius: 2px; }
+
+    .msg.sent::after, .msg.received::after {
+      content: ""; position: absolute; bottom: 0; width: 0; height: 0; border: 6px solid transparent;
+    }
+    .msg.sent::after { right: -6px; border-left-color: var(--sent); border-right: 0; }
+    .msg.received::after { left: -6px; border-right-color: var(--received); border-left: 0; }
+    body.dark .msg.sent::after { border-left-color: var(--sent); }
+    body.dark .msg.received::after { border-right-color: var(--received); }
+
+    .meta {
+      font-size: 11px;
+      color: var(--time);
+      text-align: right;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+    }
+
+    .tick { font-size: 14px; line-height: 1; }
+    .tick-sent, .tick-delivered { color: var(--time); }
+    .tick-read { color: var(--tick-read); }
+
+    .delete-btn {
+      position: absolute; top: -6px; right: -6px; background: #ff3b30; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; cursor: pointer; display: none;
+    }
+    .msg:hover .delete-btn { display: block; }
+
+    .controls {
+      background: rgba(0,0,0,0.03); padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px;
+    }
+    body.dark .controls { background: rgba(255,255,255,0.03); }
+
+    .controls input, .controls select, .controls button, .controls label {
+      padding: 8px 12px; border: none; border-radius: 6px; font-size: 14px;
+    }
+    .controls input[type="text"] { flex: 1; min-width: 100px; }
+    .controls button { background: #00a884; color: white; cursor: pointer; }
+    .controls .clear { background: #ff3b30; }
+
+    /* Fotoğraf stilleri aynı */
+    .msg img { max-width: 100%; border-radius: 10px; display: block; margin-bottom: 4px; }
+    .msg.image-only .meta { position: absolute; bottom: 8px; right: 12px; background: rgba(0,0,0,0.45); color: white; padding: 3px 7px; border-radius: 10px; font-size: 10px; }
+    .msg.image-only .meta .tick { color: white !important; }
+
+    /* GERÇEKÇİ SESLİ MESAJ ANIMASYONU – Hızlı titreşimli WhatsApp tarzı */
+    .voice-msg {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      min-width: 240px;
+    }
+
+    .play-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #00a884;
+      color: white;
+      font-size: 18px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .voice-msg.playing .play-btn { background: #25d366; } /* oynarken yeşil parlaklaşsın */
+
+    .waveform {
+      flex: 1;
+      height: 40px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .bar {
+      width: 3px;
+      background: currentColor;
+      border-radius: 2px;
+      animation: fastVoiceWave 0.4s infinite ease-in-out;
+      animation-play-state: paused;
+      transform-origin: bottom;
+    }
+
+    .voice-msg.playing .bar { animation-play-state: running; }
+
+    /* 14 bar – farklı gecikmelerle hızlı titreşim */
+    .bar:nth-child(1)  { height: 25%; animation-delay: 0s; }
+    .bar:nth-child(2)  { height: 50%; animation-delay: 0.03s; }
+    .bar:nth-child(3)  { height: 80%; animation-delay: 0.06s; }
+    .bar:nth-child(4)  { height: 100%; animation-delay: 0.09s; }
+    .bar:nth-child(5)  { height: 40%; animation-delay: 0.12s; }
+    .bar:nth-child(6)  { height: 70%; animation-delay: 0.15s; }
+    .bar:nth-child(7)  { height: 55%; animation-delay: 0.18s; }
+    .bar:nth-child(8)  { height: 95%; animation-delay: 0.21s; }
+    .bar:nth-child(9)  { height: 30%; animation-delay: 0.24s; }
+    .bar:nth-child(10) { height: 65%; animation-delay: 0.27s; }
+    .bar:nth-child(11) { height: 45%; animation-delay: 0.30s; }
+    .bar:nth-child(12) { height: 85%; animation-delay: 0.02s; }
+    .bar:nth-child(13) { height: 60%; animation-delay: 0.05s; }
+    .bar:nth-child(14) { height: 35%; animation-delay: 0.08s; }
+
+    @keyframes fastVoiceWave {
+      0%   { transform: scaleY(0.3); }
+      30%  { transform: scaleY(1.4); }
+      60%  { transform: scaleY(0.5); }
+      80%  { transform: scaleY(1.2); }
+      100% { transform: scaleY(0.3); }
+    }
+
+    .msg.voice .meta { margin-top: 0; }
+
+    @media print { .controls { display: none !important; } body { background: white; } }
+  </style>
+</head>
+<body class="light">
+
+<!-- Controls ve header aynı kaldı -->
+
+<div class="controls">
+  <input type="text" id="name" placeholder="İsim" value="Doktor Murat">
+  <input type="text" id="pp" placeholder="Profil resim URL">
+  <select id="who">
+    <option value="received">Karşı taraf</option>
+    <option value="sent">Sen</option>
+  </select>
+  <select id="tick">
+    <option value="">zaman</option>
+    <option value="sent">✓ gri</option>
+    <option value="delivered">✓✓ gri</option>
+    <option value="read">✓✓ mavi</option>
+  </select>
+  <button onclick="addMsg()">Metin Ekle</button>
+
+  <label for="imageUpload" style="background:#00a884; color:white; padding:8px 12px; border-radius:6px; cursor:pointer;">
+    Fotoğraf Ekle
+  </label>
+  <input type="file" id="imageUpload" accept="image/*" style="display:none;">
+
+  <button onclick="addVoiceMsg()">Sesli Mesaj Ekle</button>
+
+  <button class="clear" onclick="document.getElementById('chat').innerHTML='';">Temizle</button>
+  <button onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light');">Koyu/Açık</button>
+</div>
+
+<div class="header">
+  <div class="back">←</div>
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/128C7E/fff?text=Dr" alt="">
+  <div class="info">
+    <h3 id="chatName">Doktor Murat</h3>
+    <div class="status">çevrimiçi</div>
+  </div>
+  <div class="actions">⋯</div>
+</div>
+
+<div class="chat-container" id="chat"></div>
+
+<script>
+  // Script kısmı aynı – createMessage içinde sesli için değişiklik yok, stil yeterli
+  const chat = document.getElementById('chat');
+  const nameEl = document.getElementById('name');
+  const ppEl = document.getElementById('pp');
+
+  nameEl.oninput = ppEl.oninput = () => {
+    document.getElementById('chatName').textContent = nameEl.value.trim() || 'Kişi';
+    document.getElementById('avatar').src = ppEl.value.trim() || 'https://via.placeholder.com/80/128C7E/fff?text=Dr';
+  };
+
+  function createMessage(content = '', isImage = false, file = null, isVoice = false) {
+    const who = document.getElementById('who').value;
+    const tickVal = document.getElementById('tick').value;
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+
+    const m = document.createElement('div');
+    m.className = `msg ${who}`;
+    if (isImage) m.classList.add('image-only');
+    if (isVoice) m.classList.add('voice');
+
+    if (isImage && file) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      img.alt = "Gönderilen fotoğraf";
+      m.appendChild(img);
+    } else if (isVoice) {
+      const voiceDiv = document.createElement('div');
+      voiceDiv.className = 'voice-msg';
+      
+      const playBtn = document.createElement('button');
+      playBtn.className = 'play-btn';
+      playBtn.textContent = '▶';
+      
+      const waveform = document.createElement('div');
+      waveform.className = 'waveform';
+      for (let i = 0; i < 14; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        waveform.appendChild(bar);
+      }
+
+      voiceDiv.appendChild(playBtn);
+      voiceDiv.appendChild(waveform);
+      m.appendChild(voiceDiv);
+
+      playBtn.onclick = () => {
+        const isPlaying = m.classList.toggle('playing');
+        playBtn.textContent = isPlaying ? '‖' : '▶';
+      };
+    } else if (content) {
+      m.innerHTML = content.replace(/\n/g, '<br>');
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    let t = '';
+    if (tickVal === 'sent') t = '<span class="tick tick-sent">✓</span>';
+    else if (tickVal === 'delivered') t = '<span class="tick tick-delivered">✓✓</span>';
+    else if (tickVal === 'read') t = '<span class="tick tick-read">✓✓</span>';
+    meta.innerHTML = time + ' ' + t;
+
+    const del = document.createElement('button');
+    del.className = 'delete-btn';
+    del.textContent = '×';
+    del.onclick = () => m.remove();
+
+    m.appendChild(meta);
+    m.appendChild(del);
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function addMsg() {
+    const txt = prompt('Mesajı yaz:')?.trim();
+    if (!txt) return;
+    createMessage(txt);
+  }
+
+  function addVoiceMsg() {
+    createMessage('', false, null, true);
+  }
+
+  document.getElementById('imageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const caption = prompt('Fotoğraf altına yazı eklemek ister misin? (boş bırakabilirsin):')?.trim() || '';
+    createMessage(caption, true, file);
+    e.target.value = '';
+  });
+
+  nameEl.dispatchEvent(new Event('input'));
+</script>
+</body>
+  </html>
