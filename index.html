@@ -1,226 +1,341 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="az">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Müzik Kutusu</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          primary: '#1DB954',
-          dark: '#0f0f0f',
-          card: '#191919'
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Blue Skeleton Laser</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --laser-red: #ff0000;
+            --selection-yellow: #ffff00;
+            --dark-bg: #000000;
         }
-      }
-    }
-  }
-</script>
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: var(--dark-bg);
+        }
+
+        #input_video { 
+            position: absolute;
+            visibility: hidden;
+            width: 1px; height: 1px;
+            transform: scaleX(-1);
+        }
+
+        #output_canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 5;
+            transform: scaleX(-1);
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .loader {
+            width: 50px; height: 50px;
+            border: 3px solid #111;
+            border-top: 3px solid var(--neon-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
 </head>
-<body class="bg-dark text-white">
+<body>
 
-<!-- HEADER -->
-<div class="w-full p-4 bg-black/60 backdrop-blur-md sticky top-0 z-50 flex flex-col gap-1 shadow-lg">
-  <h1 class="text-2xl font-bold text-primary">🎵 Müzik Kutusu</h1>
-  <p class="text-sm text-gray-400">%100 ücretsiz, telifsiz & yapay zeka ile üretilmiş müzikler</p>
-  <div class="flex gap-3 mt-2">
-    <input id="search" oninput="renderMusics()" placeholder="Ara..." class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-36 sm:w-56">
-    <select id="filter" onchange="renderMusics()" class="bg-neutral-800 px-4 py-2 rounded-xl outline-none w-28 sm:w-48">
-      <option value="all">Tümü</option>
-      <option value="Rap">Rap</option>
-      <option value="Chill">Chill</option>
-      <option value="Rock">Rock</option>
-      <option value="Anadolu Rock">Anadolu Rock</option>
-      <option value="Electronic">Electronic</option>
-      <option value="Lo-fi">Lo-fi</option>
-      <option value="Jazz">Jazz</option>
-      <option value="Pop">Pop</option>
-      <option value="Türkü">Türkü</option>
-    </select>
-  </div>
-</div>
+    <div id="loading-screen">
+        <div class="loader"></div>
+    </div>
 
-<!-- GRID -->
-<div id="musicList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 pb-32"></div>
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
 
-<!-- PLAYER -->
-<div id="player" class="hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-neutral-700 p-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-5">
-  <div class="flex items-center gap-4">
-    <img id="playerCover" class="w-14 h-14 rounded-md object-top object-cover">
-    <p id="playerTitle" class="font-semibold"></p>
-  </div>
-  <div class="flex items-center gap-3 sm:gap-5 text-2xl">
-    <button onclick="prevMusic()">⏮</button>
-    <button id="playPause" onclick="togglePlay()">▶️</button>
-    <button onclick="nextMusic()">⏭</button>
-    <button onclick="openDownloadModal()">⬇</button>
-    <button onclick="closePlayer()" class="text-red-500 font-bold text-xl">✖️</button>
-    <button id="favBtn" onclick="toggleFavorite()" class="text-yellow-400 text-xl">★</button>
-  </div>
-</div>
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingScreen = document.getElementById('loading-screen');
 
-<!-- DOWNLOAD MODAL -->
-<div id="downloadModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-  <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-2xl relative">
-    <button onclick="closeDownloadModal()" class="absolute top-3 right-3 text-red-500 text-xl font-bold">✖️</button>
-    <h2 class="text-lg text-primary font-bold mb-4">Müziği Dinle / İndir</h2>
-    <audio id="modalAudio" controls class="w-full mb-4"></audio>
-    <a id="modalDownload" class="bg-primary text-black px-4 py-2 rounded font-bold block text-center" download>İndir</a>
-  </div>
-</div>
+        let drawings = []; 
+        let particles = [];
+        let currentPath = null;
+        let selectedDrawing = null;
+        let isDragging = false;
+        let lastFingerPos = { x: 0, y: 0 };
 
-<script>
-const APP_ID = "637D6A77-BB29-401E-924F-375EBB7DD458";
-const REST_KEY = "6F69C295-2945-4FBE-9D27-F9FED5ADFC9B";
-const API_URL = `https://api.backendless.com/${APP_ID}/${REST_KEY}/data/musics`;
+        function setupCanvas() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', setupCanvas);
+        setupCanvas();
 
-let musics = [];
-let audio = new Audio();
-let currentIndex = 0;
-let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
-let wasPlaying = false;
+        class Spark {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const force = Math.random() * 15 + 10;
+                this.speedX = Math.cos(angle) * force;
+                this.speedY = Math.sin(angle) * force;
+                
+                this.life = 1.0;
+                this.decay = Math.random() * 0.03 + 0.015;
+                this.gravity = 0.45;
+                this.friction = 0.96; 
+            }
 
-// Müzikleri yükle ve rastgele sırala
-async function loadMusics(){
-  const res = await fetch(API_URL);
-  const data = await res.json();
-  if(Array.isArray(data)) musics = data;
-  else if(data.data && Array.isArray(data.data)) musics = data.data;
-  else musics = [];
+            update() {
+                this.speedX *= this.friction;
+                this.speedY *= this.friction;
+                this.speedY += this.gravity;
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= this.decay;
+            }
 
-  musics.sort(() => Math.random() - 0.5);
-  renderMusics();
-}
+            draw() {
+                if (this.life <= 0) return;
 
-// ✅ DÜZELTİLEN KISIM
-function renderMusics(){
-  const search = (document.getElementById("search").value || "").toLowerCase();
-  const filter = document.getElementById("filter").value;
-  const container = document.getElementById("musicList");
-  container.innerHTML = "";
+                let r, g, b;
+                if (this.life > 0.8) {
+                    r = 255; g = 255; b = 200; 
+                } else if (this.life > 0.4) {
+                    r = 255; g = 200; b = 50;  
+                } else {
+                    r = 200; g = 50; b = 0;    
+                }
 
-  musics.filter(m =>
-    (m.title || "").toLowerCase().includes(search) &&
-    (filter === "all" || (m.tags || "").includes(filter))
-  ).forEach((m)=>{
+                canvasCtx.save();
+                canvasCtx.globalAlpha = this.life;
+                canvasCtx.strokeStyle = `rgb(${r},${g},${b})`;
+                canvasCtx.lineWidth = 1.5 * this.life;
+                canvasCtx.lineCap = 'round';
+                
+                canvasCtx.shadowBlur = 8 * this.life;
+                canvasCtx.shadowColor = `rgb(${r},${g},${b})`;
 
-    const realIndex = musics.indexOf(m); // ✅ GERÇEK INDEX
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(this.x, this.y);
+                const tailX = this.x - this.speedX * 0.8;
+                const tailY = this.y - this.speedY * 0.8;
+                canvasCtx.lineTo(tailX, tailY);
+                canvasCtx.stroke();
+                canvasCtx.restore();
+            }
+        }
 
-    const card = document.createElement("div");
-    card.className = "bg-card p-3 rounded-xl shadow-lg hover:scale-105 transition cursor-pointer relative";
-    card.innerHTML = `
-      <img src="${m.cover_url}" class="rounded-lg mb-2 h-48 w-full object-top object-cover">
-      <div class="flex items-center gap-2">
-        <p class="font-semibold text-white">${m.title}</p>
-        <span class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full">AI</span>
-      </div>
-      <p class="text-sm text-gray-400">${m.tags}</p>
-      <button onclick="toggleFavoriteFromList(${realIndex}, event)" class="absolute top-2 right-2 text-xl text-yellow-400">
-        ${favorites.includes(m.objectId) ? "★" : "☆"}
-      </button>
-    `;
+        function createSparkEffect(x, y) {
+            const count = Math.floor(Math.random() * 4) + 3;
+            for (let i = 0; i < count; i++) {
+                particles.push(new Spark(x, y));
+            }
+        }
 
-    card.onclick = () => playMusic(realIndex); // ✅ GERÇEK INDEX
-    container.appendChild(card);
-  });
-}
+        function getDistance(p1, p2) {
+            return Math.sqrt(
+                Math.pow((p1.x - p2.x) * canvasElement.width, 2) + 
+                Math.pow((p1.y - p2.y) * canvasElement.height, 2)
+            );
+        }
 
-// Player fonksiyonları
-function playMusic(index){
-  currentIndex = index;
-  const m = musics[index];
-  const player = document.getElementById("player");
-  player.classList.remove("hidden");
-  document.getElementById("playerCover").src = m.cover_url;
-  document.getElementById("playerTitle").innerText = m.title;
-  audio.src = m.audio_url;
-  audio.play();
-  document.getElementById("playPause").innerText = "⏸";
-  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
-}
+        function isStrictlyIndexUp(lm) {
+            const thumbOpen = getDistance(lm[4], lm[17]) > getDistance(lm[3], lm[17]);
+            const indexOpen = lm[8].y < lm[6].y;
+            const middleOpen = lm[12].y < lm[10].y;
+            const ringOpen = lm[16].y < lm[14].y;
+            const pinkyOpen = lm[20].y < lm[18].y;
+            return indexOpen && !middleOpen && !ringOpen && !pinkyOpen && !thumbOpen;
+        }
 
-function togglePlay(){
-  if(audio.paused){
-    audio.play();
-    document.getElementById("playPause").innerText="⏸";
-  } else {
-    audio.pause();
-    document.getElementById("playPause").innerText="▶";
-  }
-}
+        function findDrawingAt(x, y) {
+            const padding = 80; 
+            for (let i = drawings.length - 1; i >= 0; i--) {
+                const d = drawings[i];
+                for (let p of d.points) {
+                    if (Math.hypot(x - p.x, y - p.y) < padding) return d;
+                }
+            }
+            return null;
+        }
 
-function nextMusic(){ 
-  if(currentIndex < musics.length - 1) 
-    playMusic(currentIndex+1);
-}
+        function onResults(results) {
+            if (loadingScreen.style.display !== 'none') loadingScreen.style.display = 'none';
 
-function prevMusic(){ 
-  if(currentIndex > 0) 
-    playMusic(currentIndex - 1);
-}
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.fillStyle = '#000000';
+            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-function closePlayer(){ 
-  audio.pause(); 
-  document.getElementById("player").classList.add("hidden"); 
-}
+            drawStoredPaths();
+            updateParticles();
 
-// Favoriler
-function toggleFavorite(){
-  const m = musics[currentIndex];
-  if(favorites.includes(m.objectId)){
-    favorites = favorites.filter(id => id !== m.objectId);
-  } else {
-    favorites.push(m.objectId);
-  }
-  localStorage.setItem("favorites", JSON.stringify(favorites));
-  document.getElementById("favBtn").innerText = favorites.includes(m.objectId) ? "★" : "☆";
-  renderMusics();
-}
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const hand = results.multiHandLandmarks[0];
+                const indexTip = hand[8];
+                const thumbTip = hand[4];
+                
+                const ix = indexTip.x * canvasElement.width;
+                const iy = indexTip.y * canvasElement.height;
+                const tx = thumbTip.x * canvasElement.width;
+                const ty = thumbTip.y * canvasElement.height;
+                
+                const pinchDist = getDistance(hand[4], hand[8]);
 
-function toggleFavoriteFromList(index, e){
-  e.stopPropagation();
-  const m = musics[index];
-  if(favorites.includes(m.objectId)){
-    favorites = favorites.filter(id => id !== m.objectId);
-  } else {
-    favorites.push(m.objectId);
-  }
-  localStorage.setItem("favorites", JSON.stringify(favorites));
-  renderMusics();
-}
+                if (isStrictlyIndexUp(hand)) {
+                    if (!currentPath) {
+                        currentPath = { points: [], id: Date.now() };
+                        drawings.push(currentPath);
+                    }
+                    currentPath.points.push({ x: ix, y: iy });
+                    createSparkEffect(ix, iy);
+                    isDragging = false;
+                    selectedDrawing = null;
+                } 
+                else if (pinchDist < 45) {
+                    const midX = (ix + tx) / 2;
+                    const midY = (iy + ty) / 2;
 
-// DOWNLOAD MODAL
-function openDownloadModal(){
-  const m = musics[currentIndex];
-  if(!m) return;
+                    if (!isDragging) {
+                        selectedDrawing = findDrawingAt(midX, midY);
+                        if (selectedDrawing) {
+                            isDragging = true;
+                            lastFingerPos = { x: midX, y: midY };
+                        }
+                    }
 
-  wasPlaying = !audio.paused;
-  audio.pause();
+                    if (isDragging && selectedDrawing) {
+                        const dx = midX - lastFingerPos.x;
+                        const dy = midY - lastFingerPos.y;
+                        selectedDrawing.points.forEach(p => {
+                            p.x += dx;
+                            p.y += dy;
+                        });
+                        lastFingerPos = { x: midX, y: midY };
+                    }
+                    currentPath = null;
+                }
+                else {
+                    currentPath = null;
+                    isDragging = false;
+                    selectedDrawing = null;
+                }
 
-  const modal = document.getElementById("downloadModal");
-  modal.classList.remove("hidden");
+                drawNeonSkeleton(hand);
+            } else {
+                currentPath = null;
+                isDragging = false;
+                selectedDrawing = null;
+            }
+            canvasCtx.restore();
+        }
 
-  const audioEl = document.getElementById("modalAudio");
-  audioEl.src = m.audio_url;
-  if(wasPlaying) audioEl.play();
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+        }
 
-  const downloadLink = document.getElementById("modalDownload");
-  downloadLink.href = m.audio_url;
-  downloadLink.setAttribute("download", m.title + ".mp3");
-}
+        function drawStoredPaths() {
+            canvasCtx.lineCap = 'round';
+            canvasCtx.lineJoin = 'round';
 
-function closeDownloadModal(){
-  const audioEl = document.getElementById("modalAudio");
-  audioEl.pause();
-  document.getElementById("downloadModal").classList.add("hidden");
+            drawings.forEach(d => {
+                if (d.points.length < 2) return;
+                
+                const isSelected = selectedDrawing && selectedDrawing.id === d.id;
+                
+                canvasCtx.save();
+                canvasCtx.shadowBlur = isSelected ? 30 : 15;
+                canvasCtx.shadowColor = isSelected ? '#ffff00' : '#ff0000';
+                canvasCtx.strokeStyle = isSelected ? '#ffff00' : '#ff0000';
+                canvasCtx.lineWidth = isSelected ? 8 : 5;
+                
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(d.points[0].x, d.points[0].y);
+                for (let i = 1; i < d.points.length; i++) canvasCtx.lineTo(d.points[i].x, d.points[i].y);
+                canvasCtx.stroke();
 
-  if(wasPlaying) audio.play();
-}
+                canvasCtx.shadowBlur = 0;
+                canvasCtx.strokeStyle = isSelected ? '#fffde7' : '#ffffff';
+                canvasCtx.lineWidth = isSelected ? 3 : 2;
+                canvasCtx.stroke();
+                
+                canvasCtx.restore();
+            });
+        }
 
-window.onload = loadMusics;
-</script>
+        function drawNeonSkeleton(landmarks) {
+            const blue = '#00f2ff';
+            canvasCtx.save();
+            canvasCtx.shadowBlur = 15;
+            canvasCtx.shadowColor = blue;
+            canvasCtx.strokeStyle = blue;
+            canvasCtx.lineWidth = 3;
 
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+                [13,17],[17,18],[18,19],[19,20],[0,17]
+            ];
+
+            connections.forEach(([a, b]) => {
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(landmarks[a].x * canvasElement.width, landmarks[a].y * canvasElement.height);
+                canvasCtx.lineTo(landmarks[b].x * canvasElement.width, landmarks[b].y * canvasElement.height);
+                canvasCtx.stroke();
+            });
+
+            canvasCtx.fillStyle = blue;
+            landmarks.forEach(point => {
+                canvasCtx.beginPath();
+                canvasCtx.arc(point.x * canvasElement.width, point.y * canvasElement.height, 4, 0, Math.PI * 2);
+                canvasCtx.fill();
+            });
+            canvasCtx.restore();
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.9,
+            minTrackingConfidence: 0.9
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 1280, height: 720
+        });
+        camera.start();
+
+    </script>
 </body>
 </html>
