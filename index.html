@@ -3,47 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS Neon Green Holographic Draw</title>
+    <title>JARVIS Neon Green Holographic Draw - 2 El + Depth</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     
     <style>
         :root {
             --jarvis-green: #00ff9f;
-            --jarvis-green-dim: #00cc7a;
             --jarvis-glow: #00ff41;
             --selection-cyan: #00ffff;
             --dark-bg: #0a0f0a;
-            --grid: rgba(0, 255, 140, 0.07);
+            --grid: rgba(0, 255, 140, 0.045);
         }
 
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
             overflow: hidden;
             background: var(--dark-bg);
-            font-family: 'Courier New', monospace;
         }
 
-        #input_video {
+        #input_video { 
             position: absolute;
             visibility: hidden;
-            width: 1px;
-            height: 1px;
+            width: 1px; height: 1px;
             transform: scaleX(-1);
         }
 
         #output_canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
             z-index: 5;
             transform: scaleX(-1);
-            image-rendering: pixelated; /* hafif retro his için */
         }
 
         #loading-screen {
@@ -55,16 +47,15 @@
             align-items: center;
             z-index: 100;
             color: var(--jarvis-green);
-            font-size: 1.4rem;
+            font-size: 1.5rem;
         }
 
         .loader {
-            width: 60px;
-            height: 60px;
-            border: 4px solid #111;
-            border-top: 4px solid var(--jarvis-green);
+            width: 70px; height: 70px;
+            border: 5px solid #111;
+            border-top: 5px solid var(--jarvis-green);
             border-radius: 50%;
-            animation: spin 1.2s linear infinite;
+            animation: spin 1.4s linear infinite;
         }
 
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -85,12 +76,12 @@
         const ctx = canvas.getContext('2d');
         const loading = document.getElementById('loading-screen');
 
-        let drawings = [];
+        let drawings = [];           // { points: [{x,y,z}], id }
         let particles = [];
         let currentPath = null;
         let selectedDrawing = null;
         let isDragging = false;
-        let lastPos = { x: 0, y: 0 };
+        let lastDragPos = { x: 0, y: 0 };
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -99,100 +90,88 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // ─── Spark (Parçacık) Sınıfı ────────────────────────────────────────
         class Spark {
             constructor(x, y) {
-                this.x = x;
-                this.y = y;
+                this.x = x; this.y = y;
                 const angle = Math.random() * Math.PI * 2;
-                const force = Math.random() * 12 + 8;
+                const force = Math.random() * 14 + 6;
                 this.vx = Math.cos(angle) * force;
                 this.vy = Math.sin(angle) * force;
                 this.life = 1;
-                this.decay = Math.random() * 0.035 + 0.018;
+                this.decay = Math.random() * 0.04 + 0.02;
             }
-
             update() {
-                this.vx *= 0.96;
-                this.vy *= 0.96;
-                this.vy += 0.38; // hafif yerçekimi
+                this.vx *= 0.97;
+                this.vy *= 0.97;
+                this.vy += 0.4;
                 this.x += this.vx;
                 this.y += this.vy;
                 this.life -= this.decay;
             }
-
             draw() {
                 if (this.life <= 0) return;
-                let g = 255 * this.life;
-                let b = 180 * this.life;
                 ctx.save();
-                ctx.globalAlpha = this.life * 0.9;
-                ctx.strokeStyle = `rgb(0,\( {g}, \){b})`;
-                ctx.lineWidth = 2.2 * this.life;
-                ctx.lineCap = 'round';
-                ctx.shadowBlur = 12 * this.life;
-                ctx.shadowColor = `rgba(0,255,140,${this.life})`;
-
+                ctx.globalAlpha = this.life;
+                ctx.strokeStyle = `rgba(0,255,140,${this.life})`;
+                ctx.lineWidth = 2.8 * this.life;
+                ctx.shadowBlur = 15 * this.life;
+                ctx.shadowColor = 'rgba(0,255,100,0.8)';
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x - this.vx * 1.2, this.y - this.vy * 1.2);
+                ctx.lineTo(this.x - this.vx * 1.4, this.y - this.vy * 1.4);
                 ctx.stroke();
                 ctx.restore();
             }
         }
 
-        function addSparks(x, y, count = 5) {
-            for (let i = 0; i < count; i++) {
-                particles.push(new Spark(x, y));
-            }
+        function addSparks(x, y, cnt = 6) {
+            for (let i = 0; i < cnt; i++) particles.push(new Spark(x, y));
         }
 
-        function dist(a, b) {
-            return Math.hypot(
-                (a.x - b.x) * canvas.width,
-                (a.y - b.y) * canvas.height
-            );
+        function dist3d(a, b) {
+            const dx = (a.x - b.x) * canvas.width;
+            const dy = (a.y - b.y) * canvas.height;
+            const dz = (a.z - b.z) * 400; // z ölçeği
+            return Math.hypot(dx, dy, dz);
         }
 
         function isIndexOnlyUp(lm) {
-            const thumbClosed = dist(lm[4], lm[17]) < dist(lm[3], lm[17]) * 1.1;
-            const indexUp   = lm[8].y  < lm[6].y;
-            const othersDown = lm[12].y > lm[10].y && lm[16].y > lm[14].y && lm[20].y > lm[18].y;
+            const thumbClosed = dist3d(lm[4], lm[0]) < 0.12;
+            const indexUp   = lm[8].y < lm[6].y - 0.03;
+            const othersDown = lm[12].y > lm[10].y + 0.02 && lm[16].y > lm[14].y + 0.02 && lm[20].y > lm[18].y + 0.02;
             return indexUp && othersDown && thumbClosed;
         }
 
-        function findDrawingNear(x, y) {
-            const radius = 90;
-            for (let i = drawings.length - 1; i >= 0; i--) {
-                for (let p of drawings[i].points) {
-                    if (Math.hypot(x - p.x, y - p.y) < radius) {
-                        return drawings[i];
+        function findNearestDrawing(mx, my) {
+            let closest = null;
+            let minDist = 100;
+            drawings.forEach(d => {
+                d.points.forEach(p => {
+                    const dd = Math.hypot(mx - p.x, my - p.y);
+                    if (dd < minDist) {
+                        minDist = dd;
+                        closest = d;
                     }
-                }
-            }
-            return null;
+                });
+            });
+            return (minDist < 70) ? closest : null;
         }
 
-        // ─── Holografik Grid (JARVIS arka planı) ─────────────────────────────
-        function drawHoloGrid() {
-            const size = 70;
-            const t = Date.now() * 0.0004;
-            const pulse = Math.sin(t * 2) * 0.015 + 0.07;
+        function drawBackground() {
+            ctx.fillStyle = 'rgba(10,15,10,0.35)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.strokeStyle = `rgba(0, 255, 140, ${pulse})`;
-            ctx.lineWidth = 1.1;
+            const gridSize = 80;
+            const opacity = 0.04 + Math.sin(Date.now() * 0.0006) * 0.015;
 
-            for (let x = 0; x < canvas.width; x += size) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
+            ctx.strokeStyle = `rgba(0,255,140,${opacity})`;
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
             }
-            for (let y = 0; y < canvas.height; y += size) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
             }
         }
 
@@ -200,66 +179,81 @@
             if (loading.style.display !== 'none') loading.style.display = 'none';
 
             ctx.save();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'rgba(10,15,10,0.4)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            drawHoloGrid();
-            drawStoredDrawings();
+            drawBackground();
+            drawAllDrawings();
             updateParticles();
 
-            if (results.multiHandLandmarks?.length > 0) {
-                const lm = results.multiHandLandmarks[0];
-                const tip = lm[8];
-                const thumb = lm[4];
+            let drawingHand = null;
+            let controlHand = null;
 
-                const ix = tip.x   * canvas.width;
-                const iy = tip.y   * canvas.height;
-                const tx = thumb.x * canvas.width;
-                const ty = thumb.y * canvas.height;
+            if (results.multiHandLandmarks) {
+                results.multiHandedness?.forEach((handness, i) => {
+                    const lm = results.multiHandLandmarks[i];
+                    const isRight = handness.label === 'Right';
+                    if (isRight) controlHand = lm;
+                    else drawingHand = lm;
+                });
 
-                const pinch = dist(lm[4], lm[8]);
-
-                if (isIndexOnlyUp(lm)) {
-                    if (!currentPath) {
-                        currentPath = { points: [], id: Date.now() };
-                        drawings.push(currentPath);
-                    }
-                    currentPath.points.push({ x: ix, y: iy });
-                    addSparks(ix, iy, 4);
-                    isDragging = false;
-                    selectedDrawing = null;
+                // Öncelik: sol el çizim, sağ el kontrol
+                if (!drawingHand && results.multiHandLandmarks.length > 0) {
+                    drawingHand = results.multiHandLandmarks[0];
                 }
-                else if (pinch < 50) {
-                    const mx = (ix + tx) / 2;
-                    const my = (iy + ty) / 2;
+                if (!controlHand && results.multiHandLandmarks.length > 1) {
+                    controlHand = results.multiHandLandmarks[1];
+                }
 
-                    if (!isDragging) {
-                        selectedDrawing = findDrawingNear(mx, my);
-                        if (selectedDrawing) {
-                            isDragging = true;
-                            lastPos = { x: mx, y: my };
+                if (drawingHand) {
+                    const tip = drawingHand[8];
+                    const ix = tip.x * canvas.width;
+                    const iy = tip.y * canvas.height;
+                    const iz = tip.z * -400 + 200; // z → depth (yakın pozitif)
+
+                    if (isIndexOnlyUp(drawingHand)) {
+                        if (!currentPath) {
+                            currentPath = { points: [], id: Date.now() };
+                            drawings.push(currentPath);
                         }
+                        currentPath.points.push({ x: ix, y: iy, z: iz });
+                        addSparks(ix, iy);
+                    } else {
+                        currentPath = null;
                     }
 
-                    if (isDragging && selectedDrawing) {
-                        const dx = mx - lastPos.x;
-                        const dy = my - lastPos.y;
-                        selectedDrawing.points.forEach(p => {
-                            p.x += dx;
-                            p.y += dy;
-                        });
-                        lastPos = { x: mx, y: my };
-                    }
-                    currentPath = null;
-                }
-                else {
-                    currentPath = null;
-                    isDragging = false;
-                    selectedDrawing = null;
+                    drawHandSkeleton(drawingHand, '#00ff9f');
                 }
 
-                drawJARVISHand(lm);
+                if (controlHand) {
+                    const pinchDist = dist3d(controlHand[4], controlHand[8]) * 1000;
+
+                    const tipX = controlHand[8].x * canvas.width;
+                    const tipY = controlHand[8].y * canvas.height;
+
+                    if (pinchDist < 38) {  // daha hassas pinch
+                        if (!isDragging) {
+                            selectedDrawing = findNearestDrawing(tipX, tipY);
+                            if (selectedDrawing) {
+                                isDragging = true;
+                                lastDragPos = { x: tipX, y: tipY };
+                            }
+                        }
+
+                        if (isDragging && selectedDrawing) {
+                            const dx = tipX - lastDragPos.x;
+                            const dy = tipY - lastDragPos.y;
+                            selectedDrawing.points.forEach(p => {
+                                p.x += dx;
+                                p.y += dy;
+                                // z korunsun
+                            });
+                            lastDragPos = { x: tipX, y: tipY };
+                        }
+                    } else {
+                        isDragging = false;
+                        selectedDrawing = null;
+                    }
+
+                    drawHandSkeleton(controlHand, '#00ffff'); // kontrol eli cyan
+                }
             } else {
                 currentPath = null;
                 isDragging = false;
@@ -277,77 +271,70 @@
             }
         }
 
-        function drawStoredDrawings() {
-            const t = Date.now() * 0.0015;
-            const flicker = 0.82 + Math.sin(t * 15) * 0.18;
-
+        function drawAllDrawings() {
             drawings.forEach(d => {
                 if (d.points.length < 2) return;
-
-                const selected = selectedDrawing?.id === d.id;
+                const isSelected = selectedDrawing?.id === d.id;
 
                 ctx.save();
 
-                // Ana holografik gövde
-                ctx.shadowBlur = selected ? 45 : 28;
-                ctx.shadowColor = selected ? '#00ffff' : '#00ff41';
-                ctx.strokeStyle = selected ? '#00ffff' : '#00ff9f';
-                ctx.globalAlpha = flicker * (selected ? 1 : 0.92);
-                ctx.lineWidth = selected ? 7.5 : 5;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+                // 3D illüzyon: her segment için kalınlık ve parlaklık z'ye göre değişir
+                for (let i = 0; i < d.points.length - 1; i++) {
+                    const p1 = d.points[i];
+                    const p2 = d.points[i + 1];
 
-                ctx.beginPath();
-                ctx.moveTo(d.points[0].x, d.points[0].y);
-                d.points.forEach(p => ctx.lineTo(p.x, p.y));
-                ctx.stroke();
+                    const avgZ = (p1.z + p2.z) / 2;
+                    const scale = 1 + (avgZ / 400) * 0.6; // yakın → büyük
+                    const alpha = 0.75 + (avgZ / 800);
 
-                // İç parlak hat
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = '#e0fff0';
-                ctx.globalAlpha = flicker * 0.75;
-                ctx.lineWidth = selected ? 3 : 2;
-                ctx.stroke();
+                    ctx.shadowBlur = isSelected ? 38 : 22;
+                    ctx.shadowColor = isSelected ? '#00ffff' : '#00ff41';
+                    ctx.strokeStyle = isSelected ? '#00ffff' : `rgba(0,255,159,${alpha})`;
+                    ctx.lineWidth = (isSelected ? 8 : 5) * scale;
+                    ctx.lineCap = 'round';
+
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+
+                    // İnce iç hat
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = '#f0fff8';
+                    ctx.lineWidth = (isSelected ? 3 : 1.8) * scale * 0.7;
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             });
         }
 
-        function drawJARVISHand(lm) {
-            const green = '#00ff9f';
-            const dim = '#00cc7a';
-            const t = Date.now() * 0.003;
-            const pulse = 0.78 + Math.sin(t * 4) * 0.22;
-
+        function drawHandSkeleton(lm, color) {
             ctx.save();
-            ctx.shadowBlur = 22 * pulse;
-            ctx.shadowColor = green;
-            ctx.strokeStyle = dim;
-            ctx.globalAlpha = pulse * 0.95;
-            ctx.lineWidth = 3.8;
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = color;
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = 0.92;
+            ctx.lineWidth = 3.2;
 
-            const conn = [
-                [0,1],[1,2],[2,3],[3,4],
-                [0,5],[5,6],[6,7],[7,8],
-                [5,9],[9,10],[10,11],[11,12],
-                [9,13],[13,14],[14,15],[15,16],
-                [13,17],[17,18],[18,19],[19,20],
-                [0,17]
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+                [13,17],[17,18],[18,19],[19,20],[0,17]
             ];
 
-            conn.forEach(([a,b]) => {
+            connections.forEach(([a,b]) => {
                 ctx.beginPath();
                 ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
                 ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
                 ctx.stroke();
             });
 
-            // Noktalar nabız atıyor
-            ctx.fillStyle = green;
+            ctx.fillStyle = color;
             lm.forEach(p => {
                 const px = p.x * canvas.width;
                 const py = p.y * canvas.height;
-                const r = 5.5 * pulse;
+                const r = 4.5 + p.z * -8; // z yakınken biraz büyük
                 ctx.beginPath();
                 ctx.arc(px, py, r, 0, Math.PI * 2);
                 ctx.fill();
@@ -361,10 +348,10 @@
         });
 
         hands.setOptions({
-            maxNumHands: 1,
+            maxNumHands: 2,              // ← iki el aktif
             modelComplexity: 1,
-            minDetectionConfidence: 0.88,
-            minTrackingConfidence: 0.88
+            minDetectionConfidence: 0.82,
+            minTrackingConfidence: 0.82
         });
 
         hands.onResults(onResults);
@@ -380,4 +367,4 @@
         camera.start();
     </script>
 </body>
-    </html>
+</html>
