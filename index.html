@@ -10,8 +10,11 @@
     <style>
         :root {
             --jarvis-green: #00ff9f;
+            --jarvis-green-dim: #00cc7a;
             --jarvis-glow: #00ff41;
+            --selection-cyan: #00ffff;
             --dark-bg: #0a0f0a;
+            --grid: rgba(0, 255, 140, 0.07);
         }
 
         body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:var(--dark-bg); font-family:'Courier New',monospace; }
@@ -22,28 +25,32 @@
         .loader { width:60px; height:60px; border:4px solid #111; border-top:4px solid var(--jarvis-green); border-radius:50%; animation:spin 1.2s linear infinite; }
         @keyframes spin { 100% { transform:rotate(360deg); } }
 
-        /* Renk butonu ve panel - biraz daha yukarı taşıdık */
+        /* Renk butonu ve panel - yukarı taşındı */
         #color-button {
-            position: absolute; bottom: 120px; left: 30px; z-index: 20;
-            width: 80px; height: 80px; border-radius: 50%;
-            background: rgba(0,255,140,0.2); border: 3px solid #00ff9f;
-            box-shadow: 0 0 25px #00ff9f;
-            transition: all 0.2s;
+            position:absolute; bottom:180px; left:40px; z-index:20;
+            width:80px; height:80px; border-radius:50%;
+            background:rgba(0,255,140,0.2); border:2px solid #00ff9f;
+            box-shadow:0 0 25px #00ff9f, inset 0 0 12px #00ff9f;
+            transition:all 0.3s;
         }
-        #color-button.active { transform: scale(1.12); box-shadow: 0 0 40px #00ffff; }
+        #color-button:hover { transform:scale(1.12); box-shadow:0 0 40px #00ffff; }
 
         #color-panel {
-            position: absolute; bottom: 220px; left: 30px; z-index: 20;
-            background: rgba(10,20,15,0.8); border: 2px solid #00ff9f; border-radius: 16px;
-            padding: 15px; display: none; flex-direction: row; gap: 14px;
-            box-shadow: 0 0 35px rgba(0,255,140,0.6);
+            position:absolute; bottom:280px; left:40px; z-index:20;
+            background:rgba(10,20,15,0.8); border:1px solid #00ff9f; border-radius:14px; padding:18px;
+            display:none; box-shadow:0 0 35px rgba(0,255,140,0.6); flex-direction:row; gap:14px;
         }
         .color-swatch {
-            width: 55px; height: 55px; border-radius: 50%;
-            border: 4px solid #222; cursor: pointer; transition: all 0.18s;
-            box-shadow: 0 0 18px currentColor;
+            width:55px; height:55px; border-radius:50%; border:3px solid #111; cursor:pointer; transition:all 0.2s;
+            box-shadow:0 0 18px currentColor;
         }
-        .color-swatch:hover { transform: scale(1.2); border-color: #fff; }
+        .color-swatch:hover { transform:scale(1.18); border-color:#fff; }
+
+        #eraser-indicator {
+            position:absolute; top:20px; left:50%; transform:translateX(-50%);
+            color:#ff4444; font-size:1.8rem; font-weight:bold; text-shadow:0 0 10px #ff4444;
+            display:none; z-index:30; pointer-events:none;
+        }
     </style>
 </head>
 <body>
@@ -60,6 +67,7 @@
         <div class="color-swatch" style="background:#ffff00;" data-color="#ffff00"></div>
         <div class="color-swatch" style="background:#ff8800;" data-color="#ff8800"></div>
     </div>
+    <div id="eraser-indicator">SİLGi MODU AKTİF</div>
 
     <script>
         const video = document.getElementById('input_video');
@@ -68,77 +76,219 @@
         const loading = document.getElementById('loading-screen');
         const colorButton = document.getElementById('color-button');
         const colorPanel = document.getElementById('color-panel');
+        const eraserIndicator = document.getElementById('eraser-indicator');
 
         let drawings = [];
         let particles = [];
         let currentPath = null;
+        let selectedDrawing = null;
+        let isDragging = false;
+        let lastPos = { x: 0, y: 0 };
         let currentColor = '#00ff9f';
         let isEraser = false;
         let colorPanelOpen = false;
+        let buttonHoverTimer = null;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resize); resize();
+        window.addEventListener('resize', resize);
+        resize();
 
         class Spark { /* aynı kaldı, kısalttım */ 
-            constructor(x,y){this.x=x;this.y=y;const a=Math.random()*Math.PI*2,f=Math.random()*12+8;this.vx=Math.cos(a)*f;this.vy=Math.sin(a)*f;this.life=1;this.decay=Math.random()*0.035+0.018;}
+            constructor(x,y){this.x=x;this.y=y;const a=Math.random()*Math.PI*2;const f=Math.random()*12+8;this.vx=Math.cos(a)*f;this.vy=Math.sin(a)*f;this.life=1;this.decay=Math.random()*0.035+0.018;}
             update(){this.vx*=0.96;this.vy*=0.96;this.vy+=0.38;this.x+=this.vx;this.y+=this.vy;this.life-=this.decay;}
-            draw(){if(this.life<=0)return;let g=255*this.life,b=180*this.life;ctx.save();ctx.globalAlpha=this.life*0.9;ctx.strokeStyle=`rgb(0,\( {g}, \){b})`;ctx.lineWidth=2.2*this.life;ctx.shadowBlur=12*this.life;ctx.shadowColor=`rgba(0,255,140,${this.life})`;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x-this.vx*1.2,this.y-this.vy*1.2);ctx.stroke();ctx.restore();}
+            draw(){if(this.life<=0)return;let g=255*this.life;let b=180*this.life;ctx.save();ctx.globalAlpha=this.life*0.9;ctx.strokeStyle=`rgb(0,\( {g}, \){b})`;ctx.lineWidth=2.2*this.life;ctx.lineCap='round';ctx.shadowBlur=12*this.life;ctx.shadowColor=`rgba(0,255,140,${this.life})`;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x-this.vx*1.2,this.y-this.vy*1.2);ctx.stroke();ctx.restore();}
         }
-        function addSparks(x,y,c=5){for(let i=0;i<c;i++)particles.push(new Spark(x,y));}
 
+        function addSparks(x,y,c=5){for(let i=0;i<c;i++)particles.push(new Spark(x,y));}
         function dist(a,b){return Math.hypot((a.x-b.x)*canvas.width,(a.y-b.y)*canvas.height);}
 
-        function isIndexFingerUp(lm){
-            return lm[8].y < lm[6].y * 0.9 && 
-                   lm[12].y > lm[10].y && lm[16].y > lm[14].y && lm[20].y > lm[18].y;
+        function isIndexOnlyUp(lm){
+            const thumbClosed = dist(lm[4],lm[17]) < dist(lm[3],lm[17])*1.1;
+            const indexUp = lm[8].y < lm[6].y;
+            const othersDown = lm[12].y > lm[10].y && lm[16].y > lm[14].y && lm[20].y > lm[18].y;
+            return indexUp && othersDown && thumbClosed;
         }
 
         function isFist(lm){
-            // Daha güvenilir yumruk algılama: parmak uçları dip noktalara yakın
+            // Daha toleranslı: parmak uçları dip noktalara yakınsa
             const threshold = 0.92;
-            return lm[8].y  > lm[5].y  * threshold &&
-                   lm[12].y > lm[9].y  * threshold &&
-                   lm[16].y > lm[13].y * threshold &&
-                   lm[20].y > lm[17].y * threshold;
+            return (lm[8].y > lm[5].y * threshold) &&
+                   (lm[12].y > lm[9].y * threshold) &&
+                   (lm[16].y > lm[13].y * threshold) &&
+                   (lm[20].y > lm[17].y * threshold);
         }
 
-        function drawHoloGrid(){
-            const size=70, t=Date.now()*0.0004, pulse=Math.sin(t*2)*0.015+0.07;
-            ctx.strokeStyle=`rgba(0,255,140,${pulse})`; ctx.lineWidth=1.1;
-            for(let x=0;x<canvas.width;x+=size){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
-            for(let y=0;y<canvas.height;y+=size){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
-        }
+        function findDrawingNear(x,y){const r=90;for(let i=drawings.length-1;i>=0;i--){for(let p of drawings[i].points){if(Math.hypot(x-p.x,y-p.y)<r)return drawings[i];}}return null;}
+
+        function drawHoloGrid(){ /* aynı kaldı */ const s=70;const t=Date.now()*0.0004;const p=Math.sin(t*2)*0.015+0.07;ctx.strokeStyle=`rgba(0,255,140,${p})`;ctx.lineWidth=1.1;for(let x=0;x<canvas.width;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}for(let y=0;y<canvas.height;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}}
 
         function onResults(results){
-            if(loading.style.display!=='none') loading.style.display='none';
+            if(loading.style.display!=='none')loading.style.display='none';
 
-            ctx.save(); ctx.clearRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle='rgba(10,15,10,0.4)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.save();
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle='rgba(10,15,10,0.4)';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+
             drawHoloGrid();
+            drawStoredDrawings();
+            updateParticles();
 
-            // Renk butonu hover/click algılama (basitleştirildi)
-            if(results.multiHandLandmarks?.length > 0){
+            eraserIndicator.style.display = isEraser ? 'block' : 'none';
+
+            if(results.multiHandLandmarks?.length>0){
                 const lm = results.multiHandLandmarks[0];
                 const tip = lm[8];
                 const ix = tip.x * canvas.width;
                 const iy = tip.y * canvas.height;
+                const mirroredX = canvas.width - ix;  // ← Mirror düzeltmesi burada!
 
+                const pinch = dist(lm[4],lm[8]);
+
+                // Renk butonu tıklama (mirrored x ile)
                 const btnRect = colorButton.getBoundingClientRect();
-                const btnX = btnRect.left + btnRect.width/2;
-                const btnY = btnRect.top  + btnRect.height/2;
-                const distToBtn = Math.hypot(ix - btnX, iy - btnY);
+                const btnCX = btnRect.left + btnRect.width/2;
+                const btnCY = btnRect.top + btnRect.height/2;
+                const distToBtn = Math.hypot(mirroredX - btnCX, iy - btnCY);
 
-                // Butona işaret parmağıyla dokununca panel aç/kapa
-                if(distToBtn < 70 && isIndexFingerUp(lm)){
-                    colorButton.classList.add('active');
-                    if(!colorPanelOpen){
-                        colorPanelOpen = true;
-                        colorPanel.style.display = 'flex';
+                if(distToBtn < 70 && isIndexOnlyUp(lm)){
+                    if(!buttonHoverTimer){
+                        buttonHoverTimer = setTimeout(()=>{
+                            colorPanelOpen = !colorPanelOpen;
+                            colorPanel.style.display = colorPanelOpen ? 'flex' : 'none';
+                            buttonHoverTimer = null;
+                        }, 300); // daha hızlı
                     }
                 } else {
-                    colorButton.classList.remove('active');
+                    clearTimeout(buttonHoverTimer);
+                    buttonHoverTimer = null;
                 }
 
-                // Panel açıkken renk seçimi
-                if(colorPanelOpen && isIndexFingerUp(lm)){
-                    const sw
+                // Renk seçimi
+                if(colorPanelOpen && isIndexOnlyUp(lm)){
+                    const swatches = document.querySelectorAll('.color-swatch');
+                    for(let sw of swatches){
+                        const sRect = sw.getBoundingClientRect();
+                        const sCX = sRect.left + sRect.width/2;
+                        const sCY = sRect.top + sRect.height/2;
+                        if(Math.hypot(mirroredX - sCX, iy - sCY) < 45){
+                            currentColor = sw.dataset.color;
+                            colorPanelOpen = false;
+                            colorPanel.style.display = 'none';
+                            break;
+                        }
+                    }
+                }
+
+                // Çizim / Silgi
+                if(isFist(lm)){
+                    isEraser = true;
+                    currentPath = null;
+                } else if(isIndexOnlyUp(lm)){
+                    isEraser = false;
+                    if(!currentPath){
+                        currentPath = {points:[], id:Date.now(), color:currentColor, isEraser:false};
+                        drawings.push(currentPath);
+                    }
+                    currentPath.points.push({x:ix, y:iy});
+                    addSparks(ix,iy,4);
+                    isDragging = false;
+                    selectedDrawing = null;
+                } else if(pinch < 50){
+                    const thumb = lm[4];
+                    const tx = thumb.x * canvas.width;
+                    const ty = thumb.y * canvas.height;
+                    const mx = (ix + tx)/2;
+                    const my = (iy + ty)/2;
+
+                    if(!isDragging){
+                        selectedDrawing = findDrawingNear(mx,my);
+                        if(selectedDrawing){isDragging=true; lastPos={x:mx,y:my};}
+                    }
+                    if(isDragging && selectedDrawing){
+                        const dx=mx-lastPos.x; const dy=my-lastPos.y;
+                        selectedDrawing.points.forEach(p=>{p.x+=dx;p.y+=dy;});
+                        lastPos={x:mx,y:my};
+                    }
+                    currentPath = null;
+                } else {
+                    currentPath = null;
+                    isDragging = false;
+                    selectedDrawing = null;
+                }
+
+                drawJARVISHand(lm);
+            } else {
+                currentPath = null;
+                isDragging = false;
+                selectedDrawing = null;
+                clearTimeout(buttonHoverTimer);
+                buttonHoverTimer = null;
+                eraserIndicator.style.display = 'none';
+            }
+
+            ctx.restore();
+        }
+
+        function updateParticles(){for(let i=particles.length-1;i>=0;i--){particles[i].update();particles[i].draw();if(particles[i].life<=0)particles.splice(i,1);}}
+
+        function drawStoredDrawings(){
+            drawings.forEach(d=>{
+                if(d.points.length<2)return;
+                const sel = selectedDrawing?.id===d.id;
+                ctx.save();
+                ctx.shadowBlur = sel?45:28;
+                ctx.shadowColor = sel?'#00ffff':(d.isEraser?'#000':d.color||'#00ff9f');
+                ctx.strokeStyle = d.isEraser?'#000000':(d.color||'#00ff9f');
+                ctx.globalAlpha = d.isEraser?1:(sel?1.0:0.92);
+                ctx.lineWidth = d.isEraser?45:(sel?7.5:5); // silgi kalınlığı artırdık
+                ctx.lineCap='round'; ctx.lineJoin='round';
+                ctx.beginPath(); ctx.moveTo(d.points[0].x,d.points[0].y);
+                d.points.forEach(p=>ctx.lineTo(p.x,p.y));
+                ctx.stroke();
+                if(!d.isEraser){
+                    ctx.shadowBlur=0; ctx.strokeStyle='#e0fff0'; ctx.globalAlpha=sel?0.85:0.75; ctx.lineWidth=sel?3:2; ctx.stroke();
+                }
+                ctx.restore();
+            });
+        }
+
+        function drawJARVISHand(lm){
+            const green = '#00ff9f';
+            const dim = '#00cc7a';
+            ctx.save();
+            ctx.shadowBlur=22;
+            ctx.shadowColor = isEraser?'#ff4444':green;
+            ctx.strokeStyle = isEraser?'#ff4444':dim;
+            ctx.globalAlpha=0.95;
+            ctx.lineWidth=3.8;
+
+            const conn=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+            conn.forEach(([a,b])=>{
+                ctx.beginPath();
+                ctx.moveTo(lm[a].x*canvas.width,lm[a].y*canvas.height);
+                ctx.lineTo(lm[b].x*canvas.width,lm[b].y*canvas.height);
+                ctx.stroke();
+            });
+
+            ctx.fillStyle = isEraser?'#ff4444':green;
+            lm.forEach(p=>{
+                const px=p.x*canvas.width, py=p.y*canvas.height;
+                ctx.beginPath(); ctx.arc(px,py,5.5,0,Math.PI*2); ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        document.querySelectorAll('.color-swatch').forEach(sw=>{
+            sw.addEventListener('click',()=>{currentColor=sw.dataset.color; colorPanelOpen=false; colorPanel.style.display='none';});
+        });
+
+        const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`});
+        hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.88,minTrackingConfidence:0.88});
+        hands.onResults(onResults);
+
+        const camera = new Camera(video,{onFrame:async()=>{await hands.send({image:video});},width:1280,height:720});
+        camera.start();
+    </script>
+</body>
+</html>
