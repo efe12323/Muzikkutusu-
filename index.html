@@ -3,71 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS 3D Holographic UI</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
-    
+    <title>JARVIS v2 - Air Interaction</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
     <style>
-        :root {
-            --jarvis-green: #00ff9f;
-            --jarvis-glow: #00ff41;
-            --dark-bg: #0a0f0a;
-        }
-
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
-        #input_video { position: absolute; visibility: hidden; }
-        #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); }
-        
-        /* Kontrol Paneli */
-        #ui-panel {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            transform: scaleX(1); /* Canvas ters olduğu için burayı düzeltiyoruz */
-        }
-
-        .btn {
-            background: rgba(0, 255, 159, 0.1);
-            border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green);
-            padding: 10px 20px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: 0.3s;
-            backdrop-filter: blur(5px);
-        }
-
-        .btn.active {
-            background: var(--jarvis-green);
-            color: #000;
-            box-shadow: 0 0 20px var(--jarvis-glow);
-        }
-
-        #status {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: var(--jarvis-green);
-            text-shadow: 0 0 10px var(--jarvis-glow);
-            z-index: 10;
-        }
+        :root { --green: #00ff9f; --dim: rgba(0, 255, 159, 0.2); }
+        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+        #output_canvas { width: 100vw; height: 100vh; transform: scaleX(-1); }
+        #input_video { display: none; }
+        #debug { position: fixed; top: 10px; left: 10px; color: var(--green); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div id="ui-panel">
-        <div class="btn active" id="mode-free">Free Draw</div>
-        <div class="btn" id="mode-rect">Rectangle</div>
-        <div class="btn" id="mode-circle">Circle</div>
-        <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear All</div>
-    </div>
-
-    <div id="status">SYSTEM: READY</div>
+    <div id="debug">SYSTEM: ACTIVE <br> MODE: <span id="mode-text">FREE</span></div>
     <video id="input_video"></video>
     <canvas id="output_canvas"></canvas>
 
@@ -75,11 +24,22 @@
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
-        
-        let currentMode = 'free'; // 'free', 'rect', 'circle'
+        const modeText = document.getElementById('mode-text');
+
         let drawings = [];
-        let tempShape = null;
-        let startPoint = null;
+        let currentMode = 'FREE'; // FREE, RECT, CIRCLE
+        let currentPath = null;
+        let selectedShape = null;
+        let isDragging = false;
+        let lastPos = { x: 0, y: 0 };
+
+        // Menü Butonları (Holografik Koordinatlar)
+        const buttons = [
+            { id: 'FREE', x: 50, y: 50, w: 120, h: 40, label: 'Serbest', hoverTime: 0 },
+            { id: 'RECT', x: 50, y: 110, w: 120, h: 40, label: 'Kare', hoverTime: 0 },
+            { id: 'CIRCLE', x: 50, y: 170, w: 120, h: 40, label: 'Daire', hoverTime: 0 },
+            { id: 'CLEAR', x: 50, y: 230, w: 120, h: 40, label: 'Temizle', hoverTime: 0 }
+        ];
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -88,139 +48,175 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // UI Etkileşimi
-        document.querySelectorAll('.btn').forEach(btn => {
-            btn.onclick = (e) => {
-                if(e.target.id === 'btn-clear') {
-                    drawings = [];
-                    return;
-                }
-                document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentMode = btn.id.replace('mode-', '');
-            };
-        });
+        function dist(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
 
         function onResults(results) {
-            ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Arka plan ızgarası
+            // Arka Plan Efekti
             drawGrid();
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                const indexTip = lm[8];
-                const thumbTip = lm[4];
                 
-                // Koordinat dönüşümü
-                const x = indexTip.x * canvas.width;
-                const y = indexTip.y * canvas.height;
-                const z = Math.abs(indexTip.z) * 5; // Derinlik çarpanı
+                // Koordinatlar (Canvas ters olduğu için 1-x yapıyoruz)
+                const indexX = (1 - lm[8].x) * canvas.width;
+                const indexY = lm[8].y * canvas.height;
+                const thumbX = (1 - lm[4].x) * canvas.width;
+                const thumbY = lm[4].y * canvas.height;
+                
+                const pinchDist = dist({x: indexX, y: indexY}, {x: thumbX, y: thumbY});
+                const isPinching = pinchDist < 40;
 
-                // Çizim Mantığı (İşaret parmağı havadaysa)
-                const isDrawing = indexTip.y < lm[6].y && lm[12].y > lm[10].y;
-                
-                if (isDrawing) {
-                    if (currentMode === 'free') {
-                        if (!tempShape) {
-                            tempShape = { type: 'free', points: [], color: '#00ff9f' };
-                            drawings.push(tempShape);
+                // 1. MENÜ ETKİLEŞİMİ (Havada Seçim)
+                buttons.forEach(btn => {
+                    const isHovering = indexX > btn.x && indexX < btn.x + btn.w && indexY > btn.y && indexY < btn.y + btn.h;
+                    
+                    if (isHovering) {
+                        btn.hoverTime += 0.05; // Seçim hızı
+                        if (btn.hoverTime >= 1) {
+                            if (btn.id === 'CLEAR') drawings = [];
+                            else {
+                                currentMode = btn.id;
+                                modeText.innerText = currentMode;
+                            }
+                            btn.hoverTime = 0;
                         }
-                        tempShape.points.push({ x, y, z });
                     } else {
-                        // Şekil başlangıcı
-                        if (!startPoint) startPoint = { x, y, z };
-                        updateTempShape(x, y, z);
+                        btn.hoverTime = Math.max(0, btn.hoverTime - 0.1);
+                    }
+                    drawButton(btn);
+                });
+
+                // 2. TAŞIMA MANTIĞI (Pinch Hareketi)
+                if (isPinching) {
+                    if (!isDragging) {
+                        // En yakın objeyi bul
+                        selectedShape = findNearShape(indexX, indexY);
+                        if (selectedShape) {
+                            isDragging = true;
+                            lastPos = { x: indexX, y: indexY };
+                        }
+                    } else if (selectedShape) {
+                        const dx = indexX - lastPos.x;
+                        const dy = indexY - lastPos.y;
+                        moveShape(selectedShape, dx, dy);
+                        lastPos = { x: indexX, y: indexY };
+                    }
+                    currentPath = null;
+                } 
+                // 3. ÇİZİM MANTIĞI (Sadece İşaret Parmağı Havadaysa)
+                else if (lm[8].y < lm[6].y && lm[12].y > lm[10].y) {
+                    isDragging = false;
+                    selectedShape = null;
+
+                    if (currentMode === 'FREE') {
+                        if (!currentPath) {
+                            currentPath = { type: 'FREE', points: [], color: '#00ff9f', z: Math.abs(lm[8].z) };
+                            drawings.push(currentPath);
+                        }
+                        currentPath.points.push({ x: indexX, y: indexY });
+                    } else if (!currentPath) {
+                        currentPath = { type: currentMode, start: {x: indexX, y: indexY}, end: {x: indexX, y: indexY}, color: '#00ff9f' };
+                        drawings.push(currentPath);
+                    } else {
+                        currentPath.end = {x: indexX, y: indexY};
                     }
                 } else {
-                    if (tempShape && currentMode !== 'free') {
-                        drawings.push(tempShape);
-                    }
-                    tempShape = null;
-                    startPoint = null;
+                    currentPath = null;
+                    isDragging = false;
                 }
 
-                drawHand(lm);
+                drawHandHUD(lm, isPinching);
             }
 
             renderDrawings();
+        }
+
+        function drawButton(btn) {
+            ctx.save();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'var(--green)';
+            ctx.strokeStyle = '#00ff9f';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+            
+            // Doluluk Barı (Seçim İlerlemesi)
+            ctx.fillStyle = 'rgba(0, 255, 159, 0.3)';
+            ctx.fillRect(btn.x, btn.y, btn.w * btn.hoverTime, btn.h);
+            
+            ctx.fillStyle = (currentMode === btn.id) ? '#00ff9f' : '#fff';
+            ctx.font = '14px Courier New';
+            ctx.fillText(btn.label, btn.x + 10, btn.y + 25);
             ctx.restore();
         }
 
-        function updateTempShape(x, y, z) {
-            if (!startPoint) return;
-            tempShape = {
-                type: currentMode,
-                start: startPoint,
-                end: { x, y, z },
-                color: '#00ff9f'
-            };
-        }
-
         function renderDrawings() {
-            [...drawings, tempShape].forEach(shape => {
-                if (!shape) return;
+            drawings.forEach(d => {
                 ctx.beginPath();
-                ctx.strokeStyle = shape.color;
+                ctx.strokeStyle = d.color;
+                ctx.lineWidth = 4;
                 ctx.shadowBlur = 15;
-                ctx.shadowColor = shape.color;
+                ctx.shadowColor = d.color;
 
-                if (shape.type === 'free') {
-                    shape.points.forEach((p, i) => {
-                        ctx.lineWidth = 2 + (p.z * 10); // Yaklaştıkça kalınlaşır (3D efekti)
+                if (d.type === 'FREE') {
+                    d.points.forEach((p, i) => {
                         if (i === 0) ctx.moveTo(p.x, p.y);
                         else ctx.lineTo(p.x, p.y);
                     });
-                } 
-                else if (shape.type === 'rect') {
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(shape.start.x, shape.start.y, shape.end.x - shape.start.x, shape.end.y - shape.start.y);
-                } 
-                else if (shape.type === 'circle') {
-                    ctx.lineWidth = 3;
-                    const radius = Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y);
-                    ctx.arc(shape.start.x, shape.start.y, radius, 0, Math.PI * 2);
+                } else if (d.type === 'RECT') {
+                    ctx.strokeRect(d.start.x, d.start.y, d.end.x - d.start.x, d.end.y - d.start.y);
+                } else if (d.type === 'CIRCLE') {
+                    const r = dist(d.start, d.end);
+                    ctx.arc(d.start.x, d.start.y, r, 0, Math.PI * 2);
                 }
                 ctx.stroke();
             });
         }
 
-        function drawGrid() {
-            ctx.strokeStyle = 'rgba(0, 255, 159, 0.05)';
-            ctx.lineWidth = 1;
-            for(let i=0; i<canvas.width; i+=50) {
-                ctx.moveTo(i,0); ctx.lineTo(i, canvas.height);
-            }
-            for(let i=0; i<canvas.height; i+=50) {
-                ctx.moveTo(0,i); ctx.lineTo(canvas.width, i);
-            }
-            ctx.stroke();
+        function findNearShape(x, y) {
+            return drawings.find(d => {
+                if (d.type === 'FREE') return d.points.some(p => dist(p, {x,y}) < 50);
+                return dist(d.start, {x,y}) < 50;
+            });
         }
 
-        function drawHand(lm) {
-            ctx.fillStyle = "white";
+        function moveShape(shape, dx, dy) {
+            if (shape.type === 'FREE') {
+                shape.points.forEach(p => { p.x += dx; p.y += dy; });
+            } else {
+                shape.start.x += dx; shape.start.y += dy;
+                shape.end.x += dx; shape.end.y += dy;
+            }
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 255, 159, 0.1)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=100) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+        }
+
+        function drawHandHUD(lm, pinching) {
+            ctx.fillStyle = pinching ? '#ff00ff' : '#00ff9f';
             lm.forEach(p => {
                 ctx.beginPath();
-                // Z değerine göre nokta boyutunu değiştir (3D hissi)
-                const size = 3 + (Math.abs(p.z) * 15);
-                ctx.arc(p.x * canvas.width, p.y * canvas.height, size, 0, Math.PI*2);
+                ctx.arc((1-p.x) * canvas.width, p.y * canvas.height, 4, 0, Math.PI*2);
                 ctx.fill();
             });
         }
 
-        // MediaPipe Setup
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
+        const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.8 });
         hands.onResults(onResults);
 
-        const camera = new Camera(video, {
+        new Camera(video, {
             onFrame: async () => { await hands.send({image: video}); },
             width: 1280, height: 720
-        });
-        camera.start();
+        }).start();
     </script>
 </body>
 </html>
