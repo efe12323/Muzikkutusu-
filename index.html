@@ -18,31 +18,39 @@
         #input_video { position: absolute; visibility: hidden; }
         #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); }
         
+        /* Yatay Üst Panel */
         #ui-panel {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 10;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
+            flex-direction: row;
+            gap: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 50px;
+            border: 1px solid rgba(0, 255, 159, 0.2);
         }
 
         .btn {
-            background: rgba(0, 255, 159, 0.1);
+            background: rgba(0, 255, 159, 0.05);
             border: 1px solid var(--jarvis-green);
             color: var(--jarvis-green);
-            padding: 10px 20px;
+            padding: 8px 15px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            backdrop-filter: blur(5px);
-            pointer-events: none; /* Artık el ile seçileceği için mouse'u kapattık */
+            font-size: 12px;
+            letter-spacing: 1px;
+            border-radius: 20px;
+            transition: 0.2s;
+            pointer-events: none;
         }
 
         .btn.active {
             background: var(--jarvis-green);
             color: #000;
-            box-shadow: 0 0 20px var(--jarvis-glow);
+            box-shadow: 0 0 15px var(--jarvis-glow);
         }
 
         #status {
@@ -50,7 +58,7 @@
             bottom: 20px;
             left: 20px;
             color: var(--jarvis-green);
-            text-shadow: 0 0 10px var(--jarvis-glow);
+            font-family: monospace;
             z-index: 10;
         }
     </style>
@@ -58,13 +66,15 @@
 <body>
 
     <div id="ui-panel">
-        <div class="btn active" id="mode-free">Free Draw</div>
-        <div class="btn" id="mode-rect">Rectangle</div>
+        <div class="btn active" id="mode-free">Free</div>
+        <div class="btn" id="mode-rect">Rect</div>
         <div class="btn" id="mode-circle">Circle</div>
+        <div class="btn" id="mode-eraser">Eraser</div>
+        <div class="btn" id="btn-undo" style="border-color: #ffb800; color: #ffb800;">Undo</div>
         <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear All</div>
     </div>
 
-    <div id="status">SYSTEM: READY</div>
+    <div id="status">JARVIS: READY</div>
     <video id="input_video"></video>
     <canvas id="output_canvas"></canvas>
 
@@ -79,6 +89,7 @@
         let startPoint = null;
         let grabbedShape = null;
         let lastGrabPoint = null;
+        let lastUndoTime = 0;
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -87,9 +98,16 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Mod değiştirme fonksiyonu
         function setMode(mode) {
             if(mode === 'clear') { drawings = []; return; }
+            if(mode === 'undo') {
+                const now = Date.now();
+                if (now - lastUndoTime > 500) { // Hızlı silmeyi önlemek için bekleme süresi
+                    drawings.pop();
+                    lastUndoTime = now;
+                }
+                return;
+            }
             currentMode = mode;
             document.querySelectorAll('.btn').forEach(b => {
                 b.classList.remove('active');
@@ -107,69 +125,41 @@
                 const indexTip = lm[8];
                 const thumbTip = lm[4];
                 
-                // Koordinatlar (Canvas ters olduğu için X'i düzelttik)
                 const x = indexTip.x * canvas.width;
                 const y = indexTip.y * canvas.height;
                 const tx = thumbTip.x * canvas.width;
                 const ty = thumbTip.y * canvas.height;
                 const z = Math.abs(indexTip.z) * 5;
 
-                // 1. HAVADAN BUTON SEÇME (Sağ üst köşedeki butonlara dokunma)
-                const realX = (1 - indexTip.x) * canvas.width; // Butonlar sağda olduğu için aynalanmış X
-                if (realX > canvas.width - 200) {
+                // 1. ÜST PANEL KONTROLÜ (Yalnızca el ekranın üst kısmındaysa)
+                if (indexTip.y < 0.2) { 
                     const btns = document.querySelectorAll('.btn');
                     btns.forEach(btn => {
                         const rect = btn.getBoundingClientRect();
-                        if (indexTip.y * canvas.height > rect.top && indexTip.y * canvas.height < rect.bottom) {
+                        // Aynalanmış görüntüde butona denk gelme kontrolü
+                        const mirroredX = (1 - indexTip.x) * canvas.width;
+                        if (mirroredX > rect.left && mirroredX < rect.right) {
                             const mode = btn.id.replace('mode-', '').replace('btn-', '');
                             setMode(mode);
                         }
                     });
                 }
 
-                // 2. TUTMA VE HAREKET ETTİRME (İşaret ve Baş parmak birleşirse)
+                // 2. TUTMA / SİLME / ÇİZME
                 const distance = Math.hypot(x - tx, y - ty);
-                const isGrabbing = distance < 30;
+                const isGrabbing = distance < 35;
 
-                if (isGrabbing) {
-                    if (!grabbedShape) {
-                        // En yakın şekli bul (son çizilenden başla)
-                        for (let i = drawings.length - 1; i >= 0; i--) {
-                            const s = drawings[i];
-                            let hit = false;
-                            if (s.type === 'free') {
-                                hit = s.points.some(p => Math.hypot(p.x - x, p.y - y) < 40);
-                            } else {
-                                hit = Math.hypot(s.start.x - x, s.start.y - y) < 40;
-                            }
-                            if (hit) { grabbedShape = s; lastGrabPoint = {x, y}; break; }
-                        }
-                    } else {
-                        // Şekli kaydır
-                        const dx = x - lastGrabPoint.x;
-                        const dy = y - lastGrabPoint.y;
-                        if (grabbedShape.type === 'free') {
-                            grabbedShape.points.forEach(p => { p.x += dx; p.y += dy; });
-                        } else {
-                            grabbedShape.start.x += dx; grabbedShape.start.y += dy;
-                            grabbedShape.end.x += dx; grabbedShape.end.y += dy;
-                        }
-                        lastGrabPoint = {x, y};
-                    }
+                if (isGrabbing && currentMode !== 'eraser') {
+                    handleGrab(x, y);
                 } else {
                     grabbedShape = null;
-                    // 3. NORMAL ÇİZİM MANTIĞI (Eski kodun aynısı)
-                    const isDrawing = indexTip.y < lm[6].y && lm[12].y > lm[10].y;
-                    if (isDrawing) {
-                        if (currentMode === 'free') {
-                            if (!tempShape) {
-                                tempShape = { type: 'free', points: [], color: '#00ff9f' };
-                                drawings.push(tempShape);
-                            }
-                            tempShape.points.push({ x, y, z });
+                    const isActing = indexTip.y < lm[6].y && lm[12].y > lm[10].y;
+                    
+                    if (isActing) {
+                        if (currentMode === 'eraser') {
+                            handleEraser(x, y);
                         } else {
-                            if (!startPoint) startPoint = { x, y, z };
-                            updateTempShape(x, y, z);
+                            handleDrawing(x, y, z);
                         }
                     } else {
                         if (tempShape && currentMode !== 'free') drawings.push(tempShape);
@@ -183,32 +173,66 @@
             ctx.restore();
         }
 
-        function updateTempShape(x, y, z) {
-            if (!startPoint) return;
-            tempShape = { type: currentMode, start: startPoint, end: { x, y, z }, color: '#00ff9f' };
+        function handleGrab(x, y) {
+            if (!grabbedShape) {
+                for (let i = drawings.length - 1; i >= 0; i--) {
+                    const s = drawings[i];
+                    if (isPointInShape(x, y, s)) { grabbedShape = s; lastGrabPoint = {x, y}; break; }
+                }
+            } else {
+                const dx = x - lastGrabPoint.x;
+                const dy = y - lastGrabPoint.y;
+                if (grabbedShape.type === 'free') {
+                    grabbedShape.points.forEach(p => { p.x += dx; p.y += dy; });
+                } else {
+                    grabbedShape.start.x += dx; grabbedShape.start.y += dy;
+                    grabbedShape.end.x += dx; grabbedShape.end.y += dy;
+                }
+                lastGrabPoint = {x, y};
+            }
+        }
+
+        function handleEraser(x, y) {
+            drawings = drawings.filter(s => !isPointInShape(x, y, s));
+        }
+
+        function isPointInShape(x, y, s) {
+            if (s.type === 'free') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < 30);
+            if (s.type === 'rect') return x > Math.min(s.start.x, s.end.x) && x < Math.max(s.start.x, s.end.x) && y > Math.min(s.start.y, s.end.y) && y < Math.max(s.start.y, s.end.y);
+            if (s.type === 'circle') return Math.hypot(s.start.x - x, s.start.y - y) < Math.hypot(s.end.x - s.start.x, s.end.y - s.start.y);
+            return false;
+        }
+
+        function handleDrawing(x, y, z) {
+            if (currentMode === 'free') {
+                if (!tempShape) {
+                    tempShape = { type: 'free', points: [], color: '#00ff9f' };
+                    drawings.push(tempShape);
+                }
+                tempShape.points.push({ x, y, z });
+            } else {
+                if (!startPoint) startPoint = { x, y, z };
+                tempShape = { type: currentMode, start: startPoint, end: { x, y, z }, color: '#00ff9f' };
+            }
         }
 
         function renderDrawings() {
             [...drawings, tempShape].forEach(shape => {
                 if (!shape) return;
                 ctx.beginPath();
-                ctx.strokeStyle = shape.color;
+                ctx.strokeStyle = shape.type === 'eraser' ? 'rgba(255,0,0,0.5)' : shape.color;
                 ctx.shadowBlur = 15;
-                ctx.shadowColor = shape.color;
+                ctx.lineWidth = 3;
 
                 if (shape.type === 'free') {
                     shape.points.forEach((p, i) => {
-                        ctx.lineWidth = 2 + (p.z * 10);
+                        ctx.lineWidth = 2 + (p.z * 8);
                         if (i === 0) ctx.moveTo(p.x, p.y);
                         else ctx.lineTo(p.x, p.y);
                     });
-                } 
-                else if (shape.type === 'rect') {
-                    ctx.lineWidth = 3;
+                } else if (shape.type === 'rect') {
                     ctx.strokeRect(shape.start.x, shape.start.y, shape.end.x - shape.start.x, shape.end.y - shape.start.y);
-                } 
-                else if (shape.type === 'circle') {
-                    ctx.lineWidth = 3;
+                } else if (shape.type === 'circle') {
                     const radius = Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y);
                     ctx.arc(shape.start.x, shape.start.y, radius, 0, Math.PI * 2);
                 }
@@ -226,16 +250,16 @@
 
         function drawHand(lm) {
             ctx.fillStyle = "white";
-            lm.forEach(p => {
+            lm.forEach((p, i) => {
                 ctx.beginPath();
-                const size = 3 + (Math.abs(p.z) * 15);
-                ctx.arc(p.x * canvas.width, p.y * canvas.height, size, 0, Math.PI*2);
+                const size = (i === 8 || i === 4) ? 8 : 3;
+                ctx.arc(p.x * canvas.width, p.y * canvas.height, size + (Math.abs(p.z) * 10), 0, Math.PI*2);
                 ctx.fill();
             });
         }
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75 });
         hands.onResults(onResults);
 
         const camera = new Camera(video, {
