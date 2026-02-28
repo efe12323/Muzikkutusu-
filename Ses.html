@@ -1,172 +1,341 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="az">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ücretsiz TTS - MP3 İndir + Komik Efekt</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #0d1117; color: #c9d1d9; padding: 20px; max-width: 800px; margin: auto; }
-    h2 { color: #58a6ff; }
-    textarea { width: 100%; height: 140px; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; color: #fff; resize: vertical; }
-    .controls { margin: 20px 0; display: grid; gap: 16px; }
-    select, input[type=range], input[type=checkbox] { padding: 10px; font-size: 15px; background: #21262d; color: #fff; border: 1px solid #30363d; border-radius: 6px; }
-    button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; color: white; }
-    #speak { background: #238636; }
-    #speak:hover { background: #2ea043; }
-    #stop { background: #da3633; }
-    #stop:hover { background: #f85149; }
-    #download { background: #1f6feb; }
-    #download:hover { background: #388bfd; }
-    label { font-weight: bold; color: #8b949e; display: block; margin-bottom: 6px; }
-    #status { margin-top: 16px; color: #8b949e; font-style: italic; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Blue Skeleton Laser</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --laser-red: #ff0000;
+            --selection-yellow: #ffff00;
+            --dark-bg: #000000;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: var(--dark-bg);
+        }
+
+        #input_video { 
+            position: absolute;
+            visibility: hidden;
+            width: 1px; height: 1px;
+            transform: scaleX(-1);
+        }
+
+        #output_canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 5;
+            transform: scaleX(-1);
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .loader {
+            width: 50px; height: 50px;
+            border: 3px solid #111;
+            border-top: 3px solid var(--neon-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
 
-<h2>Ücretsiz Metin → Ses (MP3 İndir + Komik/Kilise Efekti)</h2>
-<textarea id="text" placeholder="Buraya yaz...">Hahaha şimdi çok komik bi sesle konuşuyorum, yankılı kilise modunda!</textarea>
+    <div id="loading-screen">
+        <div class="loader"></div>
+    </div>
 
-<div class="controls">
-  <div>
-    <label for="voice">Ses Seç (Erkek / Kadın):</label>
-    <select id="voice">
-      <option value="tr-TR-AhmetNeural">Ahmet (Erkek - Türkçe)</option>
-      <option value="tr-TR-EmelNeural" selected>Emel (Kadın - Türkçe)</option>
-      <option value="tr-TR-FilizNeural">Filiz (Kadın - Türkçe)</option>
-      <option value="en-US-GuyNeural">Guy (Erkek - İngilizce)</option>
-      <option value="en-US-JennyNeural">Jenny (Kadın - İngilizce)</option>
-      <!-- Daha fazla ses istersen buraya ekleyebilirsin: https://github.com/rany2/edge-tts/blob/master/edge_tts/voices.txt -->
-    </select>
-  </div>
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
 
-  <div>
-    <label for="pitch">Perde (komiklik): düşük → derin / yüksek → cırtlak</label>
-    <input type="range" id="pitch" min="-10" max="10" step="1" value="0">
-    <span id="pitchVal">0</span>
-  </div>
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingScreen = document.getElementById('loading-screen');
 
-  <div>
-    <label for="rate">Hız:</label>
-    <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
-    <span id="rateVal">1.0</span>
-  </div>
+        let drawings = []; 
+        let particles = [];
+        let currentPath = null;
+        let selectedDrawing = null;
+        let isDragging = false;
+        let lastFingerPos = { x: 0, y: 0 };
 
-  <div>
-    <label><input type="checkbox" id="church"> Kilise yankısı (echo + reverb simülasyonu)</label>
-  </div>
+        function setupCanvas() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', setupCanvas);
+        setupCanvas();
 
-  <div style="display:flex; gap:12px; flex-wrap:wrap;">
-    <button id="speak">Konuş & Oluştur</button>
-    <button id="stop">Durdur</button>
-    <button id="download">MP3 İndir</button>
-  </div>
-</div>
+        class Spark {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const force = Math.random() * 15 + 10;
+                this.speedX = Math.cos(angle) * force;
+                this.speedY = Math.sin(angle) * force;
+                
+                this.life = 1.0;
+                this.decay = Math.random() * 0.03 + 0.015;
+                this.gravity = 0.45;
+                this.friction = 0.96; 
+            }
 
-<div id="status">Hazır... (İnternet bağlantısı gerekli)</div>
+            update() {
+                this.speedX *= this.friction;
+                this.speedY *= this.friction;
+                this.speedY += this.gravity;
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= this.decay;
+            }
 
-<audio id="audioPlayer" controls style="width:100%; margin-top:20px; display:none;"></audio>
+            draw() {
+                if (this.life <= 0) return;
 
-<script>
-const textEl = document.getElementById('text');
-const voiceSel = document.getElementById('voice');
-const pitchEl = document.getElementById('pitch');
-const pitchVal = document.getElementById('pitchVal');
-const rateEl = document.getElementById('rate');
-const rateVal = document.getElementById('rateVal');
-const churchEl = document.getElementById('church');
-const status = document.getElementById('status');
-const audioPlayer = document.getElementById('audioPlayer');
+                let r, g, b;
+                if (this.life > 0.8) {
+                    r = 255; g = 255; b = 200; 
+                } else if (this.life > 0.4) {
+                    r = 255; g = 200; b = 50;  
+                } else {
+                    r = 200; g = 50; b = 0;    
+                }
 
-let audioUrl = null;
+                canvasCtx.save();
+                canvasCtx.globalAlpha = this.life;
+                canvasCtx.strokeStyle = `rgb(${r},${g},${b})`;
+                canvasCtx.lineWidth = 1.5 * this.life;
+                canvasCtx.lineCap = 'round';
+                
+                canvasCtx.shadowBlur = 8 * this.life;
+                canvasCtx.shadowColor = `rgb(${r},${g},${b})`;
 
-pitchEl.oninput = () => pitchVal.textContent = pitchEl.value;
-rateEl.oninput   = () => rateVal.textContent   = rateEl.value;
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(this.x, this.y);
+                const tailX = this.x - this.speedX * 0.8;
+                const tailY = this.y - this.speedY * 0.8;
+                canvasCtx.lineTo(tailX, tailY);
+                canvasCtx.stroke();
+                canvasCtx.restore();
+            }
+        }
 
-// Edge TTS → MP3 URL oluştur (ücretsiz Microsoft servisi)
-async function generateTTS() {
-  const text = textEl.value.trim();
-  if (!text) { status.textContent = "Metin boş!"; return null; }
+        function createSparkEffect(x, y) {
+            const count = Math.floor(Math.random() * 4) + 3;
+            for (let i = 0; i < count; i++) {
+                particles.push(new Spark(x, y));
+            }
+        }
 
-  status.textContent = "Ses oluşturuluyor...";
+        function getDistance(p1, p2) {
+            return Math.sqrt(
+                Math.pow((p1.x - p2.x) * canvasElement.width, 2) + 
+                Math.pow((p1.y - p2.y) * canvasElement.height, 2)
+            );
+        }
 
-  const voice = voiceSel.value;
-  const rateVal = parseFloat(rateEl.value);
-  const pitchVal = parseInt(pitchEl.value);
+        function isStrictlyIndexUp(lm) {
+            const thumbOpen = getDistance(lm[4], lm[17]) > getDistance(lm[3], lm[17]);
+            const indexOpen = lm[8].y < lm[6].y;
+            const middleOpen = lm[12].y < lm[10].y;
+            const ringOpen = lm[16].y < lm[14].y;
+            const pinkyOpen = lm[20].y < lm[18].y;
+            return indexOpen && !middleOpen && !ringOpen && !pinkyOpen && !thumbOpen;
+        }
 
-  // Edge TTS URL formatı
-  let ssmlRate = rateVal === 1 ? "" : ` rate="${rateVal}"`;
-  let ssmlPitch = pitchVal === 0 ? "" : ` pitch="${pitchVal}%"`;
+        function findDrawingAt(x, y) {
+            const padding = 80; 
+            for (let i = drawings.length - 1; i >= 0; i--) {
+                const d = drawings[i];
+                for (let p of d.points) {
+                    if (Math.hypot(x - p.x, y - p.y) < padding) return d;
+                }
+            }
+            return null;
+        }
 
-  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="tr-TR">
-    <voice name="\( {voice}"><prosody \){ssmlRate}\( {ssmlPitch}> \){text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</prosody></voice>
-  </speak>`;
+        function onResults(results) {
+            if (loadingScreen.style.display !== 'none') loadingScreen.style.display = 'none';
 
-  const url = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&Sec-MS-GEC=EDGE-V\( {Date.now()}&Sec-MS-GEC-Version=1- \){Date.now()}`;
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.fillStyle = '#000000';
+            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/ssml+xml' },
-      body: ssml
-    });
+            drawStoredPaths();
+            updateParticles();
 
-    if (!response.ok) throw new Error("Edge TTS hatası");
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const hand = results.multiHandLandmarks[0];
+                const indexTip = hand[8];
+                const thumbTip = hand[4];
+                
+                const ix = indexTip.x * canvasElement.width;
+                const iy = indexTip.y * canvasElement.height;
+                const tx = thumbTip.x * canvasElement.width;
+                const ty = thumbTip.y * canvasElement.height;
+                
+                const pinchDist = getDistance(hand[4], hand[8]);
 
-    const blob = await response.blob();
-    const mp3Url = URL.createObjectURL(blob);
+                if (isStrictlyIndexUp(hand)) {
+                    if (!currentPath) {
+                        currentPath = { points: [], id: Date.now() };
+                        drawings.push(currentPath);
+                    }
+                    currentPath.points.push({ x: ix, y: iy });
+                    createSparkEffect(ix, iy);
+                    isDragging = false;
+                    selectedDrawing = null;
+                } 
+                else if (pinchDist < 45) {
+                    const midX = (ix + tx) / 2;
+                    const midY = (iy + ty) / 2;
 
-    status.textContent = "Hazır! Dinle veya indir.";
-    audioPlayer.src = mp3Url;
-    audioPlayer.style.display = 'block';
-    audioPlayer.play().catch(() => {});
+                    if (!isDragging) {
+                        selectedDrawing = findDrawingAt(midX, midY);
+                        if (selectedDrawing) {
+                            isDragging = true;
+                            lastFingerPos = { x: midX, y: midY };
+                        }
+                    }
 
-    return mp3Url;
-  } catch (err) {
-    status.textContent = "Hata: " + err.message + " (Edge TTS bazen sınırlı çalışır)";
-    return null;
-  }
-}
+                    if (isDragging && selectedDrawing) {
+                        const dx = midX - lastFingerPos.x;
+                        const dy = midY - lastFingerPos.y;
+                        selectedDrawing.points.forEach(p => {
+                            p.x += dx;
+                            p.y += dy;
+                        });
+                        lastFingerPos = { x: midX, y: midY };
+                    }
+                    currentPath = null;
+                }
+                else {
+                    currentPath = null;
+                    isDragging = false;
+                    selectedDrawing = null;
+                }
 
-document.getElementById('speak').onclick = async () => {
-  audioUrl = await generateTTS();
-};
+                drawNeonSkeleton(hand);
+            } else {
+                currentPath = null;
+                isDragging = false;
+                selectedDrawing = null;
+            }
+            canvasCtx.restore();
+        }
 
-document.getElementById('download').onclick = async () => {
-  if (!audioUrl) {
-    audioUrl = await generateTTS();
-    if (!audioUrl) return;
-  }
-  const a = document.createElement('a');
-  a.href = audioUrl;
-  a.download = 'komik_ses.mp3';
-  a.click();
-};
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+        }
 
-document.getElementById('stop').onclick = () => {
-  audioPlayer.pause();
-  audioPlayer.currentTime = 0;
-  status.textContent = "Durduruldu";
-};
+        function drawStoredPaths() {
+            canvasCtx.lineCap = 'round';
+            canvasCtx.lineJoin = 'round';
 
-// Kilise efekti → basit echo (gerçek reverb için AudioContext kullanılır)
-audioPlayer.onplay = () => {
-  if (!churchEl.checked) return;
+            drawings.forEach(d => {
+                if (d.points.length < 2) return;
+                
+                const isSelected = selectedDrawing && selectedDrawing.id === d.id;
+                
+                canvasCtx.save();
+                canvasCtx.shadowBlur = isSelected ? 30 : 15;
+                canvasCtx.shadowColor = isSelected ? '#ffff00' : '#ff0000';
+                canvasCtx.strokeStyle = isSelected ? '#ffff00' : '#ff0000';
+                canvasCtx.lineWidth = isSelected ? 8 : 5;
+                
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(d.points[0].x, d.points[0].y);
+                for (let i = 1; i < d.points.length; i++) canvasCtx.lineTo(d.points[i].x, d.points[i].y);
+                canvasCtx.stroke();
 
-  // Basit echo efekti eklemek için AudioContext
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const source = ctx.createMediaElementSource(audioPlayer);
-  const delay = ctx.createDelay(0.5);
-  const gain = ctx.createGain();
+                canvasCtx.shadowBlur = 0;
+                canvasCtx.strokeStyle = isSelected ? '#fffde7' : '#ffffff';
+                canvasCtx.lineWidth = isSelected ? 3 : 2;
+                canvasCtx.stroke();
+                
+                canvasCtx.restore();
+            });
+        }
 
-  delay.delayTime.value = 0.4; // yankı gecikmesi
-  gain.gain.value = 0.4;       // yankı şiddeti
+        function drawNeonSkeleton(landmarks) {
+            const blue = '#00f2ff';
+            canvasCtx.save();
+            canvasCtx.shadowBlur = 15;
+            canvasCtx.shadowColor = blue;
+            canvasCtx.strokeStyle = blue;
+            canvasCtx.lineWidth = 3;
 
-  source.connect(ctx.destination);
-  source.connect(delay);
-  delay.connect(gain);
-  gain.connect(delay); // feedback için
-  gain.connect(ctx.destination);
-};
-</script>
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+                [13,17],[17,18],[18,19],[19,20],[0,17]
+            ];
+
+            connections.forEach(([a, b]) => {
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(landmarks[a].x * canvasElement.width, landmarks[a].y * canvasElement.height);
+                canvasCtx.lineTo(landmarks[b].x * canvasElement.width, landmarks[b].y * canvasElement.height);
+                canvasCtx.stroke();
+            });
+
+            canvasCtx.fillStyle = blue;
+            landmarks.forEach(point => {
+                canvasCtx.beginPath();
+                canvasCtx.arc(point.x * canvasElement.width, point.y * canvasElement.height, 4, 0, Math.PI * 2);
+                canvasCtx.fill();
+            });
+            canvasCtx.restore();
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.9,
+            minTrackingConfidence: 0.9
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 1280, height: 720
+        });
+        camera.start();
+
+    </script>
 </body>
 </html>
