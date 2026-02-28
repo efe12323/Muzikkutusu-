@@ -197,9 +197,12 @@
             if (loading.style.display !== 'none') loading.style.display = 'none';
 
             ctx.save();
+            
+            // ─── Titremeyi azaltan temizleme ────────────────────────────────
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'rgba(10,15,10,0.4)';
+            ctx.fillStyle = 'rgba(10, 15, 10, 0.30)';  // hafif karartma (iz efekti korur ama titreme azalır)
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // ────────────────────────────────────────────────────────────────
 
             drawHoloGrid();
             drawStoredDrawings();
@@ -346,9 +349,9 @@
         });
 
         hands.setOptions({
-            maxNumHands: 2,               // ← en önemli değişiklik
+            maxNumHands: 2,
             modelComplexity: 1,
-            minDetectionConfidence: 0.82, // biraz düşürdük ki iki el daha kolay tanınsın
+            minDetectionConfidence: 0.82,
             minTrackingConfidence: 0.82
         });
 
