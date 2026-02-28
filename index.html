@@ -3,304 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS Neon Draw - Düzeltme 3</title>
+    <title>JARVIS 3D Holographic UI</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     
     <style>
         :root {
             --jarvis-green: #00ff9f;
-            --jarvis-green-dim: #00cc7a;
             --jarvis-glow: #00ff41;
             --dark-bg: #0a0f0a;
         }
-        body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:var(--dark-bg); font-family:'Courier New',monospace; }
-        #input_video { position:absolute; visibility:hidden; width:1px; height:1px; transform:scaleX(-1); }
-        #output_canvas { position:absolute; top:0; left:0; width:100vw; height:100vh; z-index:5; transform:scaleX(-1); image-rendering:pixelated; }
 
-        #loading-screen { position:fixed; inset:0; background:#000; display:flex; justify-content:center; align-items:center; z-index:100; color:var(--jarvis-green); font-size:1.4rem; }
-        .loader { width:60px; height:60px; border:4px solid #111; border-top:4px solid var(--jarvis-green); border-radius:50%; animation:spin 1.2s linear infinite; }
-        @keyframes spin { 100% { transform:rotate(360deg); } }
-
-        #color-button {
-            position:absolute; bottom:220px; left:50px; z-index:20;
-            width:80px; height:80px; border-radius:50%;
-            background:rgba(0,255,140,0.22); border:2px solid #00ff9f;
-            box-shadow:0 0 28px #00ff9f, inset 0 0 14px #00ff9f;
-            transition:all 0.25s;
-        }
-        #color-button.active { transform:scale(1.15); box-shadow:0 0 45px #00ffff; }
-
-        #color-panel {
-            position:absolute; bottom:320px; left:50px; z-index:20;
-            background:rgba(10,20,15,0.85); border:1px solid #00ff9f; border-radius:16px; padding:20px;
-            display:none; box-shadow:0 0 40px rgba(0,255,140,0.7); flex-direction:row; gap:16px;
-        }
-        .color-swatch {
-            width:60px; height:60px; border-radius:50%; border:4px solid #222; cursor:pointer;
-            transition:all 0.18s; box-shadow:0 0 20px currentColor;
-        }
-        .color-swatch:hover { transform:scale(1.2); border-color:#eee; }
-
-        #feedback-msg {
-            position:absolute; top:40px; left:50%; transform:translateX(-50%);
-            color:#00ffff; font-size:1.6rem; text-shadow:0 0 12px #00ffff;
-            background:rgba(0,0,0,0.4); padding:8px 20px; border-radius:12px;
-            display:none; z-index:30; pointer-events:none;
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
+        #input_video { position: absolute; visibility: hidden; }
+        #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); }
+        
+        /* Kontrol Paneli */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transform: scaleX(1); /* Canvas ters olduğu için burayı düzeltiyoruz */
         }
 
-        #eraser-indicator {
-            position:absolute; top:90px; left:50%; transform:translateX(-50%);
-            color:#ff4444; font-size:2rem; font-weight:bold; text-shadow:0 0 12px #ff4444;
-            display:none; z-index:30; pointer-events:none;
+        .btn {
+            background: rgba(0, 255, 159, 0.1);
+            border: 1px solid var(--jarvis-green);
+            color: var(--jarvis-green);
+            padding: 10px 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn.active {
+            background: var(--jarvis-green);
+            color: #000;
+            box-shadow: 0 0 20px var(--jarvis-glow);
+        }
+
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: var(--jarvis-green);
+            text-shadow: 0 0 10px var(--jarvis-glow);
+            z-index: 10;
         }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen"><div class="loader"></div></div>
-    <video id="input_video" playsinline></video>
+    <div id="ui-panel">
+        <div class="btn active" id="mode-free">Free Draw</div>
+        <div class="btn" id="mode-rect">Rectangle</div>
+        <div class="btn" id="mode-circle">Circle</div>
+        <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear All</div>
+    </div>
+
+    <div id="status">SYSTEM: READY</div>
+    <video id="input_video"></video>
     <canvas id="output_canvas"></canvas>
 
-    <div id="color-button"></div>
-    <div id="color-panel">
-        <div class="color-swatch" style="background:#00ff9f;" data-color="#00ff9f"></div>
-        <div class="color-swatch" style="background:#00ffff;" data-color="#00ffff"></div>
-        <div class="color-swatch" style="background:#ff00aa;" data-color="#ff00aa"></div>
-        <div class="color-swatch" style="background:#ffff00;" data-color="#ffff00"></div>
-        <div class="color-swatch" style="background:#ff8800;" data-color="#ff8800"></div>
-    </div>
-    <div id="eraser-indicator">SİLGI MODU</div>
-    <div id="feedback-msg">Renk Değiştirildi!</div>
-
     <script>
-        const video = document.getElementById('input_video');
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
-        const loading = document.getElementById('loading-screen');
-        const colorButton = document.getElementById('color-button');
-        const colorPanel = document.getElementById('color-panel');
-        const eraserInd = document.getElementById('eraser-indicator');
-        const feedback = document.getElementById('feedback-msg');
-
+        const video = document.getElementById('input_video');
+        
+        let currentMode = 'free'; // 'free', 'rect', 'circle'
         let drawings = [];
-        let particles = [];
-        let currentPath = null;
-        let selectedDrawing = null;
-        let isDragging = false;
-        let lastPos = { x: 0, y: 0 };
-        let currentColor = '#00ff9f';
-        let isEraser = false;
-        let colorPanelOpen = false;
-        let buttonTimer = null;
+        let tempShape = null;
+        let startPoint = null;
 
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
         window.addEventListener('resize', resize);
         resize();
 
-        class Spark {
-            constructor(x,y){this.x=x;this.y=y;const a=Math.random()*Math.PI*2;const f=Math.random()*12+8;this.vx=Math.cos(a)*f;this.vy=Math.sin(a)*f;this.life=1;this.decay=Math.random()*0.035+0.018;}
-            update(){this.vx*=0.96;this.vy*=0.96;this.vy+=0.38;this.x+=this.vx;this.y+=this.vy;this.life-=this.decay;}
-            draw(){if(this.life<=0)return;let g=255*this.life;let b=180*this.life;ctx.save();ctx.globalAlpha=this.life*0.9;ctx.strokeStyle=`rgb(0,\( {g}, \){b})`;ctx.lineWidth=2.2*this.life;ctx.lineCap='round';ctx.shadowBlur=12*this.life;ctx.shadowColor=`rgba(0,255,140,${this.life})`;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x-this.vx*1.2,this.y-this.vy*1.2);ctx.stroke();ctx.restore();}
-        }
+        // UI Etkileşimi
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.onclick = (e) => {
+                if(e.target.id === 'btn-clear') {
+                    drawings = [];
+                    return;
+                }
+                document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.id.replace('mode-', '');
+            };
+        });
 
-        function addSparks(x,y,c=5){for(let i=0;i<c;i++)particles.push(new Spark(x,y));}
-        function dist(a,b){return Math.hypot((a.x-b.x)*canvas.width,(a.y-b.y)*canvas.height);}
-
-        function isIndexFingerUp(lm){
-            return lm[8].y < lm[6].y * 0.92 && 
-                   lm[12].y > lm[10].y && lm[16].y > lm[14].y && lm[20].y > lm[18].y;
-        }
-
-        function isFist(lm){
-            return lm[8].y > lm[5].y * 0.88 &&
-                   lm[12].y > lm[9].y * 0.88 &&
-                   lm[16].y > lm[13].y * 0.88 &&
-                   lm[20].y > lm[17].y * 0.88;
-        }
-
-        function showFeedback(msg, color='#00ffff') {
-            feedback.textContent = msg;
-            feedback.style.color = color;
-            feedback.style.display = 'block';
-            setTimeout(() => feedback.style.display = 'none', 1800);
-        }
-
-        function onResults(results){
-            if(loading.style.display!=='none') loading.style.display='none';
-
+        function onResults(results) {
             ctx.save();
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle='rgba(10,15,10,0.4)';
-            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Arka plan ızgarası
+            drawGrid();
 
-            // grid fonksiyonu aynı, kısalttım
-            const size=70; const t=Date.now()*0.0004; const p=Math.sin(t*2)*0.015+0.07;
-            ctx.strokeStyle=`rgba(0,255,140,${p})`; ctx.lineWidth=1.1;
-            for(let x=0;x<canvas.width;x+=size){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
-            for(let y=0;y<canvas.height;y+=size){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
-
-            drawStoredDrawings();
-            for(let i=particles.length-1;i>=0;i--){particles[i].update();particles[i].draw();if(particles[i].life<=0)particles.splice(i,1);}
-
-            eraserInd.style.display = isEraser ? 'block' : 'none';
-
-            if(results.multiHandLandmarks?.length>0){
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                const tip = lm[8];
-                const ix = tip.x * canvas.width;
-                const iy = tip.y * canvas.height;
-                const mirroredX = canvas.width - ix;  // HTML elementleri için ters X
+                const indexTip = lm[8];
+                const thumbTip = lm[4];
+                
+                // Koordinat dönüşümü
+                const x = indexTip.x * canvas.width;
+                const y = indexTip.y * canvas.height;
+                const z = Math.abs(indexTip.z) * 5; // Derinlik çarpanı
 
-                const pinch = dist(lm[4], lm[8]);
-
-                // 1. Yumruk kontrolü (en yüksek öncelik)
-                if(isFist(lm)){
-                    isEraser = true;
-                    currentPath = null;
-                    isDragging = false;
-                    selectedDrawing = null;
-                }
-                // 2. Renk butonu / panel kontrolü
-                else if(isIndexFingerUp(lm)){
-                    isEraser = false;
-
-                    // Buton hover
-                    const btnRect = colorButton.getBoundingClientRect();
-                    const btnCX = btnRect.left + btnRect.width/2;
-                    const btnCY = btnRect.top + btnRect.height/2;
-                    const distBtn = Math.hypot(mirroredX - btnCX, iy - btnCY);
-
-                    if(distBtn < 80){
-                        colorButton.classList.add('active');
-                        if(!buttonTimer){
-                            buttonTimer = setTimeout(() => {
-                                colorPanelOpen = !colorPanelOpen;
-                                colorPanel.style.display = colorPanelOpen ? 'flex' : 'none';
-                                buttonTimer = null;
-                            }, 280);
+                // Çizim Mantığı (İşaret parmağı havadaysa)
+                const isDrawing = indexTip.y < lm[6].y && lm[12].y > lm[10].y;
+                
+                if (isDrawing) {
+                    if (currentMode === 'free') {
+                        if (!tempShape) {
+                            tempShape = { type: 'free', points: [], color: '#00ff9f' };
+                            drawings.push(tempShape);
                         }
+                        tempShape.points.push({ x, y, z });
                     } else {
-                        colorButton.classList.remove('active');
-                        clearTimeout(buttonTimer);
-                        buttonTimer = null;
+                        // Şekil başlangıcı
+                        if (!startPoint) startPoint = { x, y, z };
+                        updateTempShape(x, y, z);
                     }
-
-                    // Panelde renk seçimi
-                    if(colorPanelOpen){
-                        let selected = false;
-                        document.querySelectorAll('.color-swatch').forEach(sw => {
-                            const r = sw.getBoundingClientRect();
-                            const scx = r.left + r.width/2;
-                            const scy = r.top + r.height/2;
-                            if(Math.hypot(mirroredX - scx, iy - scy) < 70){
-                                currentColor = sw.dataset.color;
-                                colorPanelOpen = false;
-                                colorPanel.style.display = 'none';
-                                showFeedback("Renk Değiştirildi!");
-                                selected = true;
-                            }
-                        });
-                        if(selected) return; // erken çık
+                } else {
+                    if (tempShape && currentMode !== 'free') {
+                        drawings.push(tempShape);
                     }
-
-                    // Normal çizim
-                    if(!currentPath){
-                        currentPath = {points:[], id:Date.now(), color:currentColor, isEraser:false};
-                        drawings.push(currentPath);
-                    }
-                    currentPath.points.push({x:ix, y:iy});
-                    addSparks(ix,iy,4);
-                    isDragging = false;
-                    selectedDrawing = null;
-                }
-                // 3. Sürükleme (pinch) - sadece yumruk ve işaret yukarı değilse
-                else if(pinch < 55){
-                    const thumb = lm[4];
-                    const tx = thumb.x * canvas.width;
-                    const ty = thumb.y * canvas.height;
-                    const mx = (ix + tx)/2;
-                    const my = (iy + ty)/2;
-
-                    if(!isDragging){
-                        selectedDrawing = findDrawingNear(mx,my);
-                        if(selectedDrawing){ isDragging = true; lastPos = {x:mx, y:my}; }
-                    }
-                    if(isDragging && selectedDrawing){
-                        const dx = mx - lastPos.x;
-                        const dy = my - lastPos.y;
-                        selectedDrawing.points.forEach(p => { p.x += dx; p.y += dy; });
-                        lastPos = {x:mx, y:my};
-                    }
-                    currentPath = null;
-                }
-                else {
-                    currentPath = null;
-                    isDragging = false;
-                    selectedDrawing = null;
+                    tempShape = null;
+                    startPoint = null;
                 }
 
-                drawJARVISHand(lm);
-            } else {
-                currentPath = null;
-                isDragging = false;
-                selectedDrawing = null;
-                clearTimeout(buttonTimer);
-                buttonTimer = null;
-                colorButton.classList.remove('active');
-                eraserInd.style.display = 'none';
+                drawHand(lm);
             }
 
+            renderDrawings();
             ctx.restore();
         }
 
-        function findDrawingNear(x,y){const r=90;for(let i=drawings.length-1;i>=0;i--){for(let p of drawings[i].points){if(Math.hypot(x-p.x,y-p.y)<r)return drawings[i];}}return null;}
-
-        function drawStoredDrawings(){
-            drawings.forEach(d=>{
-                if(d.points.length<2)return;
-                const sel = selectedDrawing?.id===d.id;
-                ctx.save();
-                ctx.shadowBlur=sel?45:28;
-                ctx.shadowColor=sel?'#00ffff':(d.isEraser?'#000':d.color||'#00ff9f');
-                ctx.strokeStyle=d.isEraser?'#000000':(d.color||'#00ff9f');
-                ctx.globalAlpha=d.isEraser?1:(sel?1:0.92);
-                ctx.lineWidth=d.isEraser?55:(sel?7.5:5);
-                ctx.lineCap='round';ctx.lineJoin='round';
-                ctx.beginPath();ctx.moveTo(d.points[0].x,d.points[0].y);
-                d.points.forEach(p=>ctx.lineTo(p.x,p.y));
-                ctx.stroke();
-                if(!d.isEraser){
-                    ctx.shadowBlur=0;ctx.strokeStyle='#e0fff0';ctx.globalAlpha=sel?0.85:0.75;ctx.lineWidth=sel?3:2;ctx.stroke();
-                }
-                ctx.restore();
-            });
+        function updateTempShape(x, y, z) {
+            if (!startPoint) return;
+            tempShape = {
+                type: currentMode,
+                start: startPoint,
+                end: { x, y, z },
+                color: '#00ff9f'
+            };
         }
 
-        function drawJARVISHand(lm){
-            const g = isEraser ? '#ff4444' : '#00ff9f';
-            const d = isEraser ? '#cc0000' : '#00cc7a';
-            ctx.save();
-            ctx.shadowBlur=22; ctx.shadowColor=g; ctx.strokeStyle=d; ctx.globalAlpha=0.95; ctx.lineWidth=3.8;
-
-            const conn=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
-            conn.forEach(([a,b])=>{
+        function renderDrawings() {
+            [...drawings, tempShape].forEach(shape => {
+                if (!shape) return;
                 ctx.beginPath();
-                ctx.moveTo(lm[a].x*canvas.width,lm[a].y*canvas.height);
-                ctx.lineTo(lm[b].x*canvas.width,lm[b].y*canvas.height);
+                ctx.strokeStyle = shape.color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shape.color;
+
+                if (shape.type === 'free') {
+                    shape.points.forEach((p, i) => {
+                        ctx.lineWidth = 2 + (p.z * 10); // Yaklaştıkça kalınlaşır (3D efekti)
+                        if (i === 0) ctx.moveTo(p.x, p.y);
+                        else ctx.lineTo(p.x, p.y);
+                    });
+                } 
+                else if (shape.type === 'rect') {
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(shape.start.x, shape.start.y, shape.end.x - shape.start.x, shape.end.y - shape.start.y);
+                } 
+                else if (shape.type === 'circle') {
+                    ctx.lineWidth = 3;
+                    const radius = Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y);
+                    ctx.arc(shape.start.x, shape.start.y, radius, 0, Math.PI * 2);
+                }
                 ctx.stroke();
             });
-
-            ctx.fillStyle = g;
-            lm.forEach(p=>{const px=p.x*canvas.width,py=p.y*canvas.height;ctx.beginPath();ctx.arc(px,py,5.5,0,Math.PI*2);ctx.fill();});
-            ctx.restore();
         }
 
-        const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`});
-        hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.85,minTrackingConfidence:0.85});
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 255, 159, 0.05)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=50) {
+                ctx.moveTo(i,0); ctx.lineTo(i, canvas.height);
+            }
+            for(let i=0; i<canvas.height; i+=50) {
+                ctx.moveTo(0,i); ctx.lineTo(canvas.width, i);
+            }
+            ctx.stroke();
+        }
+
+        function drawHand(lm) {
+            ctx.fillStyle = "white";
+            lm.forEach(p => {
+                ctx.beginPath();
+                // Z değerine göre nokta boyutunu değiştir (3D hissi)
+                const size = 3 + (Math.abs(p.z) * 15);
+                ctx.arc(p.x * canvas.width, p.y * canvas.height, size, 0, Math.PI*2);
+                ctx.fill();
+            });
+        }
+
+        // MediaPipe Setup
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
         hands.onResults(onResults);
 
-        const camera = new Camera(video,{onFrame:async()=>{await hands.send({image:video});},width:1280,height:720});
+        const camera = new Camera(video, {
+            onFrame: async () => { await hands.send({image: video}); },
+            width: 1280, height: 720
+        });
         camera.start();
     </script>
 </body>
