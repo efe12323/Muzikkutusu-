@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS Neon Draw</title>
+    <title>JARVIS Neon Draw - Renk & Silgi</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     
@@ -16,45 +16,71 @@
             --dark-bg: #0a0f0a;
             --grid: rgba(0, 255, 140, 0.07);
         }
-        body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:var(--dark-bg); font-family:'Courier New',monospace; }
-        #input_video { position:absolute; visibility:hidden; width:1px; height:1px; transform:scaleX(-1); }
-        #output_canvas { position:absolute; top:0; left:0; width:100vw; height:100vh; z-index:5; transform:scaleX(-1); image-rendering:pixelated; }
-        #loading-screen { position:fixed; inset:0; background:#000; display:flex; justify-content:center; align-items:center; z-index:100; color:var(--jarvis-green); font-size:1.4rem; }
-        .loader { width:60px; height:60px; border:4px solid #111; border-top:4px solid var(--jarvis-green); border-radius:50%; animation:spin 1.2s linear infinite; }
-        @keyframes spin { 100% { transform:rotate(360deg); } }
 
-        #color-button {
-            position: absolute; bottom: 30px; left: 30px; z-index: 10;
-            width: 70px; height: 70px; border-radius: 50%;
-            background: rgba(0,255,140,0.15); border: 2px solid #00ff9f;
-            box-shadow: 0 0 20px #00ff9f;
-            cursor: pointer; pointer-events: none;
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--dark-bg);
+            font-family: 'Courier New', monospace;
         }
+
+        #input_video { position: absolute; visibility: hidden; width: 1px; height: 1px; transform: scaleX(-1); }
+        #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 5; transform: scaleX(-1); image-rendering: pixelated; }
+
+        #loading-screen {
+            position: fixed; inset: 0; background: #000; display: flex; justify-content: center; align-items: center; z-index: 100;
+            color: var(--jarvis-green); font-size: 1.4rem;
+        }
+
+        .loader {
+            width: 60px; height: 60px; border: 4px solid #111; border-top: 4px solid var(--jarvis-green); border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Renk butonu ve panel */
+        #color-button {
+            position: absolute; bottom: 30px; left: 30px; z-index: 20;
+            width: 70px; height: 70px; border-radius: 50%;
+            background: rgba(0, 255, 140, 0.18); border: 2px solid #00ff9f;
+            box-shadow: 0 0 20px #00ff9f, inset 0 0 10px #00ff9f;
+            cursor: pointer; transition: all 0.3s;
+        }
+        #color-button:hover { transform: scale(1.1); box-shadow: 0 0 35px #00ffff; }
+
         #color-panel {
-            position: absolute; bottom: 120px; left: 30px; z-index: 10;
-            display: none; background: rgba(10,20,15,0.7); padding: 15px;
-            border-radius: 12px; border: 1px solid #00ff9f; box-shadow: 0 0 30px #00ff41;
+            position: absolute; bottom: 120px; left: 30px; z-index: 20;
+            background: rgba(10, 20, 15, 0.75); border: 1px solid #00ff9f;
+            border-radius: 12px; padding: 15px; display: none;
+            box-shadow: 0 0 30px rgba(0,255,140,0.5);
+            flex-direction: row; gap: 12px;
         }
         .color-swatch {
-            width: 50px; height: 50px; border-radius: 50%; margin: 10px;
-            display: inline-block; cursor: pointer; border: 2px solid #333;
+            width: 50px; height: 50px; border-radius: 50%;
+            border: 3px solid #111; cursor: pointer; transition: all 0.2s;
             box-shadow: 0 0 15px currentColor;
         }
+        .color-swatch:hover { transform: scale(1.15); border-color: #fff; }
     </style>
 </head>
 <body>
 
     <div id="loading-screen"><div class="loader"></div></div>
+
     <video id="input_video" playsinline></video>
     <canvas id="output_canvas"></canvas>
 
+    <!-- Renk butonu ve panel -->
     <div id="color-button"></div>
     <div id="color-panel">
-        <div class="color-swatch" style="background:#00ff9f;" data-color="#00ff9f"></div>
-        <div class="color-swatch" style="background:#00ffff;" data-color="#00ffff"></div>
-        <div class="color-swatch" style="background:#ff00aa;" data-color="#ff00aa"></div>
-        <div class="color-swatch" style="background:#ffff00;" data-color="#ffff00"></div>
-        <div class="color-swatch" style="background:#ff8800;" data-color="#ff8800"></div>
+        <div class="color-swatch" style="background: #00ff9f;" data-color="#00ff9f"></div>
+        <div class="color-swatch" style="background: #00ffff;" data-color="#00ffff"></div>
+        <div class="color-swatch" style="background: #ff00aa;" data-color="#ff00aa"></div>
+        <div class="color-swatch" style="background: #ffff00;" data-color="#ffff00"></div>
+        <div class="color-swatch" style="background: #ff8800;" data-color="#ff8800"></div>
     </div>
 
     <script>
@@ -73,7 +99,8 @@
         let lastPos = { x: 0, y: 0 };
         let currentColor = '#00ff9f';
         let isEraser = false;
-        let prevIndexUp = false; // flicker önlemek için
+        let colorPanelOpen = false;
+        let buttonHoverTimer = null;
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -82,33 +109,84 @@
         window.addEventListener('resize', resize);
         resize();
 
-        class Spark { /* aynı kalıyor, kısalttım */ 
-            constructor(x, y) { /* ... */ }
-            update() { /* ... */ }
-            draw() { /* ... */ }
+        // ─── Spark Sınıfı (değişmedi) ───
+        class Spark {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const force = Math.random() * 12 + 8;
+                this.vx = Math.cos(angle) * force;
+                this.vy = Math.sin(angle) * force;
+                this.life = 1;
+                this.decay = Math.random() * 0.035 + 0.018;
+            }
+            update() {
+                this.vx *= 0.96; this.vy *= 0.96; this.vy += 0.38;
+                this.x += this.vx; this.y += this.vy;
+                this.life -= this.decay;
+            }
+            draw() {
+                if (this.life <= 0) return;
+                let g = 255 * this.life; let b = 180 * this.life;
+                ctx.save();
+                ctx.globalAlpha = this.life * 0.9;
+                ctx.strokeStyle = `rgb(0,\( {g}, \){b})`;
+                ctx.lineWidth = 2.2 * this.life;
+                ctx.lineCap = 'round';
+                ctx.shadowBlur = 12 * this.life;
+                ctx.shadowColor = `rgba(0,255,140,${this.life})`;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x - this.vx * 1.2, this.y - this.vy * 1.2);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
 
-        function addSparks(x, y, count=5) { /* aynı */ }
+        function addSparks(x, y, count = 5) { for (let i = 0; i < count; i++) particles.push(new Spark(x, y)); }
 
         function dist(a, b) {
-            return Math.hypot((a.x - b.x)*canvas.width, (a.y - b.y)*canvas.height);
+            return Math.hypot((a.x - b.x) * canvas.width, (a.y - b.y) * canvas.height);
         }
 
         function isIndexOnlyUp(lm) {
-            const thumbClosed = dist(lm[4], lm[17]) < dist(lm[3], lm[17]) * 1.15;
-            const indexUp = lm[8].y < lm[6].y - 0.02;
+            const thumbClosed = dist(lm[4], lm[17]) < dist(lm[3], lm[17]) * 1.1;
+            const indexUp = lm[8].y < lm[6].y;
             const othersDown = lm[12].y > lm[10].y && lm[16].y > lm[14].y && lm[20].y > lm[18].y;
             return indexUp && othersDown && thumbClosed;
         }
 
-        function isFist(lm) { // yumruk algılama
-            return lm[8].y > lm[6].y && lm[12].y > lm[10].y && lm[16].y > lm[14].y && lm[20].y > lm[18].y &&
-                   dist(lm[4], lm[8]) < 60 && dist(lm[4], lm[12]) < 60;
+        function isFist(lm) {
+            // Tüm parmak uçları dip eklemlere yakınsa yumruk
+            return lm[8].y > lm[6].y * 1.05 &&
+                   lm[12].y > lm[10].y * 1.05 &&
+                   lm[16].y > lm[14].y * 1.05 &&
+                   lm[20].y > lm[18].y * 1.05;
         }
 
-        function findDrawingNear(x, y) { /* aynı */ }
+        function findDrawingNear(x, y) {
+            const radius = 90;
+            for (let i = drawings.length - 1; i >= 0; i--) {
+                for (let p of drawings[i].points) {
+                    if (Math.hypot(x - p.x, y - p.y) < radius) return drawings[i];
+                }
+            }
+            return null;
+        }
 
-        function drawHoloGrid() { /* aynı, pulse kalabilir */ }
+        function drawHoloGrid() {
+            const size = 70;
+            const t = Date.now() * 0.0004;
+            const pulse = Math.sin(t * 2) * 0.015 + 0.07;
+            ctx.strokeStyle = `rgba(0, 255, 140, ${pulse})`;
+            ctx.lineWidth = 1.1;
+            for (let x = 0; x < canvas.width; x += size) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += size) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+        }
 
         function onResults(results) {
             if (loading.style.display !== 'none') loading.style.display = 'none';
@@ -124,62 +202,66 @@
 
             if (results.multiHandLandmarks?.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                const tip = lm[8];
-                const thumb = lm[4];
-
+                const tip = lm[8];  // işaret parmak ucu
                 const ix = tip.x * canvas.width;
                 const iy = tip.y * canvas.height;
-                const tx = thumb.x * canvas.width;
-                const ty = thumb.y * canvas.height;
 
-                const pinchDist = dist(lm[4], lm[8]);
+                const pinch = dist(lm[4], lm[8]);
 
-                // ─── Renk butonu algılama ───────────────────────────────
-                const buttonRect = colorButton.getBoundingClientRect();
-                const bx = buttonRect.left + 35;
-                const by = buttonRect.top + 35;
-                const toButtonDist = Math.hypot(ix - bx, iy - by);
+                // ─── Renk butonu tıklama algılama ───
+                const btnRect = colorButton.getBoundingClientRect();
+                const btnCenterX = btnRect.left + btnRect.width / 2;
+                const btnCenterY = btnRect.top + btnRect.height / 2;
+                const distToButton = Math.hypot(ix - btnCenterX, iy - btnCenterY);
 
-                if (toButtonDist < 60 && !colorPanel.style.display.includes('block')) {
-                    colorPanel.style.display = 'block';
+                if (distToButton < 60 && isIndexOnlyUp(lm)) {
+                    if (!buttonHoverTimer) {
+                        buttonHoverTimer = setTimeout(() => {
+                            colorPanelOpen = !colorPanelOpen;
+                            colorPanel.style.display = colorPanelOpen ? 'flex' : 'none';
+                            buttonHoverTimer = null;
+                        }, 400); // 0.4 sn basılı tutma
+                    }
+                } else {
+                    clearTimeout(buttonHoverTimer);
+                    buttonHoverTimer = null;
                 }
 
-                // ─── Renk paneli içinden seçim ──────────────────────────
-                if (colorPanel.style.display.includes('block') && pinchDist < 45) {
-                    const panelRect = colorPanel.getBoundingClientRect();
-                    const colors = colorPanel.querySelectorAll('.color-swatch');
-                    for (let sw of colors) {
-                        const r = sw.getBoundingClientRect();
-                        const cx = r.left + r.width/2;
-                        const cy = r.top + r.height/2;
-                        if (Math.hypot(ix - cx, iy - cy) < 40) {
+                // Renk seçimi (panel açıkken)
+                if (colorPanelOpen && isIndexOnlyUp(lm)) {
+                    const swatches = document.querySelectorAll('.color-swatch');
+                    for (let sw of swatches) {
+                        const sRect = sw.getBoundingClientRect();
+                        const sCenterX = sRect.left + sRect.width / 2;
+                        const sCenterY = sRect.top + sRect.height / 2;
+                        if (Math.hypot(ix - sCenterX, iy - sCenterY) < 40) {
                             currentColor = sw.dataset.color;
+                            colorPanelOpen = false;
                             colorPanel.style.display = 'none';
-                            isEraser = false;
                             break;
                         }
                     }
                 }
 
-                // ─── Gesture kontrolleri ────────────────────────────────
+                // ─── Çizim / Silgi modu ───
                 if (isFist(lm)) {
                     isEraser = true;
                     currentPath = null;
-                    isDragging = false;
-                    selectedDrawing = null;
-                }
-                else if (isIndexOnlyUp(lm)) {
-                    if (!prevIndexUp) { // ani geçiş önleme
-                        currentPath = { points: [], id: Date.now(), color: currentColor, isEraser: isEraser };
+                } else if (isIndexOnlyUp(lm)) {
+                    isEraser = false;
+                    if (!currentPath) {
+                        currentPath = { points: [], id: Date.now(), color: currentColor, isEraser: false };
                         drawings.push(currentPath);
                     }
                     currentPath.points.push({ x: ix, y: iy });
-                    addSparks(ix, iy, isEraser ? 2 : 4);
+                    addSparks(ix, iy, 4);
                     isDragging = false;
                     selectedDrawing = null;
-                    prevIndexUp = true;
-                }
-                else if (pinchDist < 45) {  // taşıma için biraz daha geniş tolerans
+                } else if (pinch < 50) {
+                    // Sürükleme (değişmedi)
+                    const thumb = lm[4];
+                    const tx = thumb.x * canvas.width;
+                    const ty = thumb.y * canvas.height;
                     const mx = (ix + tx) / 2;
                     const my = (iy + ty) / 2;
 
@@ -190,27 +272,17 @@
                             lastPos = { x: mx, y: my };
                         }
                     }
-
                     if (isDragging && selectedDrawing) {
                         const dx = mx - lastPos.x;
                         const dy = my - lastPos.y;
-                        // çok küçük hareketleri ignore et (noise azaltır)
-                        if (Math.hypot(dx, dy) > 4) {
-                            selectedDrawing.points.forEach(p => {
-                                p.x += dx;
-                                p.y += dy;
-                            });
-                            lastPos = { x: mx, y: my };
-                        }
+                        selectedDrawing.points.forEach(p => { p.x += dx; p.y += dy; });
+                        lastPos = { x: mx, y: my };
                     }
                     currentPath = null;
-                    prevIndexUp = false;
-                }
-                else {
+                } else {
                     currentPath = null;
                     isDragging = false;
                     selectedDrawing = null;
-                    prevIndexUp = false;
                 }
 
                 drawJARVISHand(lm);
@@ -218,13 +290,20 @@
                 currentPath = null;
                 isDragging = false;
                 selectedDrawing = null;
-                prevIndexUp = false;
+                clearTimeout(buttonHoverTimer);
+                buttonHoverTimer = null;
             }
 
             ctx.restore();
         }
 
-        function updateParticles() { /* aynı */ }
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+        }
 
         function drawStoredDrawings() {
             drawings.forEach(d => {
@@ -234,10 +313,10 @@
 
                 ctx.save();
                 ctx.shadowBlur = selected ? 45 : 28;
-                ctx.shadowColor = selected ? '#00ffff' : d.isEraser ? '#000' : '#00ff41';
-                ctx.strokeStyle = d.isEraser ? 'rgba(10,15,10,0.98)' : (d.color || '#00ff9f');
-                ctx.globalAlpha = selected ? 1.0 : (d.isEraser ? 1 : 0.92);
-                ctx.lineWidth = d.isEraser ? 18 : 5;  // silgi daha kalın
+                ctx.shadowColor = selected ? '#00ffff' : (d.isEraser ? '#000' : d.color || '#00ff9f');
+                ctx.strokeStyle = d.isEraser ? '#000000' : (d.color || '#00ff9f');
+                ctx.globalAlpha = d.isEraser ? 1 : (selected ? 1.0 : 0.92);
+                ctx.lineWidth = d.isEraser ? 35 : (selected ? 7.5 : 5);  // silgi daha kalın
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
@@ -246,7 +325,6 @@
                 d.points.forEach(p => ctx.lineTo(p.x, p.y));
                 ctx.stroke();
 
-                // iç parlak (sadece normal çizimde)
                 if (!d.isEraser) {
                     ctx.shadowBlur = 0;
                     ctx.strokeStyle = '#e0fff0';
@@ -259,9 +337,49 @@
             });
         }
 
-        function drawJARVISHand(lm) { /* aynı, pulse kaldırılmış hali */ 
-            /* ... önceki stabil versiyon ... */
+        function drawJARVISHand(lm) {
+            const green = '#00ff9f';
+            const dim = '#00cc7a';
+            ctx.save();
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = isEraser ? '#ff4444' : green;
+            ctx.strokeStyle = isEraser ? '#ff4444' : dim;
+            ctx.globalAlpha = 0.95;
+            ctx.lineWidth = 3.8;
+
+            const conn = [
+                [0,1],[1,2],[2,3],[3,4], [0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12], [9,13],[13,14],[14,15],[15,16],
+                [13,17],[17,18],[18,19],[19,20], [0,17]
+            ];
+
+            conn.forEach(([a,b]) => {
+                ctx.beginPath();
+                ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
+                ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
+                ctx.stroke();
+            });
+
+            ctx.fillStyle = isEraser ? '#ff4444' : green;
+            lm.forEach(p => {
+                const px = p.x * canvas.width;
+                const py = p.y * canvas.height;
+                ctx.beginPath();
+                ctx.arc(px, py, 5.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.restore();
         }
+
+        // Renk seçici dairelere tıklama (fare için yedek)
+        document.querySelectorAll('.color-swatch').forEach(sw => {
+            sw.addEventListener('click', () => {
+                currentColor = sw.dataset.color;
+                colorPanelOpen = false;
+                colorPanel.style.display = 'none';
+            });
+        });
 
         const hands = new Hands({
             locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`
@@ -270,8 +388,8 @@
         hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
-            minDetectionConfidence: 0.85,   // biraz düşürdük daha stabil takip için
-            minTrackingConfidence: 0.85
+            minDetectionConfidence: 0.88,
+            minTrackingConfidence: 0.88
         });
 
         hands.onResults(onResults);
@@ -282,15 +400,6 @@
         });
 
         camera.start();
-
-        // Renk swatch tıklama desteği (fare için test kolaylığı)
-        colorPanel.addEventListener('click', e => {
-            if (e.target.classList.contains('color-swatch')) {
-                currentColor = e.target.dataset.color;
-                colorPanel.style.display = 'none';
-                isEraser = false;
-            }
-        });
     </script>
 </body>
 </html>
