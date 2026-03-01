@@ -29,21 +29,12 @@
         .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 12px var(--jarvis-glow); }
         .btn.gen-mode { border-color: #ff00ff; color: #ff00ff; }
         .btn.gen-active { background: #ff00ff; color: #fff; box-shadow: 0 0 15px #ff00ff; }
-        
-        /* Yeni: Sesli komut bildirim kutusu */
-        #voice-status {
-            position: absolute; bottom: 20px; left: 20px; z-index: 100;
-            color: var(--jarvis-green); font-size: 10px; font-family: monospace;
-            background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px;
-            border-left: 2px solid var(--jarvis-green); pointer-events: none;
-        }
     </style>
 </head>
 <body>
 
     <video id="input_video" playsinline></video>
     <canvas id="output_canvas"></canvas>
-    <div id="voice-status">JARVIS: VOICE READY</div>
 
     <div id="ui-panel">
         <div class="btn-group">
@@ -64,54 +55,21 @@
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
-        const voiceStatus = document.getElementById('voice-status');
         
         let currentMode = 'draw', arMode = false, genMode = false;
         let drawings = [], tempShape = null, startPoint = null;
         let grabbedShape = null, lastGrabPoint = null;
         let lastHoverId = null, hoverStartTime = 0;
-        let mainColor = '#00ff9f'; // Orijinal renk değişkeni
 
+        // --- STABİLİZASYON DEĞİŞKENLERİ ---
         let smoothX = 0, smoothY = 0;
         let smoothTX = 0, smoothTY = 0;
-        const lerpAmount = 0.35;
+        const lerpAmount = 0.35; // 0 ile 1 arası. Düşük değer = Daha stabil ama hafif gecikmeli.
+        // ---------------------------------
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize);
         resize();
-
-        // --- SESLİ KOMUT ENTEGRASYONU (Orijinal Fonksiyonları Tetikler) ---
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'tr-TR';
-            recognition.continuous = true;
-
-            recognition.onresult = (event) => {
-                const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
-                voiceStatus.innerText = "COMMAND: " + command.toUpperCase();
-
-                if (command.includes("küp") || command.includes("cube")) setMode('cube');
-                else if (command.includes("piramit") || command.includes("pyra")) setMode('pyram');
-                else if (command.includes("kalem") || command.includes("pen")) setMode('draw');
-                else if (command.includes("temizle") || command.includes("clear")) setMode('clear');
-                else if (command.includes("geri al") || command.includes("undo")) setMode('undo');
-                else if (command.includes("mavi")) updateColor('#00ccff');
-                else if (command.includes("kırmızı")) updateColor('#ff4b2b');
-                else if (command.includes("yeşil")) updateColor('#00ff9f');
-                else if (command.includes("ar aç") || command.includes("kamera aç")) { if(!arMode) setMode('ar'); }
-            };
-
-            recognition.onend = () => recognition.start();
-            window.addEventListener('click', () => { recognition.start(); voiceStatus.innerText = "JARVIS: LISTENING..."; }, { once: true });
-        }
-
-        function updateColor(hex) {
-            mainColor = hex;
-            document.documentElement.style.setProperty('--jarvis-green', hex);
-            // Mevcut çizimlerin de rengini istersen değiştirebilirsin:
-            // drawings.forEach(d => d.color = hex);
-        }
 
         function setMode(mode) {
             if(mode === 'clear') { drawings = []; return; }
@@ -132,9 +90,11 @@
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // Elden gelen güven skoru kontrolü (Çok düşükse işlem yapma)
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
                 
+                // Koordinatları yumuşat (Exponential Smoothing)
                 const rawX = lm[8].x * canvas.width;
                 const rawY = lm[8].y * canvas.height;
                 const rawTX = lm[4].x * canvas.width;
@@ -165,16 +125,18 @@
                     }
                 } else {
                     grabbedShape = null;
+                    // İşaret parmağı havada mı? (Çizim kontrolü)
                     if (lm[8].y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
                         if (currentMode === 'draw') {
-                            if (!tempShape) { tempShape = { type: 'draw', points: [], color: mainColor }; drawings.push(tempShape); }
+                            if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f' }; drawings.push(tempShape); }
+                            // Sadece mesafe katedildiyse nokta ekle (gereksiz noktaları siler)
                             const lastP = tempShape.points[tempShape.points.length-1];
                             if(!lastP || Math.hypot(lastP.x - x, lastP.y - y) > 3) {
                                 tempShape.points.push({ x, y });
                             }
                         } else {
                             if (!startPoint) startPoint = { x, y };
-                            tempShape = { type: currentMode, start: {...startPoint}, end: { x, y }, color: mainColor };
+                            tempShape = { type: currentMode, start: {...startPoint}, end: { x, y }, color: '#00ff9f' };
                         }
                     } else {
                         if (tempShape && currentMode !== 'draw') drawings.push(tempShape);
@@ -183,6 +145,7 @@
                 }
                 drawCyberHand(lm, isPinching);
             } else {
+                // El kaybolduğunda geçici objeyi temizle ki "ışınlanma" olmasın
                 tempShape = null; startPoint = null;
             }
             renderDrawings();
@@ -202,7 +165,7 @@
             ctx.closePath();
             ctx.fillStyle = color;
             ctx.fill();
-            if(!genMode) { ctx.strokeStyle = mainColor + "80"; ctx.stroke(); }
+            if(!genMode) { ctx.strokeStyle = "rgba(0, 255, 159, 0.5)"; ctx.stroke(); }
         }
 
         function renderDrawings() {
@@ -217,7 +180,7 @@
                     s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
                     ctx.stroke();
                 } else if (s.type === 'cube') {
-                    const base = s.start;
+                    const base = s.start, end = s.end;
                     drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], genMode ? "#222" : "rgba(50,50,50,0.5)"); 
                     drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], genMode ? "#444" : "rgba(80,80,80,0.5)"); 
                     drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], genMode ? "#666" : "rgba(120,120,120,0.5)"); 
@@ -251,7 +214,7 @@
         }
 
         function drawCyberHand(lm, isPinching) {
-            drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: isPinching ? '#ff4b2b' : mainColor, lineWidth: 2});
+            drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: isPinching ? '#ff4b2b' : '#00ff9f', lineWidth: 2});
         }
 
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
