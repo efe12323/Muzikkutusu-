@@ -3,32 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS 3D Render Engine v7.5 - Pro</title>
+    <title>JARVIS 3D Render Engine v7.0 - Realistic Hand</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
     
     <style>
-        :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; }
+        :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; --accent-red: #ff4b2b; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
         #input_video { position: absolute; width: 100vw; height: 100vh; object-fit: cover; display: none; transform: scaleX(-1); }
         #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); z-index: 5; }
         
         #ui-panel {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: space-between; padding: 6px;
-            background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--jarvis-green);
+            display: flex; justify-content: space-between; padding: 10px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
         }
 
-        .btn-group { display: flex; gap: 3px; }
+        .btn-group { display: flex; gap: 8px; }
         .btn {
-            background: rgba(0, 0, 0, 0.8); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 5px 8px; font-size: 9px;
-            text-transform: uppercase; border-radius: 3px; font-weight: bold; transition: 0.2s; cursor: pointer;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid var(--jarvis-green);
+            color: var(--jarvis-green); padding: 8px 12px; font-size: 10px;
+            text-transform: uppercase; border-radius: 4px; font-weight: bold; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(5px); cursor: pointer;
         }
-        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 12px var(--jarvis-glow); }
+        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 20px var(--jarvis-glow); }
         .btn.gen-mode { border-color: #ff00ff; color: #ff00ff; }
         .btn.gen-active { background: #ff00ff; color: #fff; box-shadow: 0 0 15px #ff00ff; }
+        .hovering { transform: scale(1.1); background: rgba(0, 255, 159, 0.2); }
     </style>
 </head>
 <body>
@@ -60,11 +63,10 @@
         let drawings = [], tempShape = null, startPoint = null;
         let grabbedShape = null, lastGrabPoint = null;
         let lastHoverId = null, hoverStartTime = 0;
-        
+
         // Stabilizasyon
         let smoothX = 0, smoothY = 0, smoothTX = 0, smoothTY = 0;
-        const lerpAmount = 0.4;
-        let lastPinchTime = 0; // İstem dışı çizimi önlemek için zaman damgası
+        const lerpAmount = 0.35;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize);
@@ -81,6 +83,61 @@
             });
         }
 
+        function drawRealisticHand(landmarks, isPinching) {
+            const color = isPinching ? "#ff4b2b" : "#00ff9f";
+            const glow = isPinching ? "rgba(255, 75, 43, 0.5)" : "rgba(0, 255, 159, 0.5)";
+
+            // Parmak bağlantılarını (kemikleri) çiz
+            HAND_CONNECTIONS.forEach(([a, b]) => {
+                const p1 = landmarks[a];
+                const p2 = landmarks[b];
+
+                ctx.beginPath();
+                ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+                ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+                
+                // Kemik gradyanı
+                const grad = ctx.createLinearGradient(p1.x * canvas.width, p1.y * canvas.height, p2.x * canvas.width, p2.y * canvas.height);
+                grad.addColorStop(0, color);
+                grad.addColorStop(1, "rgba(255,255,255,0.2)");
+                
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = 3;
+                ctx.lineCap = "round";
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = color;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            });
+
+            // Boğum noktalarını çiz
+            landmarks.forEach((p, i) => {
+                const px = p.x * canvas.width;
+                const py = p.y * canvas.height;
+
+                // Dış halka
+                ctx.beginPath();
+                ctx.arc(px, py, 4, 0, Math.PI * 2);
+                ctx.fillStyle = "#fff";
+                ctx.fill();
+
+                // Parlama efekti
+                ctx.beginPath();
+                ctx.arc(px, py, 8, 0, Math.PI * 2);
+                ctx.fillStyle = glow;
+                ctx.fill();
+                
+                // Uç nokta ise (parmak ucu) ekstra efekt
+                if([4,8,12,16,20].includes(i)) {
+                    ctx.beginPath();
+                    ctx.arc(px, py, 12, 0, Math.PI * 2);
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            });
+        }
+
         function onResults(results) {
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -88,7 +145,7 @@
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
                 
-                // Koordinat Yumuşatma
+                // Koordinat yumuşatma
                 smoothX += (lm[8].x * canvas.width - smoothX) * lerpAmount;
                 smoothY += (lm[8].y * canvas.height - smoothY) * lerpAmount;
                 smoothTX += (lm[4].x * canvas.width - smoothTX) * lerpAmount;
@@ -101,9 +158,6 @@
                 handleMenuHover(lm[8]);
 
                 if (isPinching) {
-                    lastPinchTime = Date.now(); // Tutma yapıldığı sürece zamanı güncelle
-                    tempShape = null; // Tutma anında çizimi iptal et
-                    
                     if (!grabbedShape) {
                         for (let i = drawings.length - 1; i >= 0; i--) {
                             if (checkHit(x, y, drawings[i])) { grabbedShape = drawings[i]; lastGrabPoint = {x, y}; break; }
@@ -116,15 +170,11 @@
                     }
                 } else {
                     grabbedShape = null;
-                    
-                    // Sadece tutma bittikten 300ms sonra ve işaret parmağı yukarıdaysa çizime izin ver
-                    const canDraw = (Date.now() - lastPinchTime > 300) && (lm[8].y < lm[6].y && lm[12].y > lm[10].y);
-
-                    if (canDraw) {
+                    if (lm[8].y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
                         if (currentMode === 'draw') {
                             if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f' }; drawings.push(tempShape); }
                             const lastP = tempShape.points[tempShape.points.length-1];
-                            if(!lastP || Math.hypot(lastP.x - x, lastP.y - y) > 5) tempShape.points.push({ x, y });
+                            if(!lastP || Math.hypot(lastP.x - x, lastP.y - y) > 3) tempShape.points.push({ x, y });
                         } else {
                             if (!startPoint) startPoint = { x, y };
                             tempShape = { type: currentMode, start: {...startPoint}, end: { x, y }, color: '#00ff9f' };
@@ -134,7 +184,9 @@
                         tempShape = null; startPoint = null;
                     }
                 }
-                drawCyberHand(lm, isPinching);
+                drawRealisticHand(lm, isPinching);
+            } else {
+                tempShape = null; startPoint = null;
             }
             renderDrawings();
             ctx.restore();
@@ -153,7 +205,7 @@
             ctx.closePath();
             ctx.fillStyle = color;
             ctx.fill();
-            if(!genMode) { ctx.strokeStyle = "rgba(0, 255, 159, 0.4)"; ctx.lineWidth = 1; ctx.stroke(); }
+            if(!genMode) { ctx.strokeStyle = "rgba(0, 255, 159, 0.5)"; ctx.stroke(); }
         }
 
         function renderDrawings() {
@@ -164,26 +216,27 @@
 
                 if (s.type === 'draw') {
                     ctx.beginPath();
-                    ctx.strokeStyle = s.color; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.lineCap = "round";
+                    ctx.strokeStyle = s.color; ctx.lineWidth = 3;
+                    ctx.lineJoin = "round";
                     s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
                     ctx.stroke();
                 } else if (s.type === 'cube') {
                     const base = s.start;
-                    drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], genMode ? "#1a1a1a" : "rgba(40,40,40,0.5)"); 
-                    drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], genMode ? "#333" : "rgba(70,70,70,0.5)"); 
-                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], genMode ? "#4d4d4d" : "rgba(100,100,100,0.5)"); 
-                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w, y:base.y+h}, {x:base.x, y:base.y+h}], genMode ? "#666" : "rgba(130,130,130,0.5)"); 
+                    drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], "#222"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], "#444"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], "#666"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w, y:base.y+h}, {x:base.x, y:base.y+h}], "#888"); 
                 } else if (s.type === 'pyram') {
                     const top = { x: s.start.x + w/2, y: s.start.y - h };
-                    drawFace([{x:s.start.x, y:s.start.y}, {x:s.start.x+w, y:s.start.y}, {x:s.start.x+w+20, y:s.start.y-20}, {x:s.start.x+20, y:s.start.y-20}], "#222");
-                    drawFace([{x:s.start.x, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w, y:s.start.y}], "#555");
-                    drawFace([{x:s.start.x+w, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w+20, y:s.start.y-20}], "#333");
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:s.start.x+w, y:s.start.y}, {x:s.start.x+w+20, y:s.start.y-20}, {x:s.start.x+20, y:s.start.y-20}], "#333");
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w, y:s.start.y}], "#777");
+                    drawFace([{x:s.start.x+w, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w+20, y:s.start.y-20}], "#555");
                 } else if (s.type === 'cyl') {
                     const r = Math.abs(w/2);
-                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#333"; ctx.fill();
-                    ctx.fillStyle = genMode ? "#555" : "rgba(80,80,80,0.5)";
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#444"; ctx.fill();
+                    ctx.fillStyle = "#666";
                     ctx.fillRect(s.start.x, s.start.y-h, r*2, h);
-                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y-h, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#777"; ctx.fill();
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y-h, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#999"; ctx.fill();
                 }
             });
         }
@@ -199,35 +252,6 @@
                 if (lastHoverId === h.id) { if (Date.now() - hoverStartTime > 500) { setMode(h.id.replace('mode-','').replace('btn-','')); hoverStartTime = Date.now() + 1500; } h.classList.add('hovering'); }
                 else { lastHoverId = h.id; hoverStartTime = Date.now(); }
             } else { document.querySelectorAll('.btn').forEach(b => b.classList.remove('hovering')); lastHoverId = null; }
-        }
-
-        function drawCyberHand(lm, isPinching) {
-            const color = isPinching ? '#ff00ff' : '#00ff9f';
-            // Bağlantı Hatları
-            drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: color, lineWidth: 1.5});
-            
-            // Eklemlere Glow Noktaları (Ablasyon efekti)
-            lm.forEach((pt, i) => {
-                const px = pt.x * canvas.width;
-                const py = pt.y * canvas.height;
-                
-                ctx.beginPath();
-                ctx.arc(px, py, i === 8 || i === 4 ? 6 : 3, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = color;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-                
-                // Parmak uçlarına ekstra halka
-                if(i === 8 || i === 4) {
-                    ctx.beginPath();
-                    ctx.arc(px, py, 10, 0, Math.PI * 2);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                }
-            });
         }
 
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
