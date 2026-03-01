@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS Holographic UI v3.5</title>
+    <title>JARVIS Holographic UI v4.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -16,17 +16,18 @@
         
         #ui-panel {
             position: absolute; top: 10px; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: center; gap: 8px; padding: 0 10px;
+            display: flex; justify-content: center; gap: 5px; padding: 0 10px;
+            flex-wrap: wrap;
         }
 
         .btn {
-            background: rgba(0, 40, 20, 0.6); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 8px 12px; font-size: 11px;
-            text-transform: uppercase; border-radius: 6px; backdrop-filter: blur(8px);
+            background: rgba(0, 40, 20, 0.7); border: 1px solid var(--jarvis-green);
+            color: var(--jarvis-green); padding: 6px 10px; font-size: 10px;
+            text-transform: uppercase; border-radius: 4px; backdrop-filter: blur(5px);
         }
 
         .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 15px var(--jarvis-glow); }
-        #status { position: absolute; bottom: 15px; left: 15px; color: var(--jarvis-green); font-size: 10px; font-family: monospace; z-index: 5; }
+        #status { position: absolute; bottom: 10px; left: 10px; color: var(--jarvis-green); font-size: 10px; font-family: monospace; z-index: 5; }
     </style>
 </head>
 <body>
@@ -35,11 +36,12 @@
         <div class="btn active" id="mode-draw">Draw</div>
         <div class="btn" id="mode-rect">Rect</div>
         <div class="btn" id="mode-circle">Circle</div>
+        <div class="btn" id="mode-tri">Triangle</div>
         <div class="btn" id="btn-undo" style="border-color: #ffb800; color: #ffb800;">Undo</div>
         <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear</div>
     </div>
 
-    <div id="status">CORE_SYSTEM: ACTIVE // HAND_TRACKING_ON</div>
+    <div id="status">CORE_SYSTEM: V4.0 // STABLE</div>
     <video id="input_video" playsinline></video>
     <canvas id="output_canvas"></canvas>
 
@@ -65,6 +67,11 @@
         function setMode(mode) {
             if(mode === 'clear') { drawings = []; return; }
             if(mode === 'undo') { drawings.pop(); return; }
+            
+            // Mod değiştirirken yarım kalan çizimleri temizle (Donmayı önler)
+            tempShape = null;
+            startPoint = null;
+            
             currentMode = mode;
             document.querySelectorAll('.btn').forEach(b => {
                 b.classList.remove('active');
@@ -86,8 +93,8 @@
                 const tx = thumbTip.x * canvas.width;
                 const ty = thumbTip.y * canvas.height;
 
-                // 1. ÜST PANEL SEÇİMİ (Aynalanmış X ekseni ile)
-                if (indexTip.y < 0.15) {
+                // 1. ÜST PANEL SEÇİMİ
+                if (indexTip.y < 0.18) {
                     const mirX = (1 - indexTip.x) * canvas.width;
                     document.querySelectorAll('.btn').forEach(btn => {
                         const r = btn.getBoundingClientRect();
@@ -95,15 +102,14 @@
                     });
                 }
 
-                // 2. TUTMA KONTROLÜ (Mesafe eşiği)
+                // 2. TUTMA KONTROLÜ
                 const dist = Math.hypot(x - tx, y - ty);
-                const isGrabbing = dist < 40;
+                const isGrabbing = dist < 45;
 
                 if (isGrabbing) {
-                    tempShape = null; 
+                    tempShape = null;
                     startPoint = null;
                     if (!grabbedShape) {
-                        // Katman katman kontrol: En son çizilenden (en üstteki) başla
                         for (let i = drawings.length - 1; i >= 0; i--) {
                             if (checkHit(x, y, drawings[i])) {
                                 grabbedShape = drawings[i];
@@ -117,16 +123,20 @@
                 } else {
                     grabbedShape = null;
                     // 3. ÇİZİM MANTIĞI
-                    if (indexTip.y < lm[6].y && lm[12].y > lm[10].y) {
+                    // İşaret parmağı yukarıda, orta parmak kapalı (Draw modu için)
+                    const isWriting = indexTip.y < lm[6].y && lm[12].y > lm[10].y;
+                    if (isWriting) {
                         handleDrawing(x, y, Math.abs(indexTip.z));
                     } else {
-                        if (tempShape && currentMode !== 'draw') drawings.push(tempShape);
+                        if (tempShape && currentMode !== 'draw') {
+                            drawings.push(tempShape);
+                        }
                         tempShape = null;
                         startPoint = null;
                     }
                 }
                 
-                // ELİ ÇİZ (Sadece noktalar değil, tüm iskelet)
+                // Eli her zaman çiz
                 drawHandFull(lm, isGrabbing);
             }
             renderDrawings();
@@ -134,9 +144,9 @@
         }
 
         function checkHit(x, y, s) {
-            const margin = 40;
+            const margin = 50;
             if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < margin);
-            if (s.type === 'rect') {
+            if (s.type === 'rect' || s.type === 'tri') {
                 const minX = Math.min(s.start.x, s.end.x) - margin;
                 const maxX = Math.max(s.start.x, s.end.x) + margin;
                 const minY = Math.min(s.start.y, s.end.y) - margin;
@@ -179,9 +189,9 @@
             [...drawings, tempShape].forEach(shape => {
                 if (!shape) return;
                 ctx.beginPath();
-                ctx.strokeStyle = (shape === grabbedShape) ? "#fff" : shape.color;
+                ctx.strokeStyle = (shape === grabbedShape) ? "#ffffff" : shape.color;
                 ctx.lineWidth = (shape === grabbedShape) ? 5 : 3;
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 10;
                 ctx.shadowColor = shape.color;
 
                 if (shape.type === 'draw') {
@@ -194,18 +204,22 @@
                 } else if (shape.type === 'circle') {
                     const radius = Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y);
                     ctx.arc(shape.start.x, shape.start.y, radius, 0, Math.PI * 2);
+                } else if (shape.type === 'tri') {
+                    ctx.moveTo(shape.start.x, shape.start.y);
+                    ctx.lineTo(shape.end.x, shape.end.y);
+                    ctx.lineTo(shape.start.x - (shape.end.x - shape.start.x), shape.end.y);
+                    ctx.closePath();
                 }
                 ctx.stroke();
             });
         }
 
         function drawHandFull(landmarks, isGrabbing) {
-            // Mediapipe Drawing Utils kullanımı
             drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: '#00ff9f', lineWidth: 2});
             drawLandmarks(ctx, landmarks, {
                 color: isGrabbing ? '#ff4b2b' : '#ffffff',
                 lineWidth: 1,
-                radius: (data) => (data.index === 8 || data.index === 4) ? 6 : 2
+                radius: (data) => (data.index === 8 || data.index === 4) ? 7 : 2
             });
         }
 
