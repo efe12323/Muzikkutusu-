@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS Cyber-Hand UI v5.0</title>
+    <title>JARVIS AR UI v6.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -11,48 +11,58 @@
     <style>
         :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
-        #input_video { position: absolute; visibility: hidden; }
-        #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); }
         
+        /* Kamera Görüntüsü (AR Modu için) */
+        #input_video { 
+            position: absolute; width: 100vw; height: 100vh; object-fit: cover;
+            display: none; /* Varsayılan kapalı */
+            transform: scaleX(-1);
+        }
+        
+        #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); z-index: 5; }
+        
+        /* Ultra Küçük Üst Menü */
         #ui-panel {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: space-between; padding: 10px 20px;
-            background: linear-gradient(180deg, rgba(0,255,159,0.1) 0%, transparent 100%);
+            display: flex; justify-content: space-between; padding: 5px;
+            background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(0,255,159,0.2);
         }
 
-        .btn-group { display: flex; gap: 8px; }
+        .btn-group { display: flex; gap: 4px; }
 
         .btn {
-            background: rgba(0, 0, 0, 0.6); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 8px 14px; font-size: 11px;
-            text-transform: uppercase; border-radius: 4px; backdrop-filter: blur(10px);
-            transition: all 0.2s;
+            background: rgba(0, 0, 0, 0.7); border: 1px solid var(--jarvis-green);
+            color: var(--jarvis-green); padding: 5px 8px; font-size: 9px;
+            text-transform: uppercase; border-radius: 3px; backdrop-filter: blur(5px);
+            transition: 0.2s; font-weight: bold;
         }
 
-        .btn.hovering { background: rgba(0, 255, 159, 0.3); transform: scale(1.1); }
-        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 20px var(--jarvis-glow); }
+        .btn.hovering { background: rgba(0, 255, 159, 0.4); transform: scale(1.05); }
+        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 10px var(--jarvis-glow); }
         
-        #status { position: absolute; bottom: 15px; right: 15px; color: var(--jarvis-green); font-size: 10px; font-family: monospace; letter-spacing: 1px; }
+        #status { position: absolute; bottom: 10px; right: 10px; color: var(--jarvis-green); font-size: 9px; font-family: monospace; z-index: 10; }
     </style>
 </head>
 <body>
 
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
+
     <div id="ui-panel">
         <div class="btn-group">
-            <div class="btn active" id="mode-draw">Draw</div>
-            <div class="btn" id="mode-rect">Rect</div>
-            <div class="btn" id="mode-circle">Circle</div>
+            <div class="btn active" id="mode-draw">Pen</div>
+            <div class="btn" id="mode-rect">Box</div>
+            <div class="btn" id="mode-circle">Circ</div>
             <div class="btn" id="mode-tri">Tri</div>
         </div>
         <div class="btn-group">
+            <div class="btn" id="btn-ar" style="border-color: #00e5ff; color: #00e5ff;">AR: OFF</div>
             <div class="btn" id="btn-undo" style="border-color: #ffb800; color: #ffb800;">Undo</div>
-            <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear All</div>
+            <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear</div>
         </div>
     </div>
 
-    <div id="status">JARVIS_V5 // STABLE_SCAN</div>
-    <video id="input_video" playsinline></video>
-    <canvas id="output_canvas"></canvas>
+    <div id="status">JARVIS_V6 // AR_READY</div>
 
     <script>
         const canvas = document.getElementById('output_canvas');
@@ -60,16 +70,16 @@
         const video = document.getElementById('input_video');
         
         let currentMode = 'draw';
+        let arMode = false;
         let drawings = [];
         let tempShape = null;
         let startPoint = null;
         let grabbedShape = null;
         let lastGrabPoint = null;
         
-        // Seçim kilidi için değişkenler
         let lastHoverId = null;
         let hoverStartTime = 0;
-        const HOVER_THRESHOLD = 600; // 0.6 saniye üzerinde durmalı
+        const HOVER_THRESHOLD = 500; 
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -81,14 +91,24 @@
         function setMode(mode) {
             if(mode === 'clear') { drawings = []; return; }
             if(mode === 'undo') { drawings.pop(); return; }
+            if(mode === 'ar') {
+                arMode = !arMode;
+                video.style.display = arMode ? "block" : "none";
+                document.getElementById('btn-ar').innerText = arMode ? "AR: ON" : "AR: OFF";
+                document.getElementById('btn-ar').style.background = arMode ? "#00e5ff" : "transparent";
+                document.getElementById('btn-ar').style.color = arMode ? "#000" : "#00e5ff";
+                return;
+            }
             
             tempShape = null;
             startPoint = null;
             currentMode = mode;
             
             document.querySelectorAll('.btn').forEach(b => {
-                b.classList.remove('active');
-                if(b.id === 'mode-' + mode) b.classList.add('active');
+                if(b.id.startsWith('mode-')) {
+                    b.classList.remove('active');
+                    if(b.id === 'mode-' + mode) b.classList.add('active');
+                }
             });
         }
 
@@ -96,6 +116,9 @@
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // AR modu kapalıysa ızgara çiz (Opsiyonel)
+            if(!arMode) drawGrid();
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
                 const indexTip = lm[8];
@@ -106,17 +129,14 @@
                 const tx = thumbTip.x * canvas.width;
                 const ty = thumbTip.y * canvas.height;
 
-                // 1. AKILLI MENÜ SEÇİMİ (Hover mantığı)
                 handleMenuHover(indexTip);
 
-                // 2. GELİŞMİŞ TUTMA VE TAŞIMA
                 const dist = Math.hypot(x - tx, y - ty);
                 const isPinching = dist < 45;
 
                 if (isPinching) {
                     tempShape = null;
                     if (!grabbedShape) {
-                        // Katmanları kontrol et (En üsttekini yakala)
                         for (let i = drawings.length - 1; i >= 0; i--) {
                             if (checkHit(x, y, drawings[i])) {
                                 grabbedShape = drawings[i];
@@ -125,7 +145,6 @@
                             }
                         }
                     } else {
-                        // Nesneyi kilitle ve taşı
                         const dx = x - lastGrabPoint.x;
                         const dy = y - lastGrabPoint.y;
                         if (grabbedShape.type === 'draw') {
@@ -138,7 +157,6 @@
                     }
                 } else {
                     grabbedShape = null;
-                    // 3. ÇİZİM MANTIĞI
                     if (indexTip.y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
                         handleDrawing(x, y, Math.abs(indexTip.z));
                     } else {
@@ -147,7 +165,6 @@
                         startPoint = null;
                     }
                 }
-                
                 drawCyberHand(lm, isPinching);
             }
             renderDrawings();
@@ -170,7 +187,7 @@
                 if (lastHoverId === currentHover.id) {
                     if (Date.now() - hoverStartTime > HOVER_THRESHOLD) {
                         setMode(currentHover.id.replace('mode-', '').replace('btn-', ''));
-                        hoverStartTime = Date.now() + 2000; // Seçim sonrası 2 sn bekle
+                        hoverStartTime = Date.now() + 1500;
                     }
                     currentHover.classList.add('hovering');
                 } else {
@@ -184,7 +201,7 @@
         }
 
         function checkHit(x, y, s) {
-            const m = 60; // Hitbox toleransı
+            const m = 60;
             if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < m);
             const minX = Math.min(s.start.x, s.end.x) - m;
             const maxX = Math.max(s.start.x, s.end.x) + m;
@@ -210,9 +227,9 @@
             [...drawings, tempShape].forEach(shape => {
                 if (!shape) return;
                 ctx.beginPath();
-                ctx.shadowBlur = (shape === grabbedShape) ? 25 : 10;
+                ctx.shadowBlur = (shape === grabbedShape) ? 20 : 8;
                 ctx.strokeStyle = (shape === grabbedShape) ? "#ffffff" : shape.color;
-                ctx.lineWidth = (shape === grabbedShape) ? 5 : 3;
+                ctx.lineWidth = (shape === grabbedShape) ? 4 : 2;
                 ctx.shadowColor = shape.color;
 
                 if (shape.type === 'draw') {
@@ -236,24 +253,21 @@
         }
 
         function drawCyberHand(landmarks, isGrabbing) {
-            // El kemikleri (Connectors)
-            drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: isGrabbing ? '#ff4b2b' : '#00ff9f', lineWidth: 3});
-            
-            // Eklemler (Landmarks)
+            drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: isGrabbing ? '#ff4b2b' : '#00ff9f', lineWidth: 2});
             landmarks.forEach((p, i) => {
                 const isTip = [4, 8, 12, 16, 20].includes(i);
                 ctx.fillStyle = isTip ? (isGrabbing ? '#ff4b2b' : '#00ff9f') : '#ffffff';
                 ctx.beginPath();
-                ctx.arc(p.x * canvas.width, p.y * canvas.height, isTip ? 6 : 2, 0, Math.PI * 2);
+                ctx.arc(p.x * canvas.width, p.y * canvas.height, isTip ? 5 : 1.5, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Parmak uçlarına hafif parlama
-                if(isTip) {
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = ctx.fillStyle;
-                    ctx.stroke();
-                }
             });
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 255, 159, 0.05)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
         }
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
