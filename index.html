@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS Voice Control Engine</title>
+    <title>JARVIS 3D Render Engine v7.0 - Stabilized</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -16,25 +16,26 @@
         
         #ui-panel {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: space-between; padding: 10px;
-            background: rgba(0,0,0,0.8); border-bottom: 2px solid var(--jarvis-green);
-            box-shadow: 0 0 20px var(--jarvis-green);
+            display: flex; justify-content: space-between; padding: 6px;
+            background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--jarvis-green);
         }
 
-        .status-bar { color: var(--jarvis-green); font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .btn-group { display: flex; gap: 8px; }
+        .btn-group { display: flex; gap: 3px; }
         .btn {
-            background: rgba(0, 0, 0, 0.9); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 8px 15px; font-size: 11px;
-            text-transform: uppercase; border-radius: 4px; font-weight: bold; transition: 0.3s;
+            background: rgba(0, 0, 0, 0.8); border: 1px solid var(--jarvis-green);
+            color: var(--jarvis-green); padding: 5px 8px; font-size: 9px;
+            text-transform: uppercase; border-radius: 3px; font-weight: bold; transition: 0.2s;
         }
-        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 15px var(--jarvis-glow); }
+        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 12px var(--jarvis-glow); }
+        .btn.gen-mode { border-color: #ff00ff; color: #ff00ff; }
+        .btn.gen-active { background: #ff00ff; color: #fff; box-shadow: 0 0 15px #ff00ff; }
         
-        #voice-log {
-            position: absolute; bottom: 30px; right: 30px; z-index: 20;
-            color: var(--jarvis-green); font-family: monospace; font-size: 16px;
-            background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px;
-            border-right: 4px solid var(--jarvis-green); text-align: right;
+        /* Yeni: Sesli komut bildirim kutusu */
+        #voice-status {
+            position: absolute; bottom: 20px; left: 20px; z-index: 100;
+            color: var(--jarvis-green); font-size: 10px; font-family: monospace;
+            background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px;
+            border-left: 2px solid var(--jarvis-green); pointer-events: none;
         }
     </style>
 </head>
@@ -42,165 +43,215 @@
 
     <video id="input_video" playsinline></video>
     <canvas id="output_canvas"></canvas>
+    <div id="voice-status">JARVIS: VOICE READY</div>
 
     <div id="ui-panel">
-        <div class="status-bar" id="system-status">SİSTEM: ÇEVRİMDIŞI (BAŞLATMAK İÇİN TIKLA)</div>
         <div class="btn-group">
-            <div class="btn active" id="mode-draw">KALEM</div>
-            <div class="btn" id="mode-cube">KÜP</div>
-            <div class="btn" id="mode-pyram">PİRAMİT</div>
+            <div class="btn active" id="mode-draw">Pen</div>
+            <div class="btn" id="mode-cube">Cube</div>
+            <div class="btn" id="mode-pyram">Pyra</div>
+            <div class="btn" id="mode-cyl">Cylin</div>
+        </div>
+        <div class="btn-group">
+            <div class="btn gen-mode" id="btn-gen">GEN</div>
+            <div class="btn" id="btn-ar">AR</div>
+            <div class="btn" id="btn-undo">Undo</div>
+            <div class="btn" id="btn-clear">Clear</div>
         </div>
     </div>
-
-    <div id="voice-log">Komut Bekleniyor...</div>
 
     <script>
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
-        const statusText = document.getElementById('system-status');
-        const voiceLog = document.getElementById('voice-log');
+        const voiceStatus = document.getElementById('voice-status');
         
-        let currentMode = 'draw';
+        let currentMode = 'draw', arMode = false, genMode = false;
         let drawings = [], tempShape = null, startPoint = null;
-        let currentColor = '#00ff9f';
+        let grabbedShape = null, lastGrabPoint = null;
+        let lastHoverId = null, hoverStartTime = 0;
+        let mainColor = '#00ff9f'; // Orijinal renk değişkeni
+
         let smoothX = 0, smoothY = 0;
-        const lerpAmount = 0.3;
+        let smoothTX = 0, smoothTY = 0;
+        const lerpAmount = 0.35;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize);
         resize();
 
-        // --- SESLİ KOMUT SİSTEMİ ---
+        // --- SESLİ KOMUT ENTEGRASYONU (Orijinal Fonksiyonları Tetikler) ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.lang = 'tr-TR';
             recognition.continuous = true;
-            recognition.interimResults = false;
 
             recognition.onresult = (event) => {
-                const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-                voiceLog.innerText = "Duyulan: " + command;
-                
-                // --- KOMUT MANTIĞI ---
-                if (command.includes("küp") || command.includes("cube")) {
-                    setMode('cube');
-                    jarvisSpeak("Küp moduna geçildi.");
-                } 
-                else if (command.includes("kalem") || command.includes("çizim")) {
-                    setMode('draw');
-                    jarvisSpeak("Kalem aktif.");
-                }
-                else if (command.includes("piramit")) {
-                    setMode('pyram');
-                    jarvisSpeak("Piramit modu.");
-                }
-                else if (command.includes("temizle") || command.includes("ekranı sil")) {
-                    drawings = [];
-                    jarvisSpeak("Ekran temizlendi efendim.");
-                }
-                else if (command.includes("geri al")) {
-                    drawings.pop();
-                    jarvisSpeak("Son işlem geri alındı.");
-                }
-                else if (command.includes("mavi")) {
-                    updateTheme('#00d4ff');
-                    jarvisSpeak("Sistem rengi maviye çevrildi.");
-                }
-                else if (command.includes("kırmızı")) {
-                    updateTheme('#ff3e3e');
-                    jarvisSpeak("Dikkat, kritik mod. Renk kırmızı.");
-                }
-                else if (command.includes("yeşil") || command.includes("standard")) {
-                    updateTheme('#00ff9f');
-                    jarvisSpeak("Varsayılan ayarlara dönüldü.");
-                }
+                const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
+                voiceStatus.innerText = "COMMAND: " + command.toUpperCase();
+
+                if (command.includes("küp") || command.includes("cube")) setMode('cube');
+                else if (command.includes("piramit") || command.includes("pyra")) setMode('pyram');
+                else if (command.includes("kalem") || command.includes("pen")) setMode('draw');
+                else if (command.includes("temizle") || command.includes("clear")) setMode('clear');
+                else if (command.includes("geri al") || command.includes("undo")) setMode('undo');
+                else if (command.includes("mavi")) updateColor('#00ccff');
+                else if (command.includes("kırmızı")) updateColor('#ff4b2b');
+                else if (command.includes("yeşil")) updateColor('#00ff9f');
+                else if (command.includes("ar aç") || command.includes("kamera aç")) { if(!arMode) setMode('ar'); }
             };
 
-            recognition.onstart = () => { statusText.innerText = "SİSTEM: ÇEVRİMİÇİ"; };
-            recognition.onend = () => recognition.start(); // Bağlantı koparsa yeniden başla
-
-            window.addEventListener('click', () => {
-                recognition.start();
-                video.style.display = "block";
-                jarvisSpeak("Sistemler aktif. Dinliyorum.");
-            }, { once: true });
+            recognition.onend = () => recognition.start();
+            window.addEventListener('click', () => { recognition.start(); voiceStatus.innerText = "JARVIS: LISTENING..."; }, { once: true });
         }
 
-        function jarvisSpeak(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'tr-TR';
-            utterance.rate = 1.1;
-            window.speechSynthesis.speak(utterance);
-        }
-
-        function updateTheme(hex) {
-            currentColor = hex;
+        function updateColor(hex) {
+            mainColor = hex;
             document.documentElement.style.setProperty('--jarvis-green', hex);
+            // Mevcut çizimlerin de rengini istersen değiştirebilirsin:
+            // drawings.forEach(d => d.color = hex);
         }
 
         function setMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.id === 'mode-' + mode));
+            if(mode === 'clear') { drawings = []; return; }
+            if(mode === 'undo') { drawings.pop(); return; }
+            if(mode === 'ar') { arMode = !arMode; video.style.display = arMode ? "block" : "none"; return; }
+            if(mode === 'gen') { 
+                genMode = !genMode; 
+                document.getElementById('btn-gen').classList.toggle('gen-active', genMode);
+                return; 
+            }
+            tempShape = null; startPoint = null; currentMode = mode;
+            document.querySelectorAll('.btn').forEach(b => {
+                if(b.id.startsWith('mode-')) b.classList.toggle('active', b.id === 'mode-' + mode);
+            });
         }
 
-        // --- RENDER DÖNGÜSÜ ---
         function onResults(results) {
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                const x = (1 - lm[8].x) * canvas.width; // Ayna yansıması düzeltme
-                const y = lm[8].y * canvas.height;
+                
+                const rawX = lm[8].x * canvas.width;
+                const rawY = lm[8].y * canvas.height;
+                const rawTX = lm[4].x * canvas.width;
+                const rawTY = lm[4].y * canvas.height;
 
-                smoothX += (x - smoothX) * lerpAmount;
-                smoothY += (y - smoothY) * lerpAmount;
+                smoothX += (rawX - smoothX) * lerpAmount;
+                smoothY += (rawY - smoothY) * lerpAmount;
+                smoothTX += (rawTX - smoothTX) * lerpAmount;
+                smoothTY += (rawTY - smoothTY) * lerpAmount;
 
-                // İşaret parmağı havadaysa çiz
-                if (lm[8].y < lm[6].y) {
-                    if (currentMode === 'draw') {
-                        if (!tempShape) { tempShape = { type: 'draw', points: [], color: currentColor }; drawings.push(tempShape); }
-                        tempShape.points.push({ x: smoothX, y: smoothY });
+                const x = smoothX, y = smoothY;
+                const tx = smoothTX, ty = smoothTY;
+
+                handleMenuHover(lm[8]);
+
+                const isPinching = Math.hypot(x - tx, y - ty) < 40;
+
+                if (isPinching) {
+                    if (!grabbedShape) {
+                        for (let i = drawings.length - 1; i >= 0; i--) {
+                            if (checkHit(x, y, drawings[i])) { grabbedShape = drawings[i]; lastGrabPoint = {x, y}; break; }
+                        }
                     } else {
-                        if (!startPoint) startPoint = { x: smoothX, y: smoothY };
-                        tempShape = { type: currentMode, start: {...startPoint}, end: { x: smoothX, y: smoothY }, color: currentColor };
+                        const dx = x - lastGrabPoint.x, dy = y - lastGrabPoint.y;
+                        if (grabbedShape.type === 'draw') grabbedShape.points.forEach(p => { p.x += dx; p.y += dy; });
+                        else { grabbedShape.start.x += dx; grabbedShape.start.y += dy; grabbedShape.end.x += dx; grabbedShape.end.y += dy; }
+                        lastGrabPoint = {x, y};
                     }
                 } else {
-                    if (tempShape && currentMode !== 'draw') drawings.push(tempShape);
-                    tempShape = null; startPoint = null;
+                    grabbedShape = null;
+                    if (lm[8].y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
+                        if (currentMode === 'draw') {
+                            if (!tempShape) { tempShape = { type: 'draw', points: [], color: mainColor }; drawings.push(tempShape); }
+                            const lastP = tempShape.points[tempShape.points.length-1];
+                            if(!lastP || Math.hypot(lastP.x - x, lastP.y - y) > 3) {
+                                tempShape.points.push({ x, y });
+                            }
+                        } else {
+                            if (!startPoint) startPoint = { x, y };
+                            tempShape = { type: currentMode, start: {...startPoint}, end: { x, y }, color: mainColor };
+                        }
+                    } else {
+                        if (tempShape && currentMode !== 'draw') drawings.push(tempShape);
+                        tempShape = null; startPoint = null;
+                    }
                 }
-                drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: currentColor, lineWidth: 2});
+                drawCyberHand(lm, isPinching);
+            } else {
+                tempShape = null; startPoint = null;
             }
-            
-            renderAll();
+            renderDrawings();
             ctx.restore();
         }
 
-        function renderAll() {
+        function checkHit(x, y, s) {
+            const m = 60;
+            if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < m);
+            return x > Math.min(s.start.x, s.end.x)-m && x < Math.max(s.start.x, s.end.x)+m && y > Math.min(s.start.y, s.end.y)-m && y < Math.max(s.start.y, s.end.y)+m;
+        }
+
+        function drawFace(pts, color) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            pts.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            if(!genMode) { ctx.strokeStyle = mainColor + "80"; ctx.stroke(); }
+        }
+
+        function renderDrawings() {
             [...drawings, tempShape].forEach(s => {
                 if (!s) return;
-                ctx.strokeStyle = s.color;
-                ctx.lineWidth = 3;
+                const w = (s.end?.x - s.start?.x) || 0, h = (s.end?.y - s.start?.y) || 0;
+                const d = 30;
+
                 if (s.type === 'draw') {
                     ctx.beginPath();
+                    ctx.strokeStyle = s.color; ctx.lineWidth = 2;
                     s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
                     ctx.stroke();
                 } else if (s.type === 'cube') {
-                    const w = s.end.x - s.start.x, h = s.end.y - s.start.y;
-                    ctx.strokeRect(s.start.x, s.start.y, w, h);
-                    ctx.fillStyle = s.color + "33";
-                    ctx.fillRect(s.start.x, s.start.y, w, h);
+                    const base = s.start;
+                    drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], genMode ? "#222" : "rgba(50,50,50,0.5)"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], genMode ? "#444" : "rgba(80,80,80,0.5)"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], genMode ? "#666" : "rgba(120,120,120,0.5)"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w, y:base.y+h}, {x:base.x, y:base.y+h}], genMode ? "#888" : "rgba(150,150,150,0.5)"); 
                 } else if (s.type === 'pyram') {
-                    ctx.beginPath();
-                    ctx.moveTo(s.start.x, s.start.y);
-                    ctx.lineTo(s.end.x, s.end.y);
-                    ctx.lineTo(s.start.x - (s.end.x - s.start.x), s.end.y);
-                    ctx.closePath();
-                    ctx.stroke();
+                    const top = { x: s.start.x + w/2, y: s.start.y - h };
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:s.start.x+w, y:s.start.y}, {x:s.start.x+w+20, y:s.start.y-20}, {x:s.start.x+20, y:s.start.y-20}], "#333");
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w, y:s.start.y}], "#777");
+                    drawFace([{x:s.start.x+w, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w+20, y:s.start.y-20}], "#555");
+                } else if (s.type === 'cyl') {
+                    const r = Math.abs(w/2);
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#444"; ctx.fill();
+                    ctx.fillStyle = genMode ? "#666" : "rgba(100,100,100,0.5)";
+                    ctx.fillRect(s.start.x, s.start.y-h, r*2, h);
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y-h, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#999"; ctx.fill();
                 }
             });
+        }
+
+        function handleMenuHover(index) {
+            const mx = (1 - index.x) * canvas.width, my = index.y * canvas.height;
+            let h = null;
+            document.querySelectorAll('.btn').forEach(b => {
+                const r = b.getBoundingClientRect();
+                if (mx > r.left && mx < r.right && my > r.top && my < r.bottom) h = b;
+            });
+            if (h) {
+                if (lastHoverId === h.id) { if (Date.now() - hoverStartTime > 500) { setMode(h.id.replace('mode-','').replace('btn-','')); hoverStartTime = Date.now() + 1500; } h.classList.add('hovering'); }
+                else { lastHoverId = h.id; hoverStartTime = Date.now(); }
+            } else { document.querySelectorAll('.btn').forEach(b => b.classList.remove('hovering')); lastHoverId = null; }
+        }
+
+        function drawCyberHand(lm, isPinching) {
+            drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: isPinching ? '#ff4b2b' : mainColor, lineWidth: 2});
         }
 
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
