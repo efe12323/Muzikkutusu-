@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS AR Stable v6.1</title>
+    <title>JARVIS 3D Render AR v7.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -42,6 +42,7 @@
             <div class="btn" id="mode-pyram">Pyram</div>
         </div>
         <div class="btn-group">
+            <div class="btn" id="btn-render" style="border-color: #ff00ff; color: #ff00ff;">Render</div>
             <div class="btn" id="btn-ar" style="border-color: #00e5ff; color: #00e5ff;">AR: OFF</div>
             <div class="btn" id="btn-undo" style="border-color: #ffb800; color: #ffb800;">Undo</div>
             <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear</div>
@@ -53,7 +54,8 @@
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
         
-        let currentMode = 'draw', arMode = false, drawings = [], tempShape = null, startPoint = null;
+        let currentMode = 'draw', arMode = false, renderMode = false; // renderMode eklendi
+        let drawings = [], tempShape = null, startPoint = null;
         let grabbedShape = null, lastGrabPoint = null;
         let lastHoverId = null, hoverStartTime = 0;
 
@@ -69,6 +71,14 @@
                 document.getElementById('btn-ar').innerText = arMode ? "AR: ON" : "AR: OFF";
                 return;
             }
+            if(mode === 'render') { // Render modu toggle
+                renderMode = !renderMode;
+                document.getElementById('btn-render').classList.toggle('active', renderMode);
+                document.getElementById('btn-render').style.background = renderMode ? "#ff00ff" : "rgba(0,0,0,0.8)";
+                document.getElementById('btn-render').style.color = renderMode ? "#000" : "#ff00ff";
+                return;
+            }
+
             tempShape = null; startPoint = null; currentMode = mode;
             document.querySelectorAll('.btn').forEach(b => {
                 if(b.id.startsWith('mode-')) {
@@ -87,7 +97,6 @@
                 const x = index.x * canvas.width, y = index.y * canvas.height;
                 const tx = thumb.x * canvas.width, ty = thumb.y * canvas.height;
 
-                // Menü Kontrolü
                 handleMenuHover(index);
 
                 const isPinching = Math.hypot(x - tx, y - ty) < 45;
@@ -114,7 +123,6 @@
                     }
                 } else {
                     grabbedShape = null;
-                    // Çizim
                     if (index.y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
                         if (currentMode === 'draw') {
                             if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f' }; drawings.push(tempShape); }
@@ -151,26 +159,143 @@
                 ctx.shadowBlur = 10; ctx.shadowColor = s.color;
 
                 if (s.type === 'draw') {
+                    ctx.beginPath();
                     s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+                    ctx.stroke();
                 } else if (s.type === 'cube') {
-                    const w = s.end.x - s.start.x, h = s.end.y - s.start.y, d = 25;
-                    ctx.strokeRect(s.start.x, s.start.y, w, h);
-                    ctx.strokeRect(s.start.x + d, s.start.y - d, w, h);
-                    [[0,0],[w,0],[w,h],[0,h]].forEach(p => {
-                        ctx.moveTo(s.start.x+p[0], s.start.y+p[1]);
-                        ctx.lineTo(s.start.x+p[0]+d, s.start.y+p[1]-d);
-                    });
+                    drawCube(s.start.x, s.start.y, s.end.x - s.start.x, s.end.y - s.start.y, s.color, renderMode);
                 } else if (s.type === 'pyram') {
-                    const w = s.end.x - s.start.x, h = s.end.y - s.start.y;
-                    const top = { x: s.start.x + w/2, y: s.start.y - h };
-                    ctx.strokeRect(s.start.x, s.start.y, w, 20); // Taban
-                    [[s.start.x, s.start.y], [s.start.x+w, s.start.y]].forEach(p => {
-                        ctx.moveTo(top.x, top.y); ctx.lineTo(p[0], p[1]);
-                    });
+                    drawPyramid(s.start.x, s.start.y, s.end.x - s.start.x, s.end.y - s.start.y, s.color, renderMode);
                 }
-                ctx.stroke();
             });
         }
+
+        // KÜP ÇİZİMİ (RENDER MODUNA GÖRE DOLGULU/TEL KAFES)
+        function drawCube(x, y, w, h, color, filled) {
+            const d = 25; // Derinlik
+            const lightColor = 'rgba(0, 255, 159, 0.4)'; // Yüzey dolgu rengi
+            const darkColor = 'rgba(0, 255, 159, 0.2)'; // Daha koyu yüzey
+
+            // Arka Yüz
+            if (filled) {
+                ctx.fillStyle = darkColor;
+                ctx.fillRect(x + d, y - d, w, h);
+            }
+            ctx.strokeStyle = color;
+            ctx.strokeRect(x + d, y - d, w, h);
+
+            // Üst Yüz
+            if (filled) {
+                ctx.fillStyle = lightColor;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + d, y - d);
+                ctx.lineTo(x + d + w, y - d);
+                ctx.lineTo(x + w, y);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.strokeStyle = color;
+            ctx.beginPath(); // Tekrar başla kenarları çizmek için
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + d, y - d);
+            ctx.lineTo(x + d + w, y - d);
+            ctx.lineTo(x + w, y);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Ön Yüz (En son çizilir, üstte görünür)
+            if (filled) {
+                ctx.fillStyle = lightColor;
+                ctx.fillRect(x, y, w, h);
+            }
+            ctx.strokeStyle = color;
+            ctx.strokeRect(x, y, w, h);
+
+            // Bağlantılar (Önü arkaya bağlayan kenarlar)
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            [[0,0], [w,0], [w,h], [0,h]].forEach(p => {
+                ctx.moveTo(x+p[0], y+p[1]);
+                ctx.lineTo(x+p[0]+d, y+p[1]-d);
+            });
+            ctx.stroke();
+        }
+
+        // PİRAMİT ÇİZİMİ (RENDER MODUNA GÖRE DOLGULU/TEL KAFES)
+        function drawPyramid(x, y, w, h, color, filled) {
+            const topX = x + w / 2;
+            const topY = y - h;
+            const baseWidth = w;
+            const baseHeight = 20; // Piramit tabanı için sabit yükseklik
+            const lightColor = 'rgba(0, 255, 159, 0.4)';
+            const darkColor = 'rgba(0, 255, 159, 0.2)';
+
+            // Taban (Dörtgen bir taban farz edelim)
+            const basePoints = [
+                {x: x, y: y},
+                {x: x + baseWidth, y: y},
+                {x: x + baseWidth + 10, y: y - baseHeight}, // Arka sağ köşe
+                {x: x + 10, y: y - baseHeight} // Arka sol köşe
+            ];
+
+            // Arka taban kenarı (daha koyu)
+            if (filled) {
+                ctx.fillStyle = darkColor;
+                ctx.beginPath();
+                ctx.moveTo(basePoints[2].x, basePoints[2].y);
+                ctx.lineTo(basePoints[3].x, basePoints[3].y);
+                ctx.lineTo(topX, topY);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Sağ yüz
+            if (filled) {
+                ctx.fillStyle = darkColor;
+                ctx.beginPath();
+                ctx.moveTo(basePoints[1].x, basePoints[1].y);
+                ctx.lineTo(basePoints[2].x, basePoints[2].y);
+                ctx.lineTo(topX, topY);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Ön taban (daha açık)
+            if (filled) {
+                ctx.fillStyle = lightColor;
+                ctx.beginPath();
+                ctx.moveTo(basePoints[0].x, basePoints[0].y);
+                ctx.lineTo(basePoints[1].x, basePoints[1].y);
+                ctx.lineTo(topX, topY);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Kenarları çiz (Hepsi JARVIS yeşili)
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            // Taban
+            ctx.moveTo(basePoints[0].x, basePoints[0].y);
+            ctx.lineTo(basePoints[1].x, basePoints[1].y);
+            ctx.lineTo(basePoints[2].x, basePoints[2].y);
+            ctx.lineTo(basePoints[3].x, basePoints[3].y);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Yan kenarlar
+            ctx.beginPath();
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(basePoints[0].x, basePoints[0].y);
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(basePoints[1].x, basePoints[1].y);
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(basePoints[2].x, basePoints[2].y);
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(basePoints[3].x, basePoints[3].y);
+            ctx.stroke();
+        }
+
 
         function handleMenuHover(index) {
             const mx = (1 - index.x) * canvas.width, my = index.y * canvas.height;
@@ -183,7 +308,9 @@
                 if (lastHoverId === h.id) {
                     if (Date.now() - hoverStartTime > 500) { 
                         setMode(h.id.replace('mode-','').replace('btn-','')); 
-                        hoverStartTime = Date.now() + 1500; 
+                        // Render veya AR basınca aktif kalması için hoverStartTime'ı sıfırla
+                        if(h.id === 'btn-ar' || h.id === 'btn-render') hoverStartTime = 0; 
+                        else hoverStartTime = Date.now() + 1500; 
                     }
                     h.classList.add('hovering');
                 } else { lastHoverId = h.id; hoverStartTime = Date.now(); }
