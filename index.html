@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS 3D Render AR v7.0</title>
+    <title>JARVIS 3D Render Engine v7.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -16,18 +16,19 @@
         
         #ui-panel {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: space-between; padding: 8px;
-            background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--jarvis-green);
+            display: flex; justify-content: space-between; padding: 6px;
+            background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--jarvis-green);
         }
 
-        .btn-group { display: flex; gap: 5px; }
+        .btn-group { display: flex; gap: 3px; }
         .btn {
             background: rgba(0, 0, 0, 0.8); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 6px 10px; font-size: 10px;
-            text-transform: uppercase; border-radius: 4px; font-weight: bold;
+            color: var(--jarvis-green); padding: 5px 8px; font-size: 9px;
+            text-transform: uppercase; border-radius: 3px; font-weight: bold; transition: 0.2s;
         }
-        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 15px var(--jarvis-glow); }
-        .btn.hovering { background: rgba(0, 255, 159, 0.3); transform: scale(1.05); }
+        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 12px var(--jarvis-glow); }
+        .btn.gen-mode { border-color: #ff00ff; color: #ff00ff; }
+        .btn.gen-active { background: #ff00ff; color: #fff; box-shadow: 0 0 15px #ff00ff; }
     </style>
 </head>
 <body>
@@ -39,13 +40,14 @@
         <div class="btn-group">
             <div class="btn active" id="mode-draw">Pen</div>
             <div class="btn" id="mode-cube">Cube</div>
-            <div class="btn" id="mode-pyram">Pyram</div>
+            <div class="btn" id="mode-pyram">Pyra</div>
+            <div class="btn" id="mode-cyl">Cylin</div>
         </div>
         <div class="btn-group">
-            <div class="btn" id="btn-render" style="border-color: #ff00ff; color: #ff00ff;">Render</div>
-            <div class="btn" id="btn-ar" style="border-color: #00e5ff; color: #00e5ff;">AR: OFF</div>
-            <div class="btn" id="btn-undo" style="border-color: #ffb800; color: #ffb800;">Undo</div>
-            <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear</div>
+            <div class="btn gen-mode" id="btn-gen">GEN</div>
+            <div class="btn" id="btn-ar">AR</div>
+            <div class="btn" id="btn-undo">Undo</div>
+            <div class="btn" id="btn-clear">Clear</div>
         </div>
     </div>
 
@@ -54,7 +56,7 @@
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
         
-        let currentMode = 'draw', arMode = false, renderMode = false; // renderMode eklendi
+        let currentMode = 'draw', arMode = false, genMode = false;
         let drawings = [], tempShape = null, startPoint = null;
         let grabbedShape = null, lastGrabPoint = null;
         let lastHoverId = null, hoverStartTime = 0;
@@ -66,24 +68,15 @@
         function setMode(mode) {
             if(mode === 'clear') { drawings = []; return; }
             if(mode === 'undo') { drawings.pop(); return; }
-            if(mode === 'ar') {
-                arMode = !arMode; video.style.display = arMode ? "block" : "none";
-                document.getElementById('btn-ar').innerText = arMode ? "AR: ON" : "AR: OFF";
-                return;
+            if(mode === 'ar') { arMode = !arMode; video.style.display = arMode ? "block" : "none"; return; }
+            if(mode === 'gen') { 
+                genMode = !genMode; 
+                document.getElementById('btn-gen').classList.toggle('gen-active', genMode);
+                return; 
             }
-            if(mode === 'render') { // Render modu toggle
-                renderMode = !renderMode;
-                document.getElementById('btn-render').classList.toggle('active', renderMode);
-                document.getElementById('btn-render').style.background = renderMode ? "#ff00ff" : "rgba(0,0,0,0.8)";
-                document.getElementById('btn-render').style.color = renderMode ? "#000" : "#ff00ff";
-                return;
-            }
-
             tempShape = null; startPoint = null; currentMode = mode;
             document.querySelectorAll('.btn').forEach(b => {
-                if(b.id.startsWith('mode-')) {
-                    b.classList.toggle('active', b.id === 'mode-' + mode);
-                }
+                if(b.id.startsWith('mode-')) b.classList.toggle('active', b.id === 'mode-' + mode);
             });
         }
 
@@ -102,23 +95,14 @@
                 const isPinching = Math.hypot(x - tx, y - ty) < 45;
 
                 if (isPinching) {
-                    tempShape = null;
                     if (!grabbedShape) {
                         for (let i = drawings.length - 1; i >= 0; i--) {
-                            if (checkHit(x, y, drawings[i])) { 
-                                grabbedShape = drawings[i]; 
-                                lastGrabPoint = {x, y}; 
-                                break; 
-                            }
+                            if (checkHit(x, y, drawings[i])) { grabbedShape = drawings[i]; lastGrabPoint = {x, y}; break; }
                         }
                     } else {
                         const dx = x - lastGrabPoint.x, dy = y - lastGrabPoint.y;
-                        if (grabbedShape.type === 'draw') {
-                            grabbedShape.points.forEach(p => { p.x += dx; p.y += dy; });
-                        } else {
-                            grabbedShape.start.x += dx; grabbedShape.start.y += dy;
-                            grabbedShape.end.x += dx; grabbedShape.end.y += dy;
-                        }
+                        if (grabbedShape.type === 'draw') grabbedShape.points.forEach(p => { p.x += dx; p.y += dy; });
+                        else { grabbedShape.start.x += dx; grabbedShape.start.y += dy; grabbedShape.end.x += dx; grabbedShape.end.y += dy; }
                         lastGrabPoint = {x, y};
                     }
                 } else {
@@ -145,157 +129,54 @@
         function checkHit(x, y, s) {
             const m = 60;
             if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < m);
-            const minX = Math.min(s.start.x, s.end.x) - m, maxX = Math.max(s.start.x, s.end.x) + m;
-            const minY = Math.min(s.start.y, s.end.y) - m, maxY = Math.max(s.start.y, s.end.y) + m;
-            return x > minX && x < maxX && y > minY && y < maxY;
+            return x > Math.min(s.start.x, s.end.x)-m && x < Math.max(s.start.x, s.end.x)+m && y > Math.min(s.start.y, s.end.y)-m && y < Math.max(s.start.y, s.end.y)+m;
+        }
+
+        function drawFace(pts, color) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            pts.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            if(!genMode) { ctx.strokeStyle = "rgba(0, 255, 159, 0.5)"; ctx.stroke(); }
         }
 
         function renderDrawings() {
             [...drawings, tempShape].forEach(s => {
                 if (!s) return;
-                ctx.beginPath();
-                ctx.strokeStyle = (s === grabbedShape) ? "#fff" : s.color;
-                ctx.lineWidth = (s === grabbedShape) ? 4 : 2;
-                ctx.shadowBlur = 10; ctx.shadowColor = s.color;
+                const w = (s.end?.x - s.start?.x) || 0, h = (s.end?.y - s.start?.y) || 0;
+                const d = 30; // sabit derinlik
 
                 if (s.type === 'draw') {
                     ctx.beginPath();
+                    ctx.strokeStyle = s.color; ctx.lineWidth = 2;
                     s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
                     ctx.stroke();
                 } else if (s.type === 'cube') {
-                    drawCube(s.start.x, s.start.y, s.end.x - s.start.x, s.end.y - s.start.y, s.color, renderMode);
+                    const base = s.start, end = s.end;
+                    // Arka, Yanlar, Ön (Basit Shading)
+                    drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], genMode ? "#222" : "rgba(50,50,50,0.5)"); // Arka
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], genMode ? "#444" : "rgba(80,80,80,0.5)"); // Sol Yan
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], genMode ? "#666" : "rgba(120,120,120,0.5)"); // Üst
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w, y:base.y+h}, {x:base.x, y:base.y+h}], genMode ? "#888" : "rgba(150,150,150,0.5)"); // Ön
                 } else if (s.type === 'pyram') {
-                    drawPyramid(s.start.x, s.start.y, s.end.x - s.start.x, s.end.y - s.start.y, s.color, renderMode);
+                    const top = { x: s.start.x + w/2, y: s.start.y - h };
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:s.start.x+w, y:s.start.y}, {x:s.start.x+w+20, y:s.start.y-20}, {x:s.start.x+20, y:s.start.y-20}], "#333"); // Taban
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w, y:s.start.y}], "#777"); // Ön Yüz
+                    drawFace([{x:s.start.x+w, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w+20, y:s.start.y-20}], "#555"); // Yan Yüz
+                } else if (s.type === 'cyl') {
+                    const r = Math.abs(w/2);
+                    // Alt taban
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#444"; ctx.fill();
+                    // Gövde
+                    ctx.fillStyle = genMode ? "#666" : "rgba(100,100,100,0.5)";
+                    ctx.fillRect(s.start.x, s.start.y-h, r*2, h);
+                    // Üst taban
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y-h, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#999"; ctx.fill();
                 }
             });
         }
-
-        // KÜP ÇİZİMİ (RENDER MODUNA GÖRE DOLGULU/TEL KAFES)
-        function drawCube(x, y, w, h, color, filled) {
-            const d = 25; // Derinlik
-            const lightColor = 'rgba(0, 255, 159, 0.4)'; // Yüzey dolgu rengi
-            const darkColor = 'rgba(0, 255, 159, 0.2)'; // Daha koyu yüzey
-
-            // Arka Yüz
-            if (filled) {
-                ctx.fillStyle = darkColor;
-                ctx.fillRect(x + d, y - d, w, h);
-            }
-            ctx.strokeStyle = color;
-            ctx.strokeRect(x + d, y - d, w, h);
-
-            // Üst Yüz
-            if (filled) {
-                ctx.fillStyle = lightColor;
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x + d, y - d);
-                ctx.lineTo(x + d + w, y - d);
-                ctx.lineTo(x + w, y);
-                ctx.closePath();
-                ctx.fill();
-            }
-            ctx.strokeStyle = color;
-            ctx.beginPath(); // Tekrar başla kenarları çizmek için
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + d, y - d);
-            ctx.lineTo(x + d + w, y - d);
-            ctx.lineTo(x + w, y);
-            ctx.closePath();
-            ctx.stroke();
-
-            // Ön Yüz (En son çizilir, üstte görünür)
-            if (filled) {
-                ctx.fillStyle = lightColor;
-                ctx.fillRect(x, y, w, h);
-            }
-            ctx.strokeStyle = color;
-            ctx.strokeRect(x, y, w, h);
-
-            // Bağlantılar (Önü arkaya bağlayan kenarlar)
-            ctx.strokeStyle = color;
-            ctx.beginPath();
-            [[0,0], [w,0], [w,h], [0,h]].forEach(p => {
-                ctx.moveTo(x+p[0], y+p[1]);
-                ctx.lineTo(x+p[0]+d, y+p[1]-d);
-            });
-            ctx.stroke();
-        }
-
-        // PİRAMİT ÇİZİMİ (RENDER MODUNA GÖRE DOLGULU/TEL KAFES)
-        function drawPyramid(x, y, w, h, color, filled) {
-            const topX = x + w / 2;
-            const topY = y - h;
-            const baseWidth = w;
-            const baseHeight = 20; // Piramit tabanı için sabit yükseklik
-            const lightColor = 'rgba(0, 255, 159, 0.4)';
-            const darkColor = 'rgba(0, 255, 159, 0.2)';
-
-            // Taban (Dörtgen bir taban farz edelim)
-            const basePoints = [
-                {x: x, y: y},
-                {x: x + baseWidth, y: y},
-                {x: x + baseWidth + 10, y: y - baseHeight}, // Arka sağ köşe
-                {x: x + 10, y: y - baseHeight} // Arka sol köşe
-            ];
-
-            // Arka taban kenarı (daha koyu)
-            if (filled) {
-                ctx.fillStyle = darkColor;
-                ctx.beginPath();
-                ctx.moveTo(basePoints[2].x, basePoints[2].y);
-                ctx.lineTo(basePoints[3].x, basePoints[3].y);
-                ctx.lineTo(topX, topY);
-                ctx.closePath();
-                ctx.fill();
-            }
-            
-            // Sağ yüz
-            if (filled) {
-                ctx.fillStyle = darkColor;
-                ctx.beginPath();
-                ctx.moveTo(basePoints[1].x, basePoints[1].y);
-                ctx.lineTo(basePoints[2].x, basePoints[2].y);
-                ctx.lineTo(topX, topY);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // Ön taban (daha açık)
-            if (filled) {
-                ctx.fillStyle = lightColor;
-                ctx.beginPath();
-                ctx.moveTo(basePoints[0].x, basePoints[0].y);
-                ctx.lineTo(basePoints[1].x, basePoints[1].y);
-                ctx.lineTo(topX, topY);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // Kenarları çiz (Hepsi JARVIS yeşili)
-            ctx.strokeStyle = color;
-            ctx.beginPath();
-            // Taban
-            ctx.moveTo(basePoints[0].x, basePoints[0].y);
-            ctx.lineTo(basePoints[1].x, basePoints[1].y);
-            ctx.lineTo(basePoints[2].x, basePoints[2].y);
-            ctx.lineTo(basePoints[3].x, basePoints[3].y);
-            ctx.closePath();
-            ctx.stroke();
-
-            // Yan kenarlar
-            ctx.beginPath();
-            ctx.moveTo(topX, topY);
-            ctx.lineTo(basePoints[0].x, basePoints[0].y);
-            ctx.moveTo(topX, topY);
-            ctx.lineTo(basePoints[1].x, basePoints[1].y);
-            ctx.moveTo(topX, topY);
-            ctx.lineTo(basePoints[2].x, basePoints[2].y);
-            ctx.moveTo(topX, topY);
-            ctx.lineTo(basePoints[3].x, basePoints[3].y);
-            ctx.stroke();
-        }
-
 
         function handleMenuHover(index) {
             const mx = (1 - index.x) * canvas.width, my = index.y * canvas.height;
@@ -305,24 +186,13 @@
                 if (mx > r.left && mx < r.right && my > r.top && my < r.bottom) h = b;
             });
             if (h) {
-                if (lastHoverId === h.id) {
-                    if (Date.now() - hoverStartTime > 500) { 
-                        setMode(h.id.replace('mode-','').replace('btn-','')); 
-                        // Render veya AR basınca aktif kalması için hoverStartTime'ı sıfırla
-                        if(h.id === 'btn-ar' || h.id === 'btn-render') hoverStartTime = 0; 
-                        else hoverStartTime = Date.now() + 1500; 
-                    }
-                    h.classList.add('hovering');
-                } else { lastHoverId = h.id; hoverStartTime = Date.now(); }
+                if (lastHoverId === h.id) { if (Date.now() - hoverStartTime > 500) { setMode(h.id.replace('mode-','').replace('btn-','')); hoverStartTime = Date.now() + 1500; } h.classList.add('hovering'); }
+                else { lastHoverId = h.id; hoverStartTime = Date.now(); }
             } else { document.querySelectorAll('.btn').forEach(b => b.classList.remove('hovering')); lastHoverId = null; }
         }
 
         function drawCyberHand(lm, isPinching) {
             drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: isPinching ? '#ff4b2b' : '#00ff9f', lineWidth: 2});
-            [4,8,12,16,20].forEach(i => {
-                ctx.fillStyle = isPinching ? '#ff4b2b' : '#ffffff';
-                ctx.beginPath(); ctx.arc(lm[i].x * canvas.width, lm[i].y * canvas.height, 5, 0, Math.PI*2); ctx.fill();
-            });
         }
 
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
