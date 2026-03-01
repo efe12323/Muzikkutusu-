@@ -3,177 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS 360° Modeling AR</title>
+    <title>JARVIS 3D STABLE</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
-    
     <style>
-        :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
-        #input_video { position: absolute; width: 100vw; height: 100vh; object-fit: cover; display: none; transform: scaleX(-1); }
-        #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); z-index: 5; }
-        #ui-panel { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; justify-content: space-between; padding: 5px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--jarvis-green); }
-        .btn-group { display: flex; gap: 4px; }
-        .btn { background: rgba(0, 0, 0, 0.8); border: 1px solid var(--jarvis-green); color: var(--jarvis-green); padding: 6px 10px; font-size: 9px; text-transform: uppercase; border-radius: 4px; font-weight: bold; }
-        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 15px var(--jarvis-glow); }
+        :root { --neon: #00ff9f; --bg: #050a05; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: monospace; }
+        #input_video { position: absolute; visibility: hidden; }
+        #canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); }
+        #ui { position: absolute; top: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; z-index: 100; pointer-events: none; }
+        .btn { background: rgba(0,0,0,0.8); color: var(--neon); border: 1px solid var(--neon); padding: 8px 12px; font-size: 12px; border-radius: 5px; text-transform: uppercase; }
+        .active { background: var(--neon); color: #000; box-shadow: 0 0 15px var(--neon); }
     </style>
 </head>
 <body>
     <video id="input_video" playsinline></video>
-    <canvas id="output_canvas"></canvas>
-    <div id="ui-panel">
-        <div class="btn-group">
-            <div class="btn active" id="mode-draw">Pen</div>
-            <div class="btn" id="mode-cube">Cube</div>
-            <div class="btn" id="mode-pyram">Pyram</div>
-        </div>
-        <div class="btn-group">
-            <div class="btn" id="btn-ar">AR: OFF</div>
-            <div class="btn" id="btn-clear">Clear</div>
-        </div>
+    <canvas id="canvas"></canvas>
+    <div id="ui">
+        <div class="btn active" id="m-draw">Pen</div>
+        <div class="btn" id="m-cube">Cube</div>
+        <div class="btn" id="m-ar">AR</div>
+        <div class="btn" id="m-clear" style="color:#ff4b2b; border-color:#ff4b2b;">Clear</div>
     </div>
 
     <script>
-        const canvas = document.getElementById('output_canvas');
+        const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
-        let currentMode = 'draw', arMode = false, drawings = [], tempShape = null, startPoint = null;
-        let grabbedShape = null, initialAngle = 0, currentObjAngle = 0;
+        
+        let mode = 'draw', ar = false, drawings = [], temp = null;
+        let grabbed = null, lastAngle = 0, baseAngle = 0;
 
-        function setMode(mode) {
-            if(mode === 'clear') { drawings = []; return; }
-            if(mode === 'ar') { arMode = !arMode; video.style.display = arMode ? "block" : "none"; return; }
-            currentMode = mode;
-            document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.id === 'mode-'+mode));
+        function setMode(newMode) {
+            if(newMode === 'clear') { drawings = []; return; }
+            if(newMode === 'ar') { ar = !ar; video.style.visibility = ar ? 'visible' : 'hidden'; return; }
+            mode = newMode;
+            document.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.id === 'm-'+newMode));
         }
 
         function onResults(results) {
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            let activeHands = [];
+            let hands = [];
             if (results.multiHandLandmarks) {
                 results.multiHandLandmarks.forEach(lm => {
                     const x = lm[8].x * canvas.width, y = lm[8].y * canvas.height;
                     const tx = lm[4].x * canvas.width, ty = lm[4].y * canvas.height;
-                    const isPinching = Math.hypot(x - tx, y - ty) < 50;
-                    activeHands.push({x, y, isPinching, lm});
+                    const pinching = Math.hypot(x-tx, y-ty) < 40;
+                    hands.push({x, y, pinching, raw: lm});
                 });
             }
 
-            // DÖNDÜRME VE TAŞIMA MANTIĞI
-            if (activeHands.length === 2 && activeHands[0].isPinching && activeHands[1].isPinching) {
-                // İKİ EL: Döndürme
-                const dx = activeHands[0].x - activeHands[1].x;
-                const dy = activeHands[0].y - activeHands[1].y;
+            // --- MANTIK BÖLÜMÜ ---
+            if (hands.length === 2 && hands[0].pinching && hands[1].pinching) {
+                // İKİ EL: DÖNDÜRME
+                const dx = hands[0].x - hands[1].x, dy = hands[0].y - hands[1].y;
                 const angle = Math.atan2(dy, dx);
-                
-                if (grabbedShape) {
-                    grabbedShape.angle = (angle - initialAngle);
+                if (grabbed) {
+                    grabbed.rot = angle - baseAngle;
                 } else {
-                    // Objeyi bul ve döndürmeye başla
-                    drawings.forEach(s => { if(checkHit(activeHands[0].x, activeHands[0].y, s)) grabbedShape = s; });
-                    initialAngle = angle - (grabbedShape?.angle || 0);
+                    drawings.forEach(d => { if(Math.hypot(hands[0].x - d.x, hands[0].y - d.y) < 100) grabbed = d; });
+                    if(grabbed) baseAngle = angle - (grabbed.rot || 0);
                 }
-            } else if (activeHands.length === 1 && activeHands[0].isPinching) {
-                // TEK EL: Taşıma
-                const h = activeHands[0];
-                if (!grabbedShape) {
-                    drawings.forEach(s => { if(checkHit(h.x, h.y, s)) grabbedShape = s; });
+            } 
+            else if (hands.length === 1 && hands[0].pinching) {
+                // TEK EL: TAŞIMA
+                if (!grabbed) {
+                    drawings.forEach(d => { if(Math.hypot(hands[0].x - d.x, hands[0].y - d.y) < 80) grabbed = d; });
                 } else {
-                    const dx = h.x - (grabbedShape.start.x + (grabbedShape.end.x - grabbedShape.start.x)/2);
-                    const dy = h.y - (grabbedShape.start.y + (grabbedShape.end.y - grabbedShape.start.y)/2);
-                    grabbedShape.start.x += dx; grabbedShape.end.x += dx;
-                    grabbedShape.start.y += dy; grabbedShape.end.y += dy;
+                    grabbed.x = hands[0].x; grabbed.y = hands[0].y;
                 }
-            } else {
-                // ÇİZİM MANTIĞI
-                grabbedShape = null;
-                if (activeHands.length === 1 && !activeHands[0].isPinching && activeHands[0].lm[8].y < activeHands[0].lm[6].y) {
-                    const h = activeHands[0];
-                    if (currentMode === 'draw') {
-                        if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f' }; drawings.push(tempShape); }
-                        tempShape.points.push({ x: h.x, y: h.y });
+            } 
+            else {
+                // ÇİZİM VEYA SEÇİM
+                grabbed = null;
+                if (hands.length === 1) {
+                    const h = hands[0];
+                    if (h.y < 60) { // Menü Seçimi
+                        const mx = (1 - h.raw[8].x) * canvas.width;
+                        document.querySelectorAll('.btn').forEach(b => {
+                            const r = b.getBoundingClientRect();
+                            if(mx > r.left && mx < r.right) setMode(b.id.substring(2));
+                        });
+                    } else if (h.raw[8].y < h.raw[6].y) { // Çizim Yapma
+                        if (mode === 'draw') {
+                            if (!temp) { temp = { type: 'draw', pts: [] }; drawings.push(temp); }
+                            temp.pts.push({x: h.x, y: h.y});
+                        } else if (mode === 'cube') {
+                            temp = { type: 'cube', x: h.x, y: h.y, rot: 0 };
+                        }
                     } else {
-                        if (!startPoint) startPoint = { x: h.x, y: h.y };
-                        tempShape = { type: currentMode, start: {...startPoint}, end: { x: h.x, y: h.y }, color: '#00ff9f', angle: 0 };
+                        if(temp && mode === 'cube') drawings.push(temp);
+                        temp = null;
                     }
-                } else {
-                    if (tempShape && currentMode !== 'draw') drawings.push(tempShape);
-                    tempShape = null; startPoint = null;
                 }
             }
 
-            // GÖRSELLEŞTİRME
-            renderDrawings();
-            activeHands.forEach(h => drawCyberHand(h.lm, h.isPinching));
-            handleMenuSelection(activeHands);
+            // --- ÇİZİM BÖLÜMÜ ---
+            [...drawings, temp].forEach(d => {
+                if(!d) return;
+                ctx.strokeStyle = (d === grabbed) ? '#fff' : varNeon();
+                ctx.lineWidth = 3;
+                if(d.type === 'draw') {
+                    ctx.beginPath();
+                    d.pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                    ctx.stroke();
+                } else if(d.type === 'cube') {
+                    drawCube(d.x, d.y, 80, d.rot);
+                }
+            });
+
+            // Elleri Çiz
+            hands.forEach(h => {
+                ctx.fillStyle = h.pinching ? '#ff4b2b' : varNeon();
+                ctx.beginPath(); ctx.arc(h.x, h.y, 8, 0, 7); ctx.fill();
+            });
             ctx.restore();
         }
 
-        function checkHit(x, y, s) {
-            if (!s.start) return false;
-            return x > Math.min(s.start.x, s.end.x)-50 && x < Math.max(s.start.x, s.end.x)+50;
-        }
+        function varNeon() { return '#00ff9f'; }
 
-        function renderDrawings() {
-            [...drawings, tempShape].forEach(s => {
-                if (!s) return;
-                ctx.save();
-                ctx.strokeStyle = (s === grabbedShape) ? "#fff" : s.color;
-                ctx.lineWidth = 2;
-                
-                if (s.type === 'draw') {
-                    ctx.beginPath();
-                    s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-                    ctx.stroke();
-                } else {
-                    const cx = s.start.x + (s.end.x - s.start.x)/2;
-                    const cy = s.start.y + (s.end.y - s.start.y)/2;
-                    ctx.translate(cx, cy);
-                    ctx.rotate(s.angle || 0);
-                    ctx.translate(-cx, -cy);
-                    
-                    const w = s.end.x - s.start.x, h = s.end.y - s.start.y;
-                    if (s.type === 'cube') {
-                        ctx.strokeRect(s.start.x, s.start.y, w, h);
-                        ctx.strokeRect(s.start.x + 20, s.start.y - 20, w, h);
-                        [[0,0],[w,0],[w,h],[0,h]].forEach(p => {
-                            ctx.moveTo(s.start.x+p[0], s.start.y+p[1]);
-                            ctx.lineTo(s.start.x+p[0]+20, s.start.y+p[1]-20);
-                        });
-                    } else if (s.type === 'pyram') {
-                        const top = { x: s.start.x + w/2, y: s.start.y - h };
-                        ctx.strokeRect(s.start.x, s.start.y, w, 20);
-                        [[s.start.x, s.start.y], [s.start.x+w, s.start.y]].forEach(p => {
-                            ctx.moveTo(top.x, top.y); ctx.lineTo(p[0], p[1]);
-                        });
-                    }
-                    ctx.stroke();
-                }
-                ctx.restore();
+        function drawCube(x, y, size, rot) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot);
+            const s = size / 2;
+            ctx.strokeRect(-s, -s, size, size);
+            ctx.strokeRect(-s+20, -s-20, size, size);
+            [[-s,-s],[s,-s],[s,s],[-s,s]].forEach(p => {
+                ctx.moveTo(p[0], p[1]);
+                ctx.lineTo(p[0]+20, p[1]-20);
             });
+            ctx.stroke();
+            ctx.restore();
         }
 
-        function handleMenuSelection(hands) {
-            if (hands.length === 1 && hands[0].lm[8].y < 0.15) {
-                const mx = (1 - hands[0].lm[8].x) * canvas.width;
-                document.querySelectorAll('.btn').forEach(b => {
-                    const r = b.getBoundingClientRect();
-                    if (mx > r.left && mx < r.right) setMode(b.id.replace('mode-','').replace('btn-',''));
-                });
-            }
-        }
-
-        function drawCyberHand(lm, isPinching) {
-            drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: isPinching ? '#ff4b2b' : '#00ff9f', lineWidth: 2});
-        }
-
-        const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.8 });
-        hands.onResults(onResults);
-        new Camera(video, { onFrame: async () => await hands.send({image: video}), width: 1280, height: 720 }).start();
+        const handsPipe = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        handsPipe.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+        handsPipe.onResults(onResults);
+        
+        const camera = new Camera(video, { onFrame: async () => await handsPipe.send({image: video}), width: 1280, height: 720 });
+        camera.start();
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     </script>
 </body>
 </html>
