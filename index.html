@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS Dual-Cam AR v7.0</title>
+    <title>JARVIS AR UI v6.0</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -12,68 +12,65 @@
         :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
         
-        /* Arka Plan Kamerası (Görsel için) */
-        #bg_video { 
+        /* Kamera Görüntüsü (AR Modu için) */
+        #input_video { 
             position: absolute; width: 100vw; height: 100vh; object-fit: cover;
-            display: none; z-index: 1;
+            display: none; /* Varsayılan kapalı */
+            transform: scaleX(-1);
         }
-        
-        /* Ön Kamera (Sadece El Takibi İçin - Gizli) */
-        #tracking_video { position: absolute; visibility: hidden; pointer-events: none; }
         
         #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); z-index: 5; }
         
+        /* Ultra Küçük Üst Menü */
         #ui-panel {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: space-between; padding: 8px;
-            background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
+            display: flex; justify-content: space-between; padding: 5px;
+            background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(0,255,159,0.2);
         }
 
         .btn-group { display: flex; gap: 4px; }
 
         .btn {
-            background: rgba(0, 40, 20, 0.8); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 6px 10px; font-size: 10px;
-            text-transform: uppercase; border-radius: 4px; transition: 0.2s; font-weight: bold;
+            background: rgba(0, 0, 0, 0.7); border: 1px solid var(--jarvis-green);
+            color: var(--jarvis-green); padding: 5px 8px; font-size: 9px;
+            text-transform: uppercase; border-radius: 3px; backdrop-filter: blur(5px);
+            transition: 0.2s; font-weight: bold;
         }
 
         .btn.hovering { background: rgba(0, 255, 159, 0.4); transform: scale(1.05); }
         .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 10px var(--jarvis-glow); }
         
-        #status { position: absolute; bottom: 10px; right: 10px; color: var(--jarvis-green); font-size: 10px; z-index: 10; font-family: monospace; }
+        #status { position: absolute; bottom: 10px; right: 10px; color: var(--jarvis-green); font-size: 9px; font-family: monospace; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <video id="tracking_video" playsinline></video>
-    <video id="bg_video" playsinline></video>
+    <video id="input_video" playsinline></video>
     <canvas id="output_canvas"></canvas>
 
     <div id="ui-panel">
         <div class="btn-group">
             <div class="btn active" id="mode-draw">Pen</div>
             <div class="btn" id="mode-rect">Box</div>
+            <div class="btn" id="mode-circle">Circ</div>
             <div class="btn" id="mode-tri">Tri</div>
         </div>
         <div class="btn-group">
-            <div class="btn" id="btn-cam" style="border-color: #00e5ff; color: #00e5ff;">CAM: OFF</div>
-            <div class="btn" id="btn-flip" style="display:none; border-color: #ff00ea; color: #ff00ea;">Flip</div>
+            <div class="btn" id="btn-ar" style="border-color: #00e5ff; color: #00e5ff;">AR: OFF</div>
             <div class="btn" id="btn-undo" style="border-color: #ffb800; color: #ffb800;">Undo</div>
             <div class="btn" id="btn-clear" style="border-color: #ff4b2b; color: #ff4b2b;">Clear</div>
         </div>
     </div>
 
-    <div id="status">SYS: DUAL_CAM_ACTIVE</div>
+    <div id="status">JARVIS_V6 // AR_READY</div>
 
     <script>
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
-        const trackingVideo = document.getElementById('tracking_video');
-        const bgVideo = document.getElementById('bg_video');
+        const video = document.getElementById('input_video');
         
         let currentMode = 'draw';
-        let bgActive = false;
-        let useRearCamera = true;
+        let arMode = false;
         let drawings = [];
         let tempShape = null;
         let startPoint = null;
@@ -82,7 +79,7 @@
         
         let lastHoverId = null;
         let hoverStartTime = 0;
-        const HOVER_THRESHOLD = 500;
+        const HOVER_THRESHOLD = 500; 
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -91,50 +88,22 @@
         window.addEventListener('resize', resize);
         resize();
 
-        async function setupBackgroundCamera() {
-            try {
-                const constraints = {
-                    video: { facingMode: useRearCamera ? "environment" : "user" }
-                };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                bgVideo.srcObject = stream;
-                bgVideo.play();
-                bgVideo.style.display = "block";
-                bgVideo.style.transform = useRearCamera ? "scaleX(1)" : "scaleX(-1)";
-            } catch (e) {
-                console.error("Kamera hatası:", e);
-            }
-        }
-
-        function stopBackgroundCamera() {
-            if (bgVideo.srcObject) {
-                bgVideo.srcObject.getTracks().forEach(track => track.stop());
-            }
-            bgVideo.style.display = "none";
-        }
-
         function setMode(mode) {
             if(mode === 'clear') { drawings = []; return; }
             if(mode === 'undo') { drawings.pop(); return; }
-            if(mode === 'cam') {
-                bgActive = !bgActive;
-                if(bgActive) {
-                    setupBackgroundCamera();
-                    document.getElementById('btn-flip').style.display = "block";
-                } else {
-                    stopBackgroundCamera();
-                    document.getElementById('btn-flip').style.display = "none";
-                }
-                document.getElementById('btn-cam').innerText = bgActive ? "CAM: ON" : "CAM: OFF";
-                return;
-            }
-            if(mode === 'flip') {
-                useRearCamera = !useRearCamera;
-                setupBackgroundCamera();
+            if(mode === 'ar') {
+                arMode = !arMode;
+                video.style.display = arMode ? "block" : "none";
+                document.getElementById('btn-ar').innerText = arMode ? "AR: ON" : "AR: OFF";
+                document.getElementById('btn-ar').style.background = arMode ? "#00e5ff" : "transparent";
+                document.getElementById('btn-ar').style.color = arMode ? "#000" : "#00e5ff";
                 return;
             }
             
+            tempShape = null;
+            startPoint = null;
             currentMode = mode;
+            
             document.querySelectorAll('.btn').forEach(b => {
                 if(b.id.startsWith('mode-')) {
                     b.classList.remove('active');
@@ -147,6 +116,9 @@
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // AR modu kapalıysa ızgara çiz (Opsiyonel)
+            if(!arMode) drawGrid();
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
                 const indexTip = lm[8];
@@ -257,7 +229,7 @@
                 ctx.beginPath();
                 ctx.shadowBlur = (shape === grabbedShape) ? 20 : 8;
                 ctx.strokeStyle = (shape === grabbedShape) ? "#ffffff" : shape.color;
-                ctx.lineWidth = (shape === grabbedShape) ? 5 : 3;
+                ctx.lineWidth = (shape === grabbedShape) ? 4 : 2;
                 ctx.shadowColor = shape.color;
 
                 if (shape.type === 'draw') {
@@ -267,6 +239,9 @@
                     });
                 } else if (shape.type === 'rect') {
                     ctx.strokeRect(shape.start.x, shape.start.y, shape.end.x - shape.start.x, shape.end.y - shape.start.y);
+                } else if (shape.type === 'circle') {
+                    const r = Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y);
+                    ctx.arc(shape.start.x, shape.start.y, r, 0, Math.PI * 2);
                 } else if (shape.type === 'tri') {
                     ctx.moveTo(shape.start.x, shape.start.y);
                     ctx.lineTo(shape.end.x, shape.end.y);
@@ -283,19 +258,25 @@
                 const isTip = [4, 8, 12, 16, 20].includes(i);
                 ctx.fillStyle = isTip ? (isGrabbing ? '#ff4b2b' : '#00ff9f') : '#ffffff';
                 ctx.beginPath();
-                ctx.arc(p.x * canvas.width, p.y * canvas.height, isTip ? 5 : 2, 0, Math.PI * 2);
+                ctx.arc(p.x * canvas.width, p.y * canvas.height, isTip ? 5 : 1.5, 0, Math.PI * 2);
                 ctx.fill();
             });
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(0, 255, 159, 0.05)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
         }
 
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.8 });
         hands.onResults(onResults);
 
-        // Takip Kamerası (Ön Kamera - El için)
-        const camera = new Camera(trackingVideo, {
-            onFrame: async () => { await hands.send({image: trackingVideo}); },
-            width: 1280, height: 720, facingMode: "user"
+        const camera = new Camera(video, {
+            onFrame: async () => { await hands.send({image: video}); },
+            width: 1280, height: 720
         });
         camera.start();
     </script>
