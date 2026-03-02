@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS 3D Render Engine v7.0 - Stabilized</title>
+    <title>JARVIS 3D Engine v8.0 - Physics & Dual Hand</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
@@ -16,19 +16,18 @@
         
         #ui-panel {
             position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-            display: flex; justify-content: space-between; padding: 6px;
-            background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--jarvis-green);
+            display: flex; justify-content: space-between; padding: 10px;
+            background: rgba(0,0,0,0.75); border-bottom: 2px solid var(--jarvis-green);
         }
 
-        .btn-group { display: flex; gap: 3px; }
+        .btn-group { display: flex; gap: 5px; }
         .btn {
             background: rgba(0, 0, 0, 0.8); border: 1px solid var(--jarvis-green);
-            color: var(--jarvis-green); padding: 5px 8px; font-size: 9px;
-            text-transform: uppercase; border-radius: 3px; font-weight: bold; transition: 0.2s;
+            color: var(--jarvis-green); padding: 8px 12px; font-size: 11px;
+            text-transform: uppercase; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s;
         }
-        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 12px var(--jarvis-glow); }
-        .btn.gen-mode { border-color: #ff00ff; color: #ff00ff; }
-        .btn.gen-active { background: #ff00ff; color: #fff; box-shadow: 0 0 15px #ff00ff; }
+        .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 15px var(--jarvis-glow); }
+        .physics-active { border-color: #ffde00; color: #ffde00; }
     </style>
 </head>
 <body>
@@ -40,11 +39,11 @@
         <div class="btn-group">
             <div class="btn active" id="mode-draw">Pen</div>
             <div class="btn" id="mode-cube">Cube</div>
+            <div class="btn" id="mode-sphere">Sphere</div>
             <div class="btn" id="mode-pyram">Pyra</div>
-            <div class="btn" id="mode-cyl">Cylin</div>
         </div>
         <div class="btn-group">
-            <div class="btn gen-mode" id="btn-gen">GEN</div>
+            <div class="btn" id="btn-physics">Gravity: ON</div>
             <div class="btn" id="btn-ar">AR</div>
             <div class="btn" id="btn-undo">Undo</div>
             <div class="btn" id="btn-clear">Clear</div>
@@ -56,16 +55,13 @@
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
         
-        let currentMode = 'draw', arMode = false, genMode = false;
+        let currentMode = 'draw', arMode = false, physicsEnabled = true;
         let drawings = [], tempShape = null, startPoint = null;
-        let grabbedShape = null, lastGrabPoint = null;
-        let lastHoverId = null, hoverStartTime = 0;
+        let grabbedShapes = [null, null]; // İki el için ayrı tutma kontrolü
 
-        // --- STABİLİZASYON DEĞİŞKENLERİ ---
-        let smoothX = 0, smoothY = 0;
-        let smoothTX = 0, smoothTY = 0;
-        const lerpAmount = 0.35; // 0 ile 1 arası. Düşük değer = Daha stabil ama hafif gecikmeli.
-        // ---------------------------------
+        const GRAVITY = 0.5;
+        const BOUNCE = 0.7;
+        const FLOOR_Y = window.innerHeight - 20;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize);
@@ -75,12 +71,12 @@
             if(mode === 'clear') { drawings = []; return; }
             if(mode === 'undo') { drawings.pop(); return; }
             if(mode === 'ar') { arMode = !arMode; video.style.display = arMode ? "block" : "none"; return; }
-            if(mode === 'gen') { 
-                genMode = !genMode; 
-                document.getElementById('btn-gen').classList.toggle('gen-active', genMode);
-                return; 
+            if(mode === 'physics') { 
+                physicsEnabled = !physicsEnabled; 
+                document.getElementById('btn-physics').textContent = `Gravity: ${physicsEnabled ? 'ON' : 'OFF'}`;
+                return;
             }
-            tempShape = null; startPoint = null; currentMode = mode;
+            currentMode = mode;
             document.querySelectorAll('.btn').forEach(b => {
                 if(b.id.startsWith('mode-')) b.classList.toggle('active', b.id === 'mode-' + mode);
             });
@@ -90,72 +86,98 @@
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Elden gelen güven skoru kontrolü (Çok düşükse işlem yapma)
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const lm = results.multiHandLandmarks[0];
-                
-                // Koordinatları yumuşat (Exponential Smoothing)
-                const rawX = lm[8].x * canvas.width;
-                const rawY = lm[8].y * canvas.height;
-                const rawTX = lm[4].x * canvas.width;
-                const rawTY = lm[4].y * canvas.height;
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach((lm, index) => {
+                    const x = lm[8].x * canvas.width;
+                    const y = lm[8].y * canvas.height;
+                    const tx = lm[4].x * canvas.width;
+                    const ty = lm[4].y * canvas.height;
 
-                smoothX += (rawX - smoothX) * lerpAmount;
-                smoothY += (rawY - smoothY) * lerpAmount;
-                smoothTX += (rawTX - smoothTX) * lerpAmount;
-                smoothTY += (rawTY - smoothTY) * lerpAmount;
+                    const isPinching = Math.hypot(x - tx, y - ty) < 45;
 
-                const x = smoothX, y = smoothY;
-                const tx = smoothTX, ty = smoothTY;
-
-                handleMenuHover(lm[8]);
-
-                const isPinching = Math.hypot(x - tx, y - ty) < 40;
-
-                if (isPinching) {
-                    if (!grabbedShape) {
-                        for (let i = drawings.length - 1; i >= 0; i--) {
-                            if (checkHit(x, y, drawings[i])) { grabbedShape = drawings[i]; lastGrabPoint = {x, y}; break; }
-                        }
-                    } else {
-                        const dx = x - lastGrabPoint.x, dy = y - lastGrabPoint.y;
-                        if (grabbedShape.type === 'draw') grabbedShape.points.forEach(p => { p.x += dx; p.y += dy; });
-                        else { grabbedShape.start.x += dx; grabbedShape.start.y += dy; grabbedShape.end.x += dx; grabbedShape.end.y += dy; }
-                        lastGrabPoint = {x, y};
-                    }
-                } else {
-                    grabbedShape = null;
-                    // İşaret parmağı havada mı? (Çizim kontrolü)
-                    if (lm[8].y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
-                        if (currentMode === 'draw') {
-                            if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f' }; drawings.push(tempShape); }
-                            // Sadece mesafe katedildiyse nokta ekle (gereksiz noktaları siler)
-                            const lastP = tempShape.points[tempShape.points.length-1];
-                            if(!lastP || Math.hypot(lastP.x - x, lastP.y - y) > 3) {
-                                tempShape.points.push({ x, y });
+                    if (isPinching) {
+                        if (!grabbedShapes[index]) {
+                            for (let i = drawings.length - 1; i >= 0; i--) {
+                                if (checkHit(x, y, drawings[i])) { 
+                                    grabbedShapes[index] = drawings[i]; 
+                                    grabbedShapes[index].isPhysicsPaused = true;
+                                    break; 
+                                }
                             }
                         } else {
-                            if (!startPoint) startPoint = { x, y };
-                            tempShape = { type: currentMode, start: {...startPoint}, end: { x, y }, color: '#00ff9f' };
+                            // Blender tarzı taşıma
+                            const s = grabbedShapes[index];
+                            const dx = x - (s.start?.x || s.points?.[0].x);
+                            const dy = y - (s.start?.y || s.points?.[0].y);
+                            
+                            if (s.type === 'draw') {
+                                s.points.forEach(p => { p.x += dx * 0.1; p.y += dy * 0.1; });
+                            } else {
+                                s.start.x = x; s.start.y = y;
+                                s.vx = 0; s.vy = 0; // Tutarken hızı sıfırla
+                            }
                         }
                     } else {
-                        if (tempShape && currentMode !== 'draw') drawings.push(tempShape);
-                        tempShape = null; startPoint = null;
+                        if(grabbedShapes[index]) grabbedShapes[index].isPhysicsPaused = false;
+                        grabbedShapes[index] = null;
+
+                        // Tek el çizim modu (İşaret parmağı yukarıda, orta parmak kapalı)
+                        if (lm[8].y < lm[6].y && lm[12].y > lm[10].y) {
+                            if (currentMode === 'draw') {
+                                if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f', vx:0, vy:0 }; drawings.push(tempShape); }
+                                tempShape.points.push({ x, y });
+                            } else {
+                                if (!startPoint) startPoint = { x, y };
+                                tempShape = { 
+                                    type: currentMode, 
+                                    start: {x, y}, 
+                                    w: 60, h: 60, 
+                                    color: '#00ff9f',
+                                    vx: 0, vy: 0,
+                                    isPhysicsPaused: false 
+                                };
+                            }
+                        } else {
+                            if (tempShape) {
+                                if(currentMode !== 'draw') drawings.push(tempShape);
+                                tempShape = null; startPoint = null;
+                            }
+                        }
                     }
-                }
-                drawCyberHand(lm, isPinching);
-            } else {
-                // El kaybolduğunda geçici objeyi temizle ki "ışınlanma" olmasın
-                tempShape = null; startPoint = null;
+                    drawCyberHand(lm, isPinching);
+                });
             }
+
+            updatePhysics();
             renderDrawings();
             ctx.restore();
         }
 
+        function updatePhysics() {
+            if (!physicsEnabled) return;
+
+            drawings.forEach(s => {
+                if (s.isPhysicsPaused || s.type === 'draw') return;
+
+                s.vy += GRAVITY;
+                s.start.y += s.vy;
+                s.start.x += s.vx;
+
+                // Yerle temas kontrolü (Sektirme)
+                let bottom = s.type === 'sphere' ? s.start.y + s.w/2 : s.start.y + s.h;
+                if (bottom > FLOOR_Y) {
+                    s.start.y = s.type === 'sphere' ? FLOOR_Y - s.w/2 : FLOOR_Y - s.h;
+                    s.vy *= -BOUNCE;
+                    // Sürtünme
+                    s.vx *= 0.95;
+                }
+            });
+        }
+
         function checkHit(x, y, s) {
-            const m = 60;
-            if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < m);
-            return x > Math.min(s.start.x, s.end.x)-m && x < Math.max(s.start.x, s.end.x)+m && y > Math.min(s.start.y, s.end.y)-m && y < Math.max(s.start.y, s.end.y)+m;
+            if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < 30);
+            if (s.type === 'sphere') return Math.hypot(s.start.x - x, s.start.y - y) < s.w;
+            return x > s.start.x - 20 && x < s.start.x + s.w + 20 && y > s.start.y - 20 && y < s.start.y + s.h + 20;
         }
 
         function drawFace(pts, color) {
@@ -165,60 +187,55 @@
             ctx.closePath();
             ctx.fillStyle = color;
             ctx.fill();
-            if(!genMode) { ctx.strokeStyle = "rgba(0, 255, 159, 0.5)"; ctx.stroke(); }
+            ctx.strokeStyle = "rgba(0, 255, 159, 0.3)";
+            ctx.stroke();
         }
 
         function renderDrawings() {
             [...drawings, tempShape].forEach(s => {
                 if (!s) return;
-                const w = (s.end?.x - s.start?.x) || 0, h = (s.end?.y - s.start?.y) || 0;
-                const d = 30;
+                const {x, y} = s.start || {x:0, y:0};
+                const w = s.w || 60, h = s.h || 60;
 
                 if (s.type === 'draw') {
                     ctx.beginPath();
-                    ctx.strokeStyle = s.color; ctx.lineWidth = 2;
+                    ctx.strokeStyle = s.color; ctx.lineWidth = 3;
                     s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
                     ctx.stroke();
                 } else if (s.type === 'cube') {
-                    const base = s.start, end = s.end;
-                    drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], genMode ? "#222" : "rgba(50,50,50,0.5)"); 
-                    drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], genMode ? "#444" : "rgba(80,80,80,0.5)"); 
-                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], genMode ? "#666" : "rgba(120,120,120,0.5)"); 
-                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w, y:base.y+h}, {x:base.x, y:base.y+h}], genMode ? "#888" : "rgba(150,150,150,0.5)"); 
+                    const d = 20;
+                    drawFace([{x:x, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x, y:y+h}], "rgba(0, 255, 159, 0.4)");
+                    drawFace([{x:x, y:y}, {x:x+d, y:y-d}, {x:x+w+d, y:y-d}, {x:x+w, y:y}], "rgba(0, 200, 130, 0.6)");
+                } else if (s.type === 'sphere') {
+                    let grad = ctx.createRadialGradient(x-10, y-10, 5, x, y, w/2);
+                    grad.addColorStop(0, '#00ff9f');
+                    grad.addColorStop(1, '#004422');
+                    ctx.beginPath(); ctx.arc(x, y, w/2, 0, Math.PI*2);
+                    ctx.fillStyle = grad; ctx.fill();
                 } else if (s.type === 'pyram') {
-                    const top = { x: s.start.x + w/2, y: s.start.y - h };
-                    drawFace([{x:s.start.x, y:s.start.y}, {x:s.start.x+w, y:s.start.y}, {x:s.start.x+w+20, y:s.start.y-20}, {x:s.start.x+20, y:s.start.y-20}], "#333");
-                    drawFace([{x:s.start.x, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w, y:s.start.y}], "#777");
-                    drawFace([{x:s.start.x+w, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w+20, y:s.start.y-20}], "#555");
-                } else if (s.type === 'cyl') {
-                    const r = Math.abs(w/2);
-                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#444"; ctx.fill();
-                    ctx.fillStyle = genMode ? "#666" : "rgba(100,100,100,0.5)";
-                    ctx.fillRect(s.start.x, s.start.y-h, r*2, h);
-                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y-h, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#999"; ctx.fill();
+                    const top = { x: x + w/2, y: y - h };
+                    drawFace([{x:x, y:y}, {x:x+w, y:y}, {x:top.x, y:top.y}], "rgba(0, 255, 159, 0.5)");
                 }
             });
         }
 
-        function handleMenuHover(index) {
-            const mx = (1 - index.x) * canvas.width, my = index.y * canvas.height;
-            let h = null;
-            document.querySelectorAll('.btn').forEach(b => {
-                const r = b.getBoundingClientRect();
-                if (mx > r.left && mx < r.right && my > r.top && my < r.bottom) h = b;
-            });
-            if (h) {
-                if (lastHoverId === h.id) { if (Date.now() - hoverStartTime > 500) { setMode(h.id.replace('mode-','').replace('btn-','')); hoverStartTime = Date.now() + 1500; } h.classList.add('hovering'); }
-                else { lastHoverId = h.id; hoverStartTime = Date.now(); }
-            } else { document.querySelectorAll('.btn').forEach(b => b.classList.remove('hovering')); lastHoverId = null; }
-        }
-
         function drawCyberHand(lm, isPinching) {
             drawConnectors(ctx, lm, HAND_CONNECTIONS, {color: isPinching ? '#ff4b2b' : '#00ff9f', lineWidth: 2});
+            drawLandmarks(ctx, lm, {color: '#ffffff', lineWidth: 1, radius: 2});
         }
 
+        // Event Listeners for UI
+        document.getElementById('mode-draw').onclick = () => setMode('draw');
+        document.getElementById('mode-cube').onclick = () => setMode('cube');
+        document.getElementById('mode-sphere').onclick = () => setMode('sphere');
+        document.getElementById('mode-pyram').onclick = () => setMode('pyram');
+        document.getElementById('btn-physics').onclick = () => setMode('physics');
+        document.getElementById('btn-ar').onclick = () => setMode('ar');
+        document.getElementById('btn-undo').onclick = () => setMode('undo');
+        document.getElementById('btn-clear').onclick = () => setMode('clear');
+
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.8 });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
         hands.onResults(onResults);
         new Camera(video, { onFrame: async () => await hands.send({image: video}), width: 1280, height: 720 }).start();
     </script>
