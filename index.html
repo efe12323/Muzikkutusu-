@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS 3D Render Engine v7.5 - Hologram Upgrade</title>
+    <title>JARVIS 3D Render Engine v7.0 - Stabilized</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
     
     <style>
-        :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; --pinch-color: #ff3e3e; --holo-cyan: #00e5ff; }
+        :root { --jarvis-green: #00ff9f; --jarvis-glow: #00ff41; --dark-bg: #050a05; --pinch-color: #ff3e3e; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--dark-bg); font-family: 'Segoe UI', sans-serif; }
         #input_video { position: absolute; width: 100vw; height: 100vh; object-fit: cover; display: none; transform: scaleX(-1); }
         #output_canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform: scaleX(-1); z-index: 5; }
@@ -27,8 +27,8 @@
             text-transform: uppercase; border-radius: 3px; font-weight: bold; transition: 0.2s; cursor: pointer;
         }
         .btn.active { background: var(--jarvis-green); color: #000; box-shadow: 0 0 12px var(--jarvis-glow); }
-        .btn.holo-btn { border-color: var(--holo-cyan); color: var(--holo-cyan); }
-        .btn.holo-active { background: var(--holo-cyan); color: #000; box-shadow: 0 0 15px var(--holo-cyan); }
+        .btn.gen-mode { border-color: #ff00ff; color: #ff00ff; }
+        .btn.gen-active { background: #ff00ff; color: #fff; box-shadow: 0 0 15px #ff00ff; }
     </style>
 </head>
 <body>
@@ -41,9 +41,10 @@
             <div class="btn active" id="mode-draw">Pen</div>
             <div class="btn" id="mode-cube">Cube</div>
             <div class="btn" id="mode-pyram">Pyra</div>
+            <div class="btn" id="mode-cyl">Cylin</div>
         </div>
         <div class="btn-group">
-            <div class="btn holo-btn" id="btn-holo">HOLO</div>
+            <div class="btn gen-mode" id="btn-gen">GEN</div>
             <div class="btn" id="btn-ar">AR</div>
             <div class="btn" id="btn-undo">Undo</div>
             <div class="btn" id="btn-clear">Clear</div>
@@ -55,7 +56,7 @@
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('input_video');
         
-        let currentMode = 'draw', arMode = false, holoMode = false;
+        let currentMode = 'draw', arMode = false, genMode = false;
         let drawings = [], tempShape = null, startPoint = null;
         let grabbedShape = null, lastGrabPoint = null;
         let lastHoverId = null, hoverStartTime = 0;
@@ -72,9 +73,9 @@
             if(mode === 'clear') { drawings = []; return; }
             if(mode === 'undo') { drawings.pop(); return; }
             if(mode === 'ar') { arMode = !arMode; video.style.display = arMode ? "block" : "none"; return; }
-            if(mode === 'holo') { 
-                holoMode = !holoMode; 
-                document.getElementById('btn-holo').classList.toggle('holo-active', holoMode);
+            if(mode === 'gen') { 
+                genMode = !genMode; 
+                document.getElementById('btn-gen').classList.toggle('gen-active', genMode);
                 return; 
             }
             tempShape = null; startPoint = null; currentMode = mode;
@@ -83,41 +84,13 @@
             });
         }
 
-        // --- Hologram Görüntüleyici Fonksiyonu ---
-        function renderHologram() {
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const sizeLimit = Math.min(canvas.width, canvas.height) * 0.25;
-
-            for (let i = 0; i < 4; i++) {
-                ctx.save();
-                ctx.translate(centerX, centerY);
-                ctx.rotate((Math.PI / 2) * i);
-                
-                // Görüntüyü merkezin etrafına dağıtıyoruz
-                ctx.translate(0, -sizeLimit - 20);
-                
-                // Küçük yansımalar için ölçeklendirme
-                ctx.scale(0.35, 0.35);
-                ctx.translate(-centerX, -centerY);
-                
-                actualDraw(); // Asıl çizim fonksiyonu
-                ctx.restore();
-            }
-            
-            // Merkeze piramit hizalama noktası
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(0, 255, 255, 0.5)";
-            ctx.fill();
-        }
-
         function onResults(results) {
             ctx.save();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const lm = results.multiHandLandmarks[0];
+                
                 const rawX = lm[8].x * canvas.width;
                 const rawY = lm[8].y * canvas.height;
                 const rawTX = lm[4].x * canvas.width;
@@ -132,6 +105,7 @@
                 const tx = smoothTX, ty = smoothTY;
 
                 handleMenuHover(lm[8]);
+
                 const isPinching = Math.hypot(x - tx, y - ty) < 45;
 
                 if (isPinching) {
@@ -147,10 +121,13 @@
                     }
                 } else {
                     grabbedShape = null;
-                    if (lm[8].y < lm[6].y && lm[12].y > lm[10].y) {
+                    if (lm[8].y < lm[6].y && lm[12].y > lm[10].y && !isPinching) {
                         if (currentMode === 'draw') {
                             if (!tempShape) { tempShape = { type: 'draw', points: [], color: '#00ff9f' }; drawings.push(tempShape); }
-                            tempShape.points.push({ x, y });
+                            const lastP = tempShape.points[tempShape.points.length-1];
+                            if(!lastP || Math.hypot(lastP.x - x, lastP.y - y) > 3) {
+                                tempShape.points.push({ x, y });
+                            }
                         } else {
                             if (!startPoint) startPoint = { x, y };
                             tempShape = { type: currentMode, start: {...startPoint}, end: { x, y }, color: '#00ff9f' };
@@ -160,56 +137,109 @@
                         tempShape = null; startPoint = null;
                     }
                 }
-                if(!holoMode) drawCyberHand(lm, isPinching);
+                drawCyberHand(lm, isPinching);
+            } else {
+                tempShape = null; startPoint = null;
             }
-
-            if (holoMode) renderHologram();
-            else actualDraw();
-
+            renderDrawings();
             ctx.restore();
-        }
-
-        // Orijinal çizim mantığını bozmamak için dışarı aldık
-        function actualDraw() {
-            [...drawings, tempShape].forEach(s => {
-                if (!s) return;
-                const w = (s.end?.x - s.start?.x) || 0, h = (s.end?.y - s.start?.y) || 0;
-                ctx.strokeStyle = s.color; ctx.lineWidth = 3;
-
-                if (s.type === 'draw') {
-                    ctx.beginPath();
-                    s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-                    ctx.stroke();
-                } else if (s.type === 'cube') {
-                    ctx.strokeRect(s.start.x, s.start.y, w, h);
-                    ctx.strokeRect(s.start.x+15, s.start.y-15, w, h);
-                } else if (s.type === 'pyram') {
-                    ctx.beginPath();
-                    ctx.moveTo(s.start.x, s.start.y); ctx.lineTo(s.end.x, s.start.y);
-                    ctx.lineTo(s.start.x + w/2, s.end.y); ctx.closePath();
-                    ctx.stroke();
-                }
-            });
         }
 
         function drawCyberHand(lm, isPinching) {
             const mainColor = isPinching ? '#ff3e3e' : '#00ff9f';
+            const glowColor = isPinching ? 'rgba(255, 62, 62, 0.5)' : 'rgba(0, 255, 159, 0.5)';
+
+            // 1. Parmakları Bağlayan Hatlar (Fütüristik Neon Çizgiler)
             HAND_CONNECTIONS.forEach(([a, b]) => {
                 ctx.beginPath();
                 ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
                 ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
-                ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.stroke();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = glowColor;
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
             });
-            lm.forEach((p, i) => {
-                ctx.beginPath(); ctx.arc(p.x * canvas.width, p.y * canvas.height, i==8||i==4?6:3, 0, Math.PI*2);
-                ctx.fillStyle = mainColor; ctx.fill();
+
+            // 2. Eklemler (Holografik Daireler)
+            lm.forEach((point, i) => {
+                const px = point.x * canvas.width;
+                const py = point.y * canvas.height;
+                
+                // Eklem parlaması
+                ctx.beginPath();
+                ctx.arc(px, py, i === 8 || i === 4 ? 6 : 3, 0, Math.PI * 2);
+                ctx.fillStyle = mainColor;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = mainColor;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Dış halka
+                ctx.beginPath();
+                ctx.arc(px, py, i === 8 || i === 4 ? 10 : 5, 0, Math.PI * 2);
+                ctx.strokeStyle = glowColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
             });
+
+            // 3. Parmak Ucu Hedefi (Sadece işaret parmağında)
+            const indexTip = lm[8];
+            ctx.beginPath();
+            ctx.arc(indexTip.x * canvas.width, indexTip.y * canvas.height, 15, 0, Math.PI * 2);
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = mainColor;
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
 
         function checkHit(x, y, s) {
             const m = 60;
             if (s.type === 'draw') return s.points.some(p => Math.hypot(p.x - x, p.y - y) < m);
             return x > Math.min(s.start.x, s.end.x)-m && x < Math.max(s.start.x, s.end.x)+m && y > Math.min(s.start.y, s.end.y)-m && y < Math.max(s.start.y, s.end.y)+m;
+        }
+
+        function drawFace(pts, color) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            pts.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            if(!genMode) { ctx.strokeStyle = "rgba(0, 255, 159, 0.5)"; ctx.stroke(); }
+        }
+
+        function renderDrawings() {
+            [...drawings, tempShape].forEach(s => {
+                if (!s) return;
+                const w = (s.end?.x - s.start?.x) || 0, h = (s.end?.y - s.start?.y) || 0;
+                const d = 30;
+
+                if (s.type === 'draw') {
+                    ctx.beginPath();
+                    ctx.strokeStyle = s.color; ctx.lineWidth = 3;
+                    s.points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+                    ctx.stroke();
+                } else if (s.type === 'cube') {
+                    const base = s.start;
+                    drawFace([{x:base.x+d, y:base.y-d}, {x:base.x+w+d, y:base.y-d}, {x:base.x+w+d, y:base.y+h-d}, {x:base.x+d, y:base.y+h-d}], genMode ? "#222" : "rgba(50,50,50,0.5)"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+d, y:base.y-d}, {x:base.x+d, y:base.y+h-d}, {x:base.x, y:base.y+h}], genMode ? "#444" : "rgba(80,80,80,0.5)"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w+d, y:base.y-d}, {x:base.x+d, y:base.y-d}], genMode ? "#666" : "rgba(120,120,120,0.5)"); 
+                    drawFace([{x:base.x, y:base.y}, {x:base.x+w, y:base.y}, {x:base.x+w, y:base.y+h}, {x:base.x, y:base.y+h}], genMode ? "#888" : "rgba(150,150,150,0.5)"); 
+                } else if (s.type === 'pyram') {
+                    const top = { x: s.start.x + w/2, y: s.start.y - h };
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:s.start.x+w, y:s.start.y}, {x:s.start.x+w+20, y:s.start.y-20}, {x:s.start.x+20, y:s.start.y-20}], "#333");
+                    drawFace([{x:s.start.x, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w, y:s.start.y}], "#777");
+                    drawFace([{x:s.start.x+w, y:s.start.y}, {x:top.x, y:top.y}, {x:s.start.x+w+20, y:s.start.y-20}], "#555");
+                } else if (s.type === 'cyl') {
+                    const r = Math.abs(w/2);
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#444"; ctx.fill();
+                    ctx.fillStyle = genMode ? "#666" : "rgba(100,100,100,0.5)";
+                    ctx.fillRect(s.start.x, s.start.y-h, r*2, h);
+                    ctx.beginPath(); ctx.ellipse(s.start.x+r, s.start.y-h, r, 10, 0, 0, Math.PI*2); ctx.fillStyle="#999"; ctx.fill();
+                }
+            });
         }
 
         function handleMenuHover(index) {
@@ -229,6 +259,7 @@
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.8, minTrackingConfidence: 0.8 });
         hands.onResults(onResults);
         new Camera(video, { onFrame: async () => await hands.send({image: video}), width: 1280, height: 720 }).start();
+        
         document.querySelectorAll('.btn').forEach(b => b.onclick = () => setMode(b.id.replace('mode-','').replace('btn-','')));
     </script>
 </body>
