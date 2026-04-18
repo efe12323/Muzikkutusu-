@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gerçekçi Sahte WhatsApp Grup Sohbeti</title>
+  <style>
+    :root {
+      --header-bg: #f0f0f0;
+      --header-text: #111111;
+      --bg-chat-light: #efeae2;
+      --bg-chat-dark: #111b21;
+      --sent-light: #d9fdd3;
+      --sent-dark: #005e54;
+      --received-light: #ffffff;
+      --received-dark: #202c33;
+      --text-light: #111b21;
+      --text-dark: #e9edef;
+      --time-light: #667781;
+      --time-dark: #8696a0;
+      --tick-read: #53bdeb;
+    }
+
+    body.light {
+      --bg: var(--bg-chat-light);
+      --sent: var(--sent-light);
+      --received: var(--received-light);
+      --text: var(--text-light);
+      --time: var(--time-light);
+    }
+
+    body.dark {
+      --bg: var(--bg-chat-dark);
+      --sent: var(--sent-dark);
+      --received: var(--received-dark);
+      --text: var(--text-dark);
+      --time: var(--time-dark);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      height: 59px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    body.dark .header {
+      background: #1f2c34;
+      color: #e9edef;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .header .back { font-size: 28px; font-weight: 300; }
+    .header .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #ddd;
+      object-fit: cover;
+    }
+    .header .info { flex: 1; }
+    .header h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .header .status {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 1px;
+    }
+    .header .actions { font-size: 24px; }
+
+    .chat-container {
+      background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') repeat;
+      background-size: 100% auto;
+      min-height: calc(100vh - 59px);
+      padding: 10px 8px 20px;
+    }
+
+    body.dark .chat-container {
+      background: #0b141a url('https://i.imgur.com/8Z6Z6Z6.png') repeat;
+      background-size: 100% auto;
+    }
+
+    .msg {
+      max-width: 75%;
+      margin: 4px 0 12px;
+      padding: 6px 9px 4px;
+      border-radius: 7.5px;
+      position: relative;
+      font-size: 15.1px;
+      background: var(--received);
+      box-shadow: 0 1px .5px rgba(0,0,0,.13);
+    }
+
+    .msg.sent {
+      background: var(--sent);
+      margin-left: auto;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg.received {
+      margin-right: auto;
+      border-bottom-left-radius: 2px;
+    }
+
+    .msg.sent::after,
+    .msg.received::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      width: 0;
+      height: 0;
+      border: 6px solid transparent;
+    }
+
+    .msg.sent::after {
+      right: -6px;
+      border-left-color: var(--sent);
+      border-right: 0;
+    }
+
+    .msg.received::after {
+      left: -6px;
+      border-right-color: var(--received);
+      border-left: 0;
+    }
+
+    body.dark .msg.sent::after { border-left-color: var(--sent); }
+    body.dark .msg.received::after { border-right-color: var(--received); }
+
+    /* Grup için gönderen ismi */
+    .sender-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00a884;
+      margin-bottom: 2px;
+      display: block;
+    }
+
+    body.dark .sender-name {
+      color: #00d4aa;
+    }
+
+    .meta {
+      font-size: 11px;
+      color: var(--time);
+      text-align: right;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+    }
+
+    .tick { font-size: 14px; line-height: 1; }
+    .tick-sent, .tick-delivered { color: var(--time); }
+    .tick-read { color: var(--tick-read); }
+
+    .delete-btn {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: #ff3b30;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 11px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .msg:hover .delete-btn { display: block; }
+
+    .controls {
+      background: rgba(0,0,0,0.03);
+      padding: 10px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    body.dark .controls { background: rgba(255,255,255,0.03); }
+
+    .controls input, .controls select, .controls button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .controls input[type="text"] { flex: 1; min-width: 120px; }
+    .controls button { background: #00a884; color: white; cursor: pointer; }
+    .controls .clear { background: #ff3b30; }
+
+    @media print {
+      .controls { display: none !important; }
+      body { background: white; }
+    }
+  </style>
+</head>
+<body class="light">
+
+<div class="controls">
+  <input type="text" id="groupName" placeholder="Grup İsmi" value="Aile Doktorları Grubu">
+  <input type="text" id="groupPp" placeholder="Grup Profil Resim URL">
+  
+  <input type="text" id="senderName" placeholder="Gönderen İsmi" value="Doktor Murat">
+  <select id="who">
+    <option value="received">Grup Üyesi</option>
+    <option value="sent">Sen (Ben)</option>
+  </select>
+  <select id="tick">
+    <option value="">Sadece saat</option>
+    <option value="sent">✓ gri</option>
+    <option value="delivered">✓✓ gri</option>
+    <option value="read">✓✓ mavi</option>
+  </select>
+  <button onclick="addMsg()">Mesaj Ekle</button>
+  <button class="clear" onclick="document.getElementById('chat').innerHTML='';">Temizle</button>
+  <button onclick="document.body.classList.toggle('dark'); document.body.classList.toggle('light');">Koyu / Açık</button>
+</div>
+
+<div class="header">
+  <div class="back">←</div>
+  <img id="avatar" class="avatar" src="https://via.placeholder.com/80/25D366/fff?text=👥" alt="">
+  <div class="info">
+    <h3 id="chatName">Aile Doktorları Grubu</h3>
+    <div class="status">128 üye • 47 çevrimiçi</div>
+  </div>
+  <div class="actions">⋯</div>
+</div>
+
+<div class="chat-container" id="chat"></div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const groupNameEl = document.getElementById('groupName');
+  const groupPpEl = document.getElementById('groupPp');
+
+  // Grup ismi ve profil resmi güncelleme
+  groupNameEl.oninput = groupPpEl.oninput = () => {
+    document.getElementById('chatName').textContent = groupNameEl.value.trim() || 'Grup Sohbeti';
+    const ppUrl = groupPpEl.value.trim();
+    document.getElementById('avatar').src = ppUrl || 'https://via.placeholder.com/80/25D366/fff?text=👥';
+  };
+
+  function addMsg() {
+    const txt = prompt('Mesajı yaz:')?.trim();
+    if (!txt) return;
+
+    const who = document.getElementById('who').value;
+    const tickVal = document.getElementById('tick').value;
+    const senderName = document.getElementById('senderName').value.trim() || 'Kişi';
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+
+    const m = document.createElement('div');
+
+    if (who === "sent") {
+      // Kendi mesajın (sağda, yeşil)
+      m.className = `msg sent`;
+      m.innerHTML = `
+        ${txt.replace(/\n/g, '<br>')}
+        <div class="meta">
+          ${time} 
+          ${tickVal === 'sent' ? '<span class="tick tick-sent">✓</span>' : ''}
+          ${tickVal === 'delivered' ? '<span class="tick tick-delivered">✓✓</span>' : ''}
+          ${tickVal === 'read' ? '<span class="tick tick-read">✓✓</span>' : ''}
+        </div>
+      `;
+    } else {
+      // Grup üyesi mesajı (solda + isim)
+      m.className = `msg received`;
+      m.innerHTML = `
+        <span class="sender-name">${senderName}</span>
+        ${txt.replace(/\n/g, '<br>')}
+        <div class="meta">
+          ${time}
+        </div>
+      `;
+    }
+
+    const del = document.createElement('button');
+    del.className = 'delete-btn';
+    del.textContent = '×';
+    del.onclick = () => m.remove();
+
+    m.appendChild(del);
+    chat.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // Sayfa yüklendiğinde ilk değerleri uygula
+  groupNameEl.dispatchEvent(new Event('input'));
+</script>
+</body>
+</html>
