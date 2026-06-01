@@ -2,100 +2,104 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quantum Pixel Field</title>
+<title>Quantum Collapse Image Field</title>
 
 <style>
 body{
     margin:0;
     background:#000;
     display:flex;
-    justify-content:center;
+    flex-direction:column;
     align-items:center;
+    justify-content:center;
     height:100vh;
-    overflow:hidden;
+    color:white;
+    font-family:Arial;
 }
 
 canvas{
     border:1px solid #333;
-    image-rendering:pixelated;
-    width:800px;
-    height:800px;
+    image-rendering: pixelated;
+    width:600px;
+    height:600px;
+}
+
+button{
+    margin-top:15px;
+    padding:10px 20px;
+    font-size:16px;
+    cursor:pointer;
 }
 </style>
-
 </head>
 <body>
 
-<canvas id="canvas" width="200" height="200"></canvas>
+<canvas id="c" width="400" height="400"></canvas>
+<button onclick="start()">Sistemi Başlat (Kuantum Çöküş)</button>
 
 <script>
 
-const canvas = document.getElementById("canvas");
+const W = 400;
+const H = 400;
+
+const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 
-const WIDTH = 200;
-const HEIGHT = 200;
-
 let field = [];
+let running = false;
 
-// Başlangıç alanı
-for(let y=0; y<HEIGHT; y++){
-
-    field[y] = [];
-
-    for(let x=0; x<WIDTH; x++){
-
-        field[y][x] = Math.random();
-
+// başlangıç gürültüsü
+function init(){
+    field = [];
+    for(let y=0;y<H;y++){
+        field[y] = [];
+        for(let x=0;x<W;x++){
+            field[y][x] = Math.random();
+        }
     }
 }
 
-// Piksel evrimi
-function evolve(){
+function step(){
 
     let next = [];
 
-    for(let y=0; y<HEIGHT; y++){
-
+    for(let y=0;y<H;y++){
         next[y] = [];
 
-        for(let x=0; x<WIDTH; x++){
+        for(let x=0;x<W;x++){
 
             let sum = 0;
             let count = 0;
 
-            for(let dy=-1; dy<=1; dy++){
-
-                for(let dx=-1; dx<=1; dx++){
+            for(let dy=-1;dy<=1;dy++){
+                for(let dx=-1;dx<=1;dx++){
 
                     let nx = x + dx;
                     let ny = y + dy;
 
-                    if(
-                        nx >= 0 &&
-                        ny >= 0 &&
-                        nx < WIDTH &&
-                        ny < HEIGHT
-                    ){
-
+                    if(nx>=0 && ny>=0 && nx<W && ny<H){
                         sum += field[ny][nx];
                         count++;
-
                     }
                 }
             }
 
-            let neighbourAverage = sum / count;
+            let avg = sum / count;
 
             let self = field[y][x];
 
+            // KUANTUM BENZERİ EVRİM
+            let noise = (Math.random()-0.5);
+
+            // zamanla stabilite artar (çöküş)
+            let stability = running ? 0.98 : 0.5;
+
             let psi =
-                self * 0.45 +
-                neighbourAverage * 0.55;
+                self * stability +
+                avg * (1 - stability) +
+                noise * 0.03;
 
-            psi += (Math.random() - 0.5) * 0.02;
-
+            // clamp
             psi = Math.max(0, Math.min(1, psi));
 
             next[y][x] = psi;
@@ -105,37 +109,40 @@ function evolve(){
     field = next;
 }
 
-// Çizim
 function render(){
 
-    const image = ctx.createImageData(WIDTH, HEIGHT);
+    const img = ctx.createImageData(W,H);
 
-    for(let y=0; y<HEIGHT; y++){
+    for(let y=0;y<H;y++){
+        for(let x=0;x<W;x++){
 
-        for(let x=0; x<WIDTH; x++){
+            const v = field[y][x];
+            const i = (y*W+x)*4;
 
-            const value = field[y][x];
-
-            const i = (y * WIDTH + x) * 4;
-
-            image.data[i]     = value * 255;
-            image.data[i + 1] = value * value * 255;
-            image.data[i + 2] = (1 - value) * 255;
-            image.data[i + 3] = 255;
+            // daha doğal renk üretimi
+            img.data[i]   = v * 255;
+            img.data[i+1] = (v*v) * 255;
+            img.data[i+2] = (1-v) * 200;
+            img.data[i+3] = 255;
         }
     }
 
-    ctx.putImageData(image, 0, 0);
+    ctx.putImageData(img,0,0);
 }
 
 function loop(){
 
-    evolve();
+    step();
     render();
 
     requestAnimationFrame(loop);
 }
 
+function start(){
+    running = true;
+}
+
+init();
 loop();
 
 </script>
