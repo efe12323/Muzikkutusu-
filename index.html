@@ -2,138 +2,141 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Inspired Tree</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Pixel Field</title>
+
 <style>
 body{
-    background:#111;
-    color:white;
-    text-align:center;
-    font-family:Arial;
+    margin:0;
+    background:#000;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
 }
+
 canvas{
-    border:1px solid white;
-    margin-top:15px;
-}
-button{
-    padding:10px 20px;
-    font-size:18px;
+    border:1px solid #333;
+    image-rendering:pixelated;
+    width:800px;
+    height:800px;
 }
 </style>
+
 </head>
 <body>
 
-<h2>Quantum Inspired Tree Generator</h2>
-
-<button onclick="collapseUniverse()">
-Evreni Çökert
-</button>
-
-<p id="info"></p>
-
-<canvas id="c" width="700" height="500"></canvas>
+<canvas id="canvas" width="200" height="200"></canvas>
 
 <script>
 
-const canvas = document.getElementById("c");
+const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-function createTreeCandidate(){
+const WIDTH = 200;
+const HEIGHT = 200;
 
-    return {
-        trunkHeight: 60 + Math.random()*180,
-        trunkWidth: 10 + Math.random()*25,
-        crownRadius: 30 + Math.random()*90
-    };
+let field = [];
+
+// Başlangıç alanı
+for(let y=0; y<HEIGHT; y++){
+
+    field[y] = [];
+
+    for(let x=0; x<WIDTH; x++){
+
+        field[y][x] = Math.random();
+
+    }
 }
 
-function scoreTree(tree){
+// Piksel evrimi
+function evolve(){
 
-    let score = 0;
+    let next = [];
 
-    const ratio = tree.crownRadius / tree.trunkHeight;
+    for(let y=0; y<HEIGHT; y++){
 
-    score += 100 - Math.abs(ratio - 0.45) * 120;
+        next[y] = [];
 
-    score += 100 - Math.abs(tree.trunkWidth - 18);
+        for(let x=0; x<WIDTH; x++){
 
-    score += Math.random()*20;
+            let sum = 0;
+            let count = 0;
 
-    return score;
-}
+            for(let dy=-1; dy<=1; dy++){
 
-function drawTree(tree){
+                for(let dx=-1; dx<=1; dx++){
 
-    ctx.clearRect(0,0,700,500);
+                    let nx = x + dx;
+                    let ny = y + dy;
 
-    ctx.fillStyle="#87CEEB";
-    ctx.fillRect(0,0,700,500);
+                    if(
+                        nx >= 0 &&
+                        ny >= 0 &&
+                        nx < WIDTH &&
+                        ny < HEIGHT
+                    ){
 
-    ctx.fillStyle="#3f8f3f";
-    ctx.fillRect(0,380,700,120);
+                        sum += field[ny][nx];
+                        count++;
 
-    const x = 350;
+                    }
+                }
+            }
 
-    const trunkY = 380 - tree.trunkHeight;
+            let neighbourAverage = sum / count;
 
-    ctx.fillStyle="#6b4423";
-    ctx.fillRect(
-        x-tree.trunkWidth/2,
-        trunkY,
-        tree.trunkWidth,
-        tree.trunkHeight
-    );
+            let self = field[y][x];
 
-    const gradient = ctx.createRadialGradient(
-        x,
-        trunkY,
-        5,
-        x,
-        trunkY,
-        tree.crownRadius
-    );
+            let psi =
+                self * 0.45 +
+                neighbourAverage * 0.55;
 
-    gradient.addColorStop(0,"#7cff7c");
-    gradient.addColorStop(1,"#0f5f0f");
+            psi += (Math.random() - 0.5) * 0.02;
 
-    ctx.fillStyle = gradient;
+            psi = Math.max(0, Math.min(1, psi));
 
-    ctx.beginPath();
-    ctx.arc(
-        x,
-        trunkY,
-        tree.crownRadius,
-        0,
-        Math.PI*2
-    );
-    ctx.fill();
-}
-
-function collapseUniverse(){
-
-    let bestTree = null;
-    let bestScore = -999999;
-
-    for(let i=0;i<500;i++){
-
-        const tree = createTreeCandidate();
-
-        const score = scoreTree(tree);
-
-        if(score > bestScore){
-            bestScore = score;
-            bestTree = tree;
+            next[y][x] = psi;
         }
     }
 
-    drawTree(bestTree);
-
-    document.getElementById("info").innerHTML =
-    "500 olası ağaç değerlendirildi.<br>" +
-    "En tutarlı olasılık seçildi.<br>" +
-    "Skor: " + bestScore.toFixed(2);
+    field = next;
 }
 
-collapseUniverse();
+// Çizim
+function render(){
+
+    const image = ctx.createImageData(WIDTH, HEIGHT);
+
+    for(let y=0; y<HEIGHT; y++){
+
+        for(let x=0; x<WIDTH; x++){
+
+            const value = field[y][x];
+
+            const i = (y * WIDTH + x) * 4;
+
+            image.data[i]     = value * 255;
+            image.data[i + 1] = value * value * 255;
+            image.data[i + 2] = (1 - value) * 255;
+            image.data[i + 3] = 255;
+        }
+    }
+
+    ctx.putImageData(image, 0, 0);
+}
+
+function loop(){
+
+    evolve();
+    render();
+
+    requestAnimationFrame(loop);
+}
+
+loop();
 
 </script>
 
