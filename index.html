@@ -1,6 +1,213 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <h1 > kapalıyız ☺️</h1>
+<meta charset="UTF-8">
+<title>Quantum Inspired World Generator</title>
+
+<style>
+body{
+    background:#111;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+}
+
+canvas{
+    border:2px solid white;
+    margin-top:20px;
+}
+button{
+    padding:10px 20px;
+    font-size:18px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Quantum Inspired World Generator</h1>
+
+<button onclick="generateWorld()">
+Yeni Dünya Oluştur
+</button>
+
+<br>
+
+<canvas id="world" width="800" height="500"></canvas>
+
+<p id="info"></p>
+
+<script>
+
+const canvas = document.getElementById("world");
+const ctx = canvas.getContext("2d");
+
+function weightedRandom(items){
+
+    let total = items.reduce((a,b)=>a+b.weight,0);
+
+    let random = Math.random()*total;
+
+    let sum = 0;
+
+    for(let item of items){
+
+        sum += item.weight;
+
+        if(random <= sum){
+            return item;
+        }
+    }
+}
+
+function generateWorld(){
+
+    const seasons = [
+        {name:"Yaz",weight:40},
+        {name:"İlkbahar",weight:30},
+        {name:"Sonbahar",weight:20},
+        {name:"Kış",weight:10}
+    ];
+
+    const places = [
+        {name:"Orman",weight:50},
+        {name:"Dağ",weight:30},
+        {name:"Çöl",weight:20}
+    ];
+
+    const weather = [
+        {name:"Güneşli",weight:60},
+        {name:"Bulutlu",weight:30},
+        {name:"Sisli",weight:10}
+    ];
+
+    let season = weightedRandom(seasons);
+    let place = weightedRandom(places);
+    let sky = weightedRandom(weather);
+
+    draw(place.name, season.name, sky.name);
+
+    document.getElementById("info").innerHTML =
+    `
+    Mevsim: ${season.name}<br>
+    Bölge: ${place.name}<br>
+    Hava: ${sky.name}
+    `;
+}
+
+function draw(place,season,weather){
+
+    ctx.clearRect(0,0,800,500);
+
+    // SKY
+
+    if(weather==="Güneşli")
+        ctx.fillStyle="#4aa3ff";
+
+    if(weather==="Bulutlu")
+        ctx.fillStyle="#8aa0b8";
+
+    if(weather==="Sisli")
+        ctx.fillStyle="#cfcfcf";
+
+    ctx.fillRect(0,0,800,500);
+
+    // GROUND
+
+    if(place==="Orman")
+        ctx.fillStyle="#228B22";
+
+    if(place==="Dağ")
+        ctx.fillStyle="#666";
+
+    if(place==="Çöl")
+        ctx.fillStyle="#d9b44a";
+
+    ctx.fillRect(0,350,800,150);
+
+    // SUN
+
+    if(weather==="Güneşli"){
+
+        ctx.fillStyle="yellow";
+
+        ctx.beginPath();
+        ctx.arc(700,100,40,0,Math.PI*2);
+        ctx.fill();
+    }
+
+    // MOUNTAIN
+
+    if(place==="Dağ"){
+
+        ctx.fillStyle="#555";
+
+        ctx.beginPath();
+        ctx.moveTo(150,350);
+        ctx.lineTo(350,120);
+        ctx.lineTo(550,350);
+        ctx.fill();
+    }
+
+    // FOREST
+
+    if(place==="Orman"){
+
+        for(let i=0;i<10;i++){
+
+            let x = 50 + i*70;
+
+            ctx.fillStyle="brown";
+            ctx.fillRect(x,280,15,70);
+
+            ctx.fillStyle="green";
+
+            ctx.beginPath();
+            ctx.arc(x+7,260,30,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    // DESERT
+
+    if(place==="Çöl"){
+
+        ctx.fillStyle="#c99a2e";
+
+        ctx.beginPath();
+        ctx.moveTo(0,350);
+        ctx.quadraticCurveTo(200,250,400,350);
+        ctx.quadraticCurveTo(600,450,800,350);
+        ctx.fill();
+    }
+
+    // SEASON EFFECT
+
+    if(season==="Kış"){
+
+        ctx.fillStyle="white";
+
+        for(let i=0;i<100;i++){
+
+            ctx.beginPath();
+
+            ctx.arc(
+                Math.random()*800,
+                Math.random()*500,
+                2,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+        }
+    }
+}
+
+generateWorld();
+
+</script>
+
 </body>
-</html>
+    </html>
