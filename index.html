@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field Image Engine v3</title>
+<title>Quantum Meaning Field v4</title>
 
 <style>
 body{
@@ -13,8 +13,8 @@ body{
     align-items:center;
     justify-content:center;
     height:100vh;
-    font-family:Arial;
     color:white;
+    font-family:Arial;
 }
 
 canvas{
@@ -41,52 +41,73 @@ const W=220,H=220;
 const c=document.getElementById("c");
 const ctx=c.getContext("2d");
 
-let field=[], velocity=[], energy=[];
+const EMPTY=0;
+const WATER=1;
+const ROCK=2;
+const ENERGY=3;
 
-// INIT FIELD
+let field=[], velocity=[], type=[];
+
+// ---------------- INIT ----------------
 for(let y=0;y<H;y++){
     field[y]=[];
     velocity[y]=[];
-    energy[y]=[];
+    type[y]=[];
 
     for(let x=0;x<W;x++){
         field[y][x]=Math.random();
-        velocity[y][x]=(Math.random()-0.5)*0.05;
-        energy[y][x]=0;
+        velocity[y][x]=0;
+
+        // 🔥 meaning seeds (çok az sayıda “çekirdek”)
+        if(Math.random()<0.015){
+            type[y][x]=ENERGY;
+        }else if(Math.random()<0.02){
+            type[y][x]=ROCK;
+        }else if(Math.random()<0.05){
+            type[y][x]=WATER;
+        }else{
+            type[y][x]=EMPTY;
+        }
     }
 }
 
-// AUDIO SYSTEM (GLOBAL FIELD ENERGY)
+// ---------------- AUDIO ----------------
 let audioCtx;
-let masterGain;
-let osc;
+let master;
 
 function startAudio(){
     audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 
-    osc=audioCtx.createOscillator();
-    osc.type="sine";
+    master=audioCtx.createGain();
+    master.gain.value=0.02;
+    master.connect(audioCtx.destination);
 
-    masterGain=audioCtx.createGain();
-    masterGain.gain.value=0.02;
+    for(let i=0;i<40;i++){
+        let osc=audioCtx.createOscillator();
+        let gain=audioCtx.createGain();
 
-    osc.connect(masterGain);
-    masterGain.connect(audioCtx.destination);
+        osc.type="sine";
+        osc.frequency.value=100+Math.random()*500;
 
-    osc.start();
+        gain.gain.value=0.001;
+
+        osc.connect(gain);
+        gain.connect(master);
+
+        osc.start();
+    }
 }
 
-// FIELD UPDATE (REAL DYNAMICS)
+// ---------------- FIELD STEP ----------------
 function step(){
 
-    let next=[], velNext=[], energyNext=[];
+    let next=[], velNext=[];
 
     let totalEnergy=0;
 
     for(let y=0;y<H;y++){
         next[y]=[];
         velNext[y]=[];
-        energyNext[y]=[];
 
         for(let x=0;x<W;x++){
 
@@ -106,41 +127,55 @@ function step(){
 
             let avg=sum/count;
 
-            // 🔥 WAVE EQUATION STYLE
-            let force=(avg - field[y][x]) * 0.22;
+            let v=field[y][x];
+            let t=type[y][x];
+
+            let force=0;
+
+            // 🌊 WATER: yayılma
+            if(t===WATER){
+                force=(avg-v)*0.3;
+            }
+
+            // 🪨 ROCK: stabil
+            if(t===ROCK){
+                force=(avg-v)*0.05;
+            }
+
+            // ⚡ ENERGY: itme / kaos
+            if(t===ENERGY){
+                force=(avg-v)*0.4 + (Math.random()-0.5)*0.05;
+            }
+
+            // EMPTY: normal fizik
+            if(t===EMPTY){
+                force=(avg-v)*0.2;
+            }
 
             velocity[y][x]+=force;
-            velocity[y][x]*=0.94;
+            velocity[y][x]*=0.95;
 
-            // micro noise (kuantum fluctuation)
-            velocity[y][x]+=(Math.random()-0.5)*0.02;
-
-            let v=field[y][x]+velocity[y][x];
+            v+=velocity[y][x];
 
             v=Math.max(0,Math.min(1,v));
 
             next[y][x]=v;
             velNext[y][x]=velocity[y][x];
 
-            // ENERGY FIELD
-            let e=Math.abs(velocity[y][x]);
-            energyNext[y][x]=e;
-
-            totalEnergy+=e;
+            totalEnergy+=Math.abs(velocity[y][x]);
         }
     }
 
     field=next;
     velocity=velNext;
-    energy=energyNext;
 
-    // AUDIO CONTROL (GLOBAL FIELD STATE)
-    if(osc){
-        osc.frequency.value=120 + totalEnergy*20;
+    // 🔊 AUDIO = GLOBAL FIELD ENERGY
+    if(master){
+        master.gain.value=0.01 + totalEnergy*0.002;
     }
 }
 
-// COLOR (STRUCTURE EMERGENCE)
+// ---------------- RENDER ----------------
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -149,14 +184,31 @@ function render(){
         for(let x=0;x<W;x++){
 
             let v=field[y][x];
-            let e=energy[y][x];
+            let t=type[y][x];
 
-            // structure-based shading
-            let shade=v + e*0.8;
+            let r,g,b;
 
-            let r=shade*180;
-            let g=shade*220;
-            let b=(1-shade)*255;
+            // 🎨 MEANING-BASED COLOR SYSTEM
+            if(t===WATER){
+                r=30;
+                g=100+v*100;
+                b=200;
+            }
+            else if(t===ROCK){
+                r=120+v*80;
+                g=90;
+                b=60;
+            }
+            else if(t===ENERGY){
+                r=255*v;
+                g=200*v;
+                b=50+v*200;
+            }
+            else{
+                r=20+v*80;
+                g=20+v*120;
+                b=60+v*150;
+            }
 
             let i=(y*W+x)*4;
 
