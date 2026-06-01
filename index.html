@@ -2,212 +2,140 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Inspired World Generator</title>
-
+<title>Quantum Inspired Tree</title>
 <style>
 body{
     background:#111;
     color:white;
-    font-family:Arial;
     text-align:center;
+    font-family:Arial;
 }
-
 canvas{
-    border:2px solid white;
-    margin-top:20px;
+    border:1px solid white;
+    margin-top:15px;
 }
 button{
     padding:10px 20px;
     font-size:18px;
-    cursor:pointer;
 }
 </style>
 </head>
-
 <body>
 
-<h1>Quantum Inspired World Generator</h1>
+<h2>Quantum Inspired Tree Generator</h2>
 
-<button onclick="generateWorld()">
-Yeni Dünya Oluştur
+<button onclick="collapseUniverse()">
+Evreni Çökert
 </button>
-
-<br>
-
-<canvas id="world" width="800" height="500"></canvas>
 
 <p id="info"></p>
 
+<canvas id="c" width="700" height="500"></canvas>
+
 <script>
 
-const canvas = document.getElementById("world");
+const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 
-function weightedRandom(items){
+function createTreeCandidate(){
 
-    let total = items.reduce((a,b)=>a+b.weight,0);
-
-    let random = Math.random()*total;
-
-    let sum = 0;
-
-    for(let item of items){
-
-        sum += item.weight;
-
-        if(random <= sum){
-            return item;
-        }
-    }
+    return {
+        trunkHeight: 60 + Math.random()*180,
+        trunkWidth: 10 + Math.random()*25,
+        crownRadius: 30 + Math.random()*90
+    };
 }
 
-function generateWorld(){
+function scoreTree(tree){
 
-    const seasons = [
-        {name:"Yaz",weight:40},
-        {name:"İlkbahar",weight:30},
-        {name:"Sonbahar",weight:20},
-        {name:"Kış",weight:10}
-    ];
+    let score = 0;
 
-    const places = [
-        {name:"Orman",weight:50},
-        {name:"Dağ",weight:30},
-        {name:"Çöl",weight:20}
-    ];
+    const ratio = tree.crownRadius / tree.trunkHeight;
 
-    const weather = [
-        {name:"Güneşli",weight:60},
-        {name:"Bulutlu",weight:30},
-        {name:"Sisli",weight:10}
-    ];
+    score += 100 - Math.abs(ratio - 0.45) * 120;
 
-    let season = weightedRandom(seasons);
-    let place = weightedRandom(places);
-    let sky = weightedRandom(weather);
+    score += 100 - Math.abs(tree.trunkWidth - 18);
 
-    draw(place.name, season.name, sky.name);
+    score += Math.random()*20;
+
+    return score;
+}
+
+function drawTree(tree){
+
+    ctx.clearRect(0,0,700,500);
+
+    ctx.fillStyle="#87CEEB";
+    ctx.fillRect(0,0,700,500);
+
+    ctx.fillStyle="#3f8f3f";
+    ctx.fillRect(0,380,700,120);
+
+    const x = 350;
+
+    const trunkY = 380 - tree.trunkHeight;
+
+    ctx.fillStyle="#6b4423";
+    ctx.fillRect(
+        x-tree.trunkWidth/2,
+        trunkY,
+        tree.trunkWidth,
+        tree.trunkHeight
+    );
+
+    const gradient = ctx.createRadialGradient(
+        x,
+        trunkY,
+        5,
+        x,
+        trunkY,
+        tree.crownRadius
+    );
+
+    gradient.addColorStop(0,"#7cff7c");
+    gradient.addColorStop(1,"#0f5f0f");
+
+    ctx.fillStyle = gradient;
+
+    ctx.beginPath();
+    ctx.arc(
+        x,
+        trunkY,
+        tree.crownRadius,
+        0,
+        Math.PI*2
+    );
+    ctx.fill();
+}
+
+function collapseUniverse(){
+
+    let bestTree = null;
+    let bestScore = -999999;
+
+    for(let i=0;i<500;i++){
+
+        const tree = createTreeCandidate();
+
+        const score = scoreTree(tree);
+
+        if(score > bestScore){
+            bestScore = score;
+            bestTree = tree;
+        }
+    }
+
+    drawTree(bestTree);
 
     document.getElementById("info").innerHTML =
-    `
-    Mevsim: ${season.name}<br>
-    Bölge: ${place.name}<br>
-    Hava: ${sky.name}
-    `;
+    "500 olası ağaç değerlendirildi.<br>" +
+    "En tutarlı olasılık seçildi.<br>" +
+    "Skor: " + bestScore.toFixed(2);
 }
 
-function draw(place,season,weather){
-
-    ctx.clearRect(0,0,800,500);
-
-    // SKY
-
-    if(weather==="Güneşli")
-        ctx.fillStyle="#4aa3ff";
-
-    if(weather==="Bulutlu")
-        ctx.fillStyle="#8aa0b8";
-
-    if(weather==="Sisli")
-        ctx.fillStyle="#cfcfcf";
-
-    ctx.fillRect(0,0,800,500);
-
-    // GROUND
-
-    if(place==="Orman")
-        ctx.fillStyle="#228B22";
-
-    if(place==="Dağ")
-        ctx.fillStyle="#666";
-
-    if(place==="Çöl")
-        ctx.fillStyle="#d9b44a";
-
-    ctx.fillRect(0,350,800,150);
-
-    // SUN
-
-    if(weather==="Güneşli"){
-
-        ctx.fillStyle="yellow";
-
-        ctx.beginPath();
-        ctx.arc(700,100,40,0,Math.PI*2);
-        ctx.fill();
-    }
-
-    // MOUNTAIN
-
-    if(place==="Dağ"){
-
-        ctx.fillStyle="#555";
-
-        ctx.beginPath();
-        ctx.moveTo(150,350);
-        ctx.lineTo(350,120);
-        ctx.lineTo(550,350);
-        ctx.fill();
-    }
-
-    // FOREST
-
-    if(place==="Orman"){
-
-        for(let i=0;i<10;i++){
-
-            let x = 50 + i*70;
-
-            ctx.fillStyle="brown";
-            ctx.fillRect(x,280,15,70);
-
-            ctx.fillStyle="green";
-
-            ctx.beginPath();
-            ctx.arc(x+7,260,30,0,Math.PI*2);
-            ctx.fill();
-        }
-    }
-
-    // DESERT
-
-    if(place==="Çöl"){
-
-        ctx.fillStyle="#c99a2e";
-
-        ctx.beginPath();
-        ctx.moveTo(0,350);
-        ctx.quadraticCurveTo(200,250,400,350);
-        ctx.quadraticCurveTo(600,450,800,350);
-        ctx.fill();
-    }
-
-    // SEASON EFFECT
-
-    if(season==="Kış"){
-
-        ctx.fillStyle="white";
-
-        for(let i=0;i<100;i++){
-
-            ctx.beginPath();
-
-            ctx.arc(
-                Math.random()*800,
-                Math.random()*500,
-                2,
-                0,
-                Math.PI*2
-            );
-
-            ctx.fill();
-        }
-    }
-}
-
-generateWorld();
+collapseUniverse();
 
 </script>
 
 </body>
-    </html>
+</html>
