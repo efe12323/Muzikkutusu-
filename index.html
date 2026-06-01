@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field Alive</title>
+<title>Quantum Field Image Engine v3</title>
 
 <style>
 body{
@@ -13,16 +13,17 @@ body{
     align-items:center;
     justify-content:center;
     height:100vh;
-    color:white;
     font-family:Arial;
+    color:white;
 }
 
 canvas{
-    border:1px solid #333;
+    border:1px solid #222;
     image-rendering: pixelated;
-    width:500px;
-    height:500px;
+    width:600px;
+    height:600px;
 }
+
 button{
     margin-top:10px;
     padding:10px 20px;
@@ -31,70 +32,61 @@ button{
 </head>
 <body>
 
-<canvas id="c" width="200" height="200"></canvas>
-<button onclick="startAudio()">Sesi Aç (Alanı Dinle)</button>
+<canvas id="c" width="220" height="220"></canvas>
+<button onclick="startAudio()">Sesi Aç</button>
 
 <script>
 
-const W=200,H=200;
+const W=220,H=220;
 const c=document.getElementById("c");
 const ctx=c.getContext("2d");
 
-let field=[], phase=[], velocity=[];
+let field=[], velocity=[], energy=[];
 
-// INIT (FULL RANDOM FIELD - NO STRUCTURE YET)
+// INIT FIELD
 for(let y=0;y<H;y++){
     field[y]=[];
-    phase[y]=[];
     velocity[y]=[];
+    energy[y]=[];
 
     for(let x=0;x<W;x++){
         field[y][x]=Math.random();
-        phase[y][x]=Math.random()*Math.PI*2;
         velocity[y][x]=(Math.random()-0.5)*0.05;
+        energy[y][x]=0;
     }
 }
 
-// AUDIO (FULL FIELD NOISE - ORGANIC)
+// AUDIO SYSTEM (GLOBAL FIELD ENERGY)
 let audioCtx;
 let masterGain;
+let osc;
 
 function startAudio(){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 
-    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    osc=audioCtx.createOscillator();
+    osc.type="sine";
 
-    const bufferSize = audioCtx.sampleRate * 2;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    masterGain=audioCtx.createGain();
+    masterGain.gain.value=0.02;
 
-    let data = buffer.getChannelData(0);
-
-    for(let i=0;i<bufferSize;i++){
-        // field-based noise instead of pure random
-        data[i] = Math.sin(i*0.001) * (Math.random()*2-1);
-    }
-
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-
-    masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.03;
-
-    source.connect(masterGain);
+    osc.connect(masterGain);
     masterGain.connect(audioCtx.destination);
 
-    source.start();
+    osc.start();
 }
 
-// FIELD EVOLUTION (REAL QUANTUM-LIKE COUPLING)
+// FIELD UPDATE (REAL DYNAMICS)
 function step(){
 
-    let next=[], velNext=[], phaseNext=[];
+    let next=[], velNext=[], energyNext=[];
+
+    let totalEnergy=0;
 
     for(let y=0;y<H;y++){
         next[y]=[];
         velNext[y]=[];
-        phaseNext[y]=[];
+        energyNext[y]=[];
 
         for(let x=0;x<W;x++){
 
@@ -114,39 +106,41 @@ function step(){
 
             let avg=sum/count;
 
-            // wave interaction
-            velocity[y][x] += (avg - field[y][x]) * 0.2;
+            // 🔥 WAVE EQUATION STYLE
+            let force=(avg - field[y][x]) * 0.22;
 
-            velocity[y][x] *= 0.95;
+            velocity[y][x]+=force;
+            velocity[y][x]*=0.94;
 
-            velocity[y][x] += Math.sin(phase[y][x]) * 0.01;
+            // micro noise (kuantum fluctuation)
+            velocity[y][x]+=(Math.random()-0.5)*0.02;
 
-            let value = field[y][x] + velocity[y][x];
+            let v=field[y][x]+velocity[y][x];
 
-            value = Math.max(0,Math.min(1,value));
+            v=Math.max(0,Math.min(1,v));
 
-            next[y][x] = value;
+            next[y][x]=v;
+            velNext[y][x]=velocity[y][x];
 
-            // phase evolves (THIS CREATES COLOR + MOTION)
-            phaseNext[y][x] = phase[y][x] + velocity[y][x]*2;
+            // ENERGY FIELD
+            let e=Math.abs(velocity[y][x]);
+            energyNext[y][x]=e;
 
-            velNext[y][x] = velocity[y][x];
-
-            // AUDIO FEEDBACK (GLOBAL ENERGY)
-            if(masterGain){
-                masterGain.gain.value =
-                    0.01 +
-                    Math.abs(velocity[y][x]) * 0.2;
-            }
+            totalEnergy+=e;
         }
     }
 
     field=next;
     velocity=velNext;
-    phase=phaseNext;
+    energy=energyNext;
+
+    // AUDIO CONTROL (GLOBAL FIELD STATE)
+    if(osc){
+        osc.frequency.value=120 + totalEnergy*20;
+    }
 }
 
-// COLOR = PURE QUANTUM PHASE FIELD (NO PALETTE)
+// COLOR (STRUCTURE EMERGENCE)
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -155,18 +149,20 @@ function render(){
         for(let x=0;x<W;x++){
 
             let v=field[y][x];
-            let p=phase[y][x];
+            let e=energy[y][x];
 
-            // PURE EMERGENT COLOR (NO IF/ELSE PALETTE)
-            let r = Math.sin(p) * 127 + 128;
-            let g = Math.sin(p + 2.0) * 127 + 128;
-            let b = Math.sin(p + 4.0) * 127 + 128;
+            // structure-based shading
+            let shade=v + e*0.8;
+
+            let r=shade*180;
+            let g=shade*220;
+            let b=(1-shade)*255;
 
             let i=(y*W+x)*4;
 
-            img.data[i]=r * v;
-            img.data[i+1]=g * v;
-            img.data[i+2]=b * v;
+            img.data[i]=r;
+            img.data[i+1]=g;
+            img.data[i+2]=b;
             img.data[i+3]=255;
         }
     }
