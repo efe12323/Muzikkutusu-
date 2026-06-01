@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field v5 - Structure Emergence</title>
+<title>Quantum World v6 - Object Emergence</title>
 
 <style>
 body{
@@ -13,8 +13,8 @@ body{
     align-items:center;
     justify-content:center;
     height:100vh;
-    color:white;
     font-family:Arial;
+    color:white;
 }
 
 canvas{
@@ -23,7 +23,6 @@ canvas{
     width:600px;
     height:600px;
 }
-
 button{
     margin-top:10px;
     padding:10px 20px;
@@ -41,22 +40,20 @@ const W=240,H=240;
 const c=document.getElementById("c");
 const ctx=c.getContext("2d");
 
-let field=[], prev=[], velocity=[];
+let field=[], velocity=[];
 
-// ---------------- INIT ----------------
+// 🌍 INIT FIELD
 for(let y=0;y<H;y++){
     field[y]=[];
-    prev[y]=[];
     velocity[y]=[];
 
     for(let x=0;x<W;x++){
-        field[y][x]=Math.random();
-        prev[y][x]=field[y][x];
+        field[y][x]=Math.random()*0.3; // düşük başlangıç (boş dünya)
         velocity[y][x]=0;
     }
 }
 
-// ---------------- AUDIO ----------------
+// 🔊 AUDIO
 let audioCtx;
 let osc;
 
@@ -67,8 +64,7 @@ function startAudio(){
     const gain=audioCtx.createGain();
 
     osc.type="sine";
-    osc.frequency.value=200;
-
+    osc.frequency.value=150;
     gain.gain.value=0.02;
 
     osc.connect(gain);
@@ -77,75 +73,69 @@ function startAudio(){
     osc.start();
 }
 
-// ---------------- CORE FIELD ----------------
+// 🌊 FIELD UPDATE (MASS FORMATION)
 function step(){
 
-    let next=[], energyMap=[];
+    let next=[], energy=0;
 
     for(let y=0;y<H;y++){
         next[y]=[];
-        energyMap[y]=[];
 
         for(let x=0;x<W;x++){
 
             let sum=0,count=0;
 
-            // 🌊 wider diffusion (3 radius)
-            for(let dy=-2;dy<=2;dy++){
-                for(let dx=-2;dx<=2;dx++){
+            for(let dy=-1;dy<=1;dy++){
+                for(let dx=-1;dx<=1;dx++){
 
                     let nx=x+dx,ny=y+dy;
 
-                    if(nx>=0&&ny>=0&&nx<W&&ny<H){
-
-                        let weight = 1 / (1 + Math.abs(dx)+Math.abs(dy));
-
-                        sum += field[ny][nx] * weight;
-                        count += weight;
+                    if(nx>=0&&ny>=0&&nx<W&&nx<H){
+                        sum+=field[ny][nx];
+                        count++;
                     }
                 }
             }
 
             let avg=sum/count;
 
-            let current=field[y][x];
+            let v=field[y][x];
 
-            // 🔥 inertia (memory)
-            let accel = (avg - current) * 0.25;
+            // 🧲 GRAVITY / CLUSTERING
+            let force=(avg - v) * 0.3;
 
-            velocity[y][x] = (velocity[y][x] + accel) * 0.92;
+            velocity[y][x]+=force;
 
-            // 🔥 micro noise (life)
-            velocity[y][x] += (Math.random()-0.5)*0.015;
+            // friction
+            velocity[y][x]*=0.90;
 
-            let value = current + velocity[y][x];
+            // noise (life)
+            velocity[y][x]+=(Math.random()-0.5)*0.01;
 
-            value = Math.max(0,Math.min(1,value));
+            v+=velocity[y][x];
 
-            next[y][x]=value;
+            // 🌍 MASS FORMATION (CRITICAL)
+            if(v>0.65){
+                v+=0.002; // self-reinforce (katılaşma)
+            }
 
-            energyMap[y][x]=Math.abs(velocity[y][x]);
+            v=Math.max(0,Math.min(1,v));
+
+            next[y][x]=v;
+
+            energy+=Math.abs(velocity[y][x]);
         }
     }
 
-    prev=field;
     field=next;
 
-    // 🔊 AUDIO = TOTAL FIELD ENERGY
+    // 🔊 SOUND = GLOBAL MASS MOVEMENT
     if(osc){
-        let total=0;
-
-        for(let y=0;y<H;y++){
-            for(let x=0;x<W;x++){
-                total += energyMap[y][x];
-            }
-        }
-
-        osc.frequency.value = 120 + total * 0.5;
+        osc.frequency.value = 120 + energy * 2;
     }
 }
 
-// ---------------- RENDER ----------------
+// 🎨 RENDER (MATERIAL EMERGENCE)
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -154,16 +144,22 @@ function render(){
         for(let x=0;x<W;x++){
 
             let v=field[y][x];
-            let p=prev[y][x];
 
-            // 🔥 STRUCTURE CONTRAST (THIS IS IMPORTANT)
-            let d = v - p;
+            let r,g,b;
 
-            let intensity = Math.abs(d)*3 + v;
-
-            let r = 30 + intensity * 200;
-            let g = 50 + v * 180;
-            let b = 120 + (1-v) * 200;
+            // 🌍 MATERIAL CLASSIFICATION
+            if(v<0.2){
+                r=0; g=0; b=20; // boşluk
+            }
+            else if(v<0.45){
+                r=20; g=40; b=120; // gaz/sis
+            }
+            else if(v<0.7){
+                r=40; g=160; b=80; // yoğun yapı
+            }
+            else{
+                r=200; g=180; b=120; // katı madde (form)
+            }
 
             let i=(y*W+x)*4;
 
@@ -177,7 +173,7 @@ function render(){
     ctx.putImageData(img,0,0);
 }
 
-// ---------------- LOOP ----------------
+// 🔁 LOOP
 function loop(){
     step();
     render();
