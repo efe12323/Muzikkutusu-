@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field FIXED</title>
+<title>Quantum Field Alive</title>
 
 <style>
 body{
@@ -32,7 +32,7 @@ button{
 <body>
 
 <canvas id="c" width="200" height="200"></canvas>
-<button onclick="startAudio()">Sesi Aç</button>
+<button onclick="startAudio()">Sesi Aç (Alanı Dinle)</button>
 
 <script>
 
@@ -40,47 +40,61 @@ const W=200,H=200;
 const c=document.getElementById("c");
 const ctx=c.getContext("2d");
 
-let field=[], velocity=[];
+let field=[], phase=[], velocity=[];
 
+// INIT (FULL RANDOM FIELD - NO STRUCTURE YET)
 for(let y=0;y<H;y++){
     field[y]=[];
+    phase[y]=[];
     velocity[y]=[];
+
     for(let x=0;x<W;x++){
         field[y][x]=Math.random();
-        velocity[y][x]=(Math.random()-0.5)*0.1;
+        phase[y][x]=Math.random()*Math.PI*2;
+        velocity[y][x]=(Math.random()-0.5)*0.05;
     }
 }
 
-// AUDIO (FIXED: dynamic frequency instead of static noise)
+// AUDIO (FULL FIELD NOISE - ORGANIC)
 let audioCtx;
-let osc;
+let masterGain;
 
 function startAudio(){
 
     audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 
-    osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const bufferSize = audioCtx.sampleRate * 2;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
 
-    osc.type = "sine";
-    osc.frequency.value = 220;
+    let data = buffer.getChannelData(0);
 
-    gain.gain.value = 0.03;
+    for(let i=0;i<bufferSize;i++){
+        // field-based noise instead of pure random
+        data[i] = Math.sin(i*0.001) * (Math.random()*2-1);
+    }
 
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
 
-    osc.start();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.03;
+
+    source.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+
+    source.start();
 }
 
-// FIELD DYNAMICS (MORE ENERGY, LESS STABILITY)
+// FIELD EVOLUTION (REAL QUANTUM-LIKE COUPLING)
 function step(){
 
-    let next=[], velNext=[];
+    let next=[], velNext=[], phaseNext=[];
 
     for(let y=0;y<H;y++){
         next[y]=[];
         velNext[y]=[];
+        phaseNext[y]=[];
 
         for(let x=0;x<W;x++){
 
@@ -100,40 +114,39 @@ function step(){
 
             let avg=sum/count;
 
-            // DALGA FİZİĞİ (kritik düzeltme)
-            let force = (avg - field[y][x]) * 0.25;
+            // wave interaction
+            velocity[y][x] += (avg - field[y][x]) * 0.2;
 
-            velocity[y][x] += force;
+            velocity[y][x] *= 0.95;
 
-            velocity[y][x] *= 0.97; // daha az sönüm
-
-            velocity[y][x] += (Math.random()-0.5)*0.02; // enerji enjeksiyonu
+            velocity[y][x] += Math.sin(phase[y][x]) * 0.01;
 
             let value = field[y][x] + velocity[y][x];
 
-            // clamp
             value = Math.max(0,Math.min(1,value));
 
-            next[y][x]=value;
-            velNext[y][x]=velocity[y][x];
+            next[y][x] = value;
 
-            // AUDIO CONTROL (motion-based)
-            if(osc){
-                let motion = Math.abs(velocity[y][x]);
+            // phase evolves (THIS CREATES COLOR + MOTION)
+            phaseNext[y][x] = phase[y][x] + velocity[y][x]*2;
 
-                osc.frequency.value =
-                    100 +
-                    motion * 600 +
-                    Math.sin(Date.now()*0.001)*50;
+            velNext[y][x] = velocity[y][x];
+
+            // AUDIO FEEDBACK (GLOBAL ENERGY)
+            if(masterGain){
+                masterGain.gain.value =
+                    0.01 +
+                    Math.abs(velocity[y][x]) * 0.2;
             }
         }
     }
 
     field=next;
     velocity=velNext;
+    phase=phaseNext;
 }
 
-// COLOR FIX (NO GREEN LOCK)
+// COLOR = PURE QUANTUM PHASE FIELD (NO PALETTE)
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -142,36 +155,18 @@ function render(){
         for(let x=0;x<W;x++){
 
             let v=field[y][x];
+            let p=phase[y][x];
 
-            let r,g,b;
-
-            // MULTI-PHASE COLOR SPACE
-            if(v < 0.25){
-                r = 20;
-                g = 30;
-                b = 120; // derin mavi
-            }
-            else if(v < 0.5){
-                r = 20;
-                g = 180;
-                b = 120; // canlı yeşil
-            }
-            else if(v < 0.75){
-                r = 200;
-                g = 160;
-                b = 60; // sıcak toprak
-            }
-            else{
-                r = 240;
-                g = 240;
-                b = 240; // ışık
-            }
+            // PURE EMERGENT COLOR (NO IF/ELSE PALETTE)
+            let r = Math.sin(p) * 127 + 128;
+            let g = Math.sin(p + 2.0) * 127 + 128;
+            let b = Math.sin(p + 4.0) * 127 + 128;
 
             let i=(y*W+x)*4;
 
-            img.data[i]=r;
-            img.data[i+1]=g;
-            img.data[i+2]=b;
+            img.data[i]=r * v;
+            img.data[i+1]=g * v;
+            img.data[i+2]=b * v;
             img.data[i+3]=255;
         }
     }
