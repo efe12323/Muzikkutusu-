@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Collapse Image Field</title>
+<title>Quantum Field Audio-Visual System</title>
 
 <style>
 body{
@@ -20,110 +20,131 @@ body{
 canvas{
     border:1px solid #333;
     image-rendering: pixelated;
-    width:600px;
-    height:600px;
+    width:500px;
+    height:500px;
 }
 
 button{
-    margin-top:15px;
+    margin-top:10px;
     padding:10px 20px;
-    font-size:16px;
-    cursor:pointer;
 }
 </style>
 </head>
 <body>
 
-<canvas id="c" width="400" height="400"></canvas>
-<button onclick="start()">Sistemi Başlat (Kuantum Çöküş)</button>
+<canvas id="c" width="200" height="200"></canvas>
+<button onclick="startAudio()">Sesi Başlat</button>
 
 <script>
 
-const W = 400;
-const H = 400;
+const W=200, H=200;
 
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("c");
+const ctx=canvas.getContext("2d");
 
-let field = [];
-let running = false;
+let field=[];
 
-// başlangıç gürültüsü
-function init(){
-    field = [];
-    for(let y=0;y<H;y++){
-        field[y] = [];
-        for(let x=0;x<W;x++){
-            field[y][x] = Math.random();
-        }
+for(let y=0;y<H;y++){
+    field[y]=[];
+    for(let x=0;x<W;x++){
+        field[y][x]=Math.random();
     }
 }
 
+// ---- AUDIO ----
+let audioCtx;
+let nodes=[];
+
+function startAudio(){
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    for(let i=0;i<30;i++){
+
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+
+        osc.type="sine";
+
+        let freq = 100 + Math.random()*800;
+        osc.frequency.value=freq;
+
+        gain.gain.value=0.02;
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+
+        nodes.push({osc,gain});
+    }
+}
+
+// ---- FIELD EVOLUTION ----
 function step(){
 
-    let next = [];
+    let next=[];
 
     for(let y=0;y<H;y++){
-        next[y] = [];
+        next[y]=[];
 
         for(let x=0;x<W;x++){
 
-            let sum = 0;
-            let count = 0;
+            let sum=0;
+            let count=0;
 
             for(let dy=-1;dy<=1;dy++){
                 for(let dx=-1;dx<=1;dx++){
 
-                    let nx = x + dx;
-                    let ny = y + dy;
+                    let nx=x+dx, ny=y+dy;
 
                     if(nx>=0 && ny>=0 && nx<W && ny<H){
-                        sum += field[ny][nx];
+                        sum+=field[ny][nx];
                         count++;
                     }
                 }
             }
 
-            let avg = sum / count;
-
-            let self = field[y][x];
-
-            // KUANTUM BENZERİ EVRİM
-            let noise = (Math.random()-0.5);
-
-            // zamanla stabilite artar (çöküş)
-            let stability = running ? 0.98 : 0.5;
+            let avg=sum/count;
+            let self=field[y][x];
 
             let psi =
-                self * stability +
-                avg * (1 - stability) +
-                noise * 0.03;
+                self*0.6 +
+                avg*0.4 +
+                (Math.random()-0.5)*0.02;
 
-            // clamp
-            psi = Math.max(0, Math.min(1, psi));
+            psi=Math.max(0,Math.min(1,psi));
 
-            next[y][x] = psi;
+            next[y][x]=psi;
+
+            // ---- AUDIO LINK ----
+            let idx=(x+y)%nodes.length;
+
+            if(nodes[idx]){
+                let freq=200 + psi*800;
+                nodes[idx].osc.frequency.value=freq;
+            }
         }
     }
 
-    field = next;
+    field=next;
 }
 
+// ---- RENDER ----
 function render(){
 
-    const img = ctx.createImageData(W,H);
+    let img=ctx.createImageData(W,H);
 
     for(let y=0;y<H;y++){
         for(let x=0;x<W;x++){
 
-            const v = field[y][x];
-            const i = (y*W+x)*4;
+            let v=field[y][x];
+            let i=(y*W+x)*4;
 
-            // daha doğal renk üretimi
-            img.data[i]   = v * 255;
-            img.data[i+1] = (v*v) * 255;
-            img.data[i+2] = (1-v) * 200;
-            img.data[i+3] = 255;
+            img.data[i]=v*255;
+            img.data[i+1]=(v*v)*255;
+            img.data[i+2]=(1-v)*255;
+            img.data[i+3]=255;
         }
     }
 
@@ -131,18 +152,11 @@ function render(){
 }
 
 function loop(){
-
     step();
     render();
-
     requestAnimationFrame(loop);
 }
 
-function start(){
-    running = true;
-}
-
-init();
 loop();
 
 </script>
