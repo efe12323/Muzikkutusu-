@@ -2,37 +2,26 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum World v6 - Object Emergence</title>
+<title>Quantum World v7 FIX</title>
 
 <style>
 body{
     margin:0;
     background:#000;
     display:flex;
-    flex-direction:column;
-    align-items:center;
     justify-content:center;
+    align-items:center;
     height:100vh;
-    font-family:Arial;
-    color:white;
 }
-
 canvas{
     border:1px solid #222;
     image-rendering: pixelated;
-    width:600px;
-    height:600px;
-}
-button{
-    margin-top:10px;
-    padding:10px 20px;
 }
 </style>
 </head>
 <body>
 
 <canvas id="c" width="240" height="240"></canvas>
-<button onclick="startAudio()">Sesi Aç</button>
 
 <script>
 
@@ -42,41 +31,20 @@ const ctx=c.getContext("2d");
 
 let field=[], velocity=[];
 
-// 🌍 INIT FIELD
+// 🌱 INIT (canlı başlat)
 for(let y=0;y<H;y++){
     field[y]=[];
     velocity[y]=[];
 
     for(let x=0;x<W;x++){
-        field[y][x]=Math.random()*0.3; // düşük başlangıç (boş dünya)
+        field[y][x]=0.4 + Math.random()*0.2; // 🔥 kritik FIX
         velocity[y][x]=0;
     }
 }
 
-// 🔊 AUDIO
-let audioCtx;
-let osc;
-
-function startAudio(){
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-
-    osc=audioCtx.createOscillator();
-    const gain=audioCtx.createGain();
-
-    osc.type="sine";
-    osc.frequency.value=150;
-    gain.gain.value=0.02;
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-}
-
-// 🌊 FIELD UPDATE (MASS FORMATION)
 function step(){
 
-    let next=[], energy=0;
+    let next=[];
 
     for(let y=0;y<H;y++){
         next[y]=[];
@@ -90,7 +58,7 @@ function step(){
 
                     let nx=x+dx,ny=y+dy;
 
-                    if(nx>=0&&ny>=0&&nx<W&&nx<H){
+                    if(nx>=0&&ny>=0&&nx<W&&ny<H){
                         sum+=field[ny][nx];
                         count++;
                     }
@@ -101,41 +69,26 @@ function step(){
 
             let v=field[y][x];
 
-            // 🧲 GRAVITY / CLUSTERING
-            let force=(avg - v) * 0.3;
+            // 🌊 stronger diffusion
+            let force=(avg - v) * 0.35;
 
-            velocity[y][x]+=force;
+            velocity[y][x]=(velocity[y][x] + force) * 0.90;
 
-            // friction
-            velocity[y][x]*=0.90;
+            // 🔥 LIFE INJECTION (KRİTİK)
+            velocity[y][x] += (Math.random()-0.5)*0.03;
 
-            // noise (life)
-            velocity[y][x]+=(Math.random()-0.5)*0.01;
+            v += velocity[y][x];
 
-            v+=velocity[y][x];
-
-            // 🌍 MASS FORMATION (CRITICAL)
-            if(v>0.65){
-                v+=0.002; // self-reinforce (katılaşma)
-            }
-
-            v=Math.max(0,Math.min(1,v));
+            // ❌ no hard collapse anymore
+            v = Math.max(0.05, Math.min(0.95, v));
 
             next[y][x]=v;
-
-            energy+=Math.abs(velocity[y][x]);
         }
     }
 
     field=next;
-
-    // 🔊 SOUND = GLOBAL MASS MOVEMENT
-    if(osc){
-        osc.frequency.value = 120 + energy * 2;
-    }
 }
 
-// 🎨 RENDER (MATERIAL EMERGENCE)
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -145,21 +98,9 @@ function render(){
 
             let v=field[y][x];
 
-            let r,g,b;
-
-            // 🌍 MATERIAL CLASSIFICATION
-            if(v<0.2){
-                r=0; g=0; b=20; // boşluk
-            }
-            else if(v<0.45){
-                r=20; g=40; b=120; // gaz/sis
-            }
-            else if(v<0.7){
-                r=40; g=160; b=80; // yoğun yapı
-            }
-            else{
-                r=200; g=180; b=120; // katı madde (form)
-            }
+            let r = v * 180;
+            let g = v * 220;
+            let b = 255 - v * 180;
 
             let i=(y*W+x)*4;
 
@@ -173,7 +114,6 @@ function render(){
     ctx.putImageData(img,0,0);
 }
 
-// 🔁 LOOP
 function loop(){
     step();
     render();
