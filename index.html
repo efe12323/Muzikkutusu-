@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field Audio-Visual System</title>
+<title>Quantum Field v2 (Stabil World)</title>
 
 <style>
 body{
@@ -23,7 +23,6 @@ canvas{
     width:500px;
     height:500px;
 }
-
 button{
     margin-top:10px;
     padding:10px 20px;
@@ -33,72 +32,74 @@ button{
 <body>
 
 <canvas id="c" width="200" height="200"></canvas>
-<button onclick="startAudio()">Sesi Başlat</button>
+<button onclick="startAudio()">Sesi Aç</button>
 
 <script>
 
-const W=200, H=200;
+const W=200,H=200;
+const c=document.getElementById("c");
+const ctx=c.getContext("2d");
 
-const canvas=document.getElementById("c");
-const ctx=canvas.getContext("2d");
+let field=[], velocity=[];
 
-let field=[];
-
+// INIT
 for(let y=0;y<H;y++){
     field[y]=[];
+    velocity[y]=[];
     for(let x=0;x<W;x++){
         field[y][x]=Math.random();
+        velocity[y][x]=0;
     }
 }
 
-// ---- AUDIO ----
+// AUDIO
 let audioCtx;
-let nodes=[];
+let noiseGain;
 
 function startAudio(){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufferSize=2*audioCtx.sampleRate;
+    const noiseBuffer=audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
 
-    for(let i=0;i<30;i++){
+    let output=noiseBuffer.getChannelData(0);
 
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-
-        osc.type="sine";
-
-        let freq = 100 + Math.random()*800;
-        osc.frequency.value=freq;
-
-        gain.gain.value=0.02;
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start();
-
-        nodes.push({osc,gain});
+    for(let i=0;i<bufferSize;i++){
+        output[i]=Math.random()*2-1;
     }
+
+    const whiteNoise=audioCtx.createBufferSource();
+    whiteNoise.buffer=noiseBuffer;
+    whiteNoise.loop=true;
+
+    noiseGain=audioCtx.createGain();
+    noiseGain.gain.value=0.02;
+
+    whiteNoise.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+
+    whiteNoise.start();
 }
 
-// ---- FIELD EVOLUTION ----
+// FIELD STEP
 function step(){
 
-    let next=[];
+    let next=[], velNext=[];
 
     for(let y=0;y<H;y++){
         next[y]=[];
+        velNext[y]=[];
 
         for(let x=0;x<W;x++){
 
-            let sum=0;
-            let count=0;
+            let sum=0,count=0;
 
             for(let dy=-1;dy<=1;dy++){
                 for(let dx=-1;dx<=1;dx++){
 
-                    let nx=x+dx, ny=y+dy;
+                    let nx=x+dx,ny=y+dy;
 
-                    if(nx>=0 && ny>=0 && nx<W && ny<H){
+                    if(nx>=0&&ny>=0&&nx<W&&ny<H){
                         sum+=field[ny][nx];
                         count++;
                     }
@@ -106,31 +107,30 @@ function step(){
             }
 
             let avg=sum/count;
-            let self=field[y][x];
 
-            let psi =
-                self*0.6 +
-                avg*0.4 +
-                (Math.random()-0.5)*0.02;
+            let acceleration = (avg - field[y][x]) * 0.1;
 
-            psi=Math.max(0,Math.min(1,psi));
+            velocity[y][x] = (velocity[y][x] + acceleration) * 0.92;
 
-            next[y][x]=psi;
+            let value = field[y][x] + velocity[y][x];
 
-            // ---- AUDIO LINK ----
-            let idx=(x+y)%nodes.length;
+            value = Math.max(0,Math.min(1,value));
 
-            if(nodes[idx]){
-                let freq=200 + psi*800;
-                nodes[idx].osc.frequency.value=freq;
+            next[y][x]=value;
+            velNext[y][x]=velocity[y][x];
+
+            // AUDIO FROM MOTION
+            if(noiseGain){
+                noiseGain.gain.value = 0.01 + Math.abs(velocity[y][x])*0.05;
             }
         }
     }
 
     field=next;
+    velocity=velNext;
 }
 
-// ---- RENDER ----
+// RENDER (REALISTIC COLOR MAP)
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -139,11 +139,30 @@ function render(){
         for(let x=0;x<W;x++){
 
             let v=field[y][x];
+
+            let r,g,b;
+
+            if(v<0.3){
+                r=20;
+                g=40;
+                b=120; // derin yapı
+            }
+            else if(v<0.6){
+                r=30;
+                g=140;
+                b=60; // canlı alan
+            }
+            else{
+                r=180;
+                g=140;
+                b=80; // ışık/toprak
+            }
+
             let i=(y*W+x)*4;
 
-            img.data[i]=v*255;
-            img.data[i+1]=(v*v)*255;
-            img.data[i+2]=(1-v)*255;
+            img.data[i]=r;
+            img.data[i+1]=g;
+            img.data[i+2]=b;
             img.data[i+3]=255;
         }
     }
