@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field v2 (Stabil World)</title>
+<title>Quantum Field FIXED</title>
 
 <style>
 body{
@@ -42,46 +42,38 @@ const ctx=c.getContext("2d");
 
 let field=[], velocity=[];
 
-// INIT
 for(let y=0;y<H;y++){
     field[y]=[];
     velocity[y]=[];
     for(let x=0;x<W;x++){
         field[y][x]=Math.random();
-        velocity[y][x]=0;
+        velocity[y][x]=(Math.random()-0.5)*0.1;
     }
 }
 
-// AUDIO
+// AUDIO (FIXED: dynamic frequency instead of static noise)
 let audioCtx;
-let noiseGain;
+let osc;
 
 function startAudio(){
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 
-    const bufferSize=2*audioCtx.sampleRate;
-    const noiseBuffer=audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 
-    let output=noiseBuffer.getChannelData(0);
+    osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
 
-    for(let i=0;i<bufferSize;i++){
-        output[i]=Math.random()*2-1;
-    }
+    osc.type = "sine";
+    osc.frequency.value = 220;
 
-    const whiteNoise=audioCtx.createBufferSource();
-    whiteNoise.buffer=noiseBuffer;
-    whiteNoise.loop=true;
+    gain.gain.value = 0.03;
 
-    noiseGain=audioCtx.createGain();
-    noiseGain.gain.value=0.02;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
 
-    whiteNoise.connect(noiseGain);
-    noiseGain.connect(audioCtx.destination);
-
-    whiteNoise.start();
+    osc.start();
 }
 
-// FIELD STEP
+// FIELD DYNAMICS (MORE ENERGY, LESS STABILITY)
 function step(){
 
     let next=[], velNext=[];
@@ -108,20 +100,31 @@ function step(){
 
             let avg=sum/count;
 
-            let acceleration = (avg - field[y][x]) * 0.1;
+            // DALGA FİZİĞİ (kritik düzeltme)
+            let force = (avg - field[y][x]) * 0.25;
 
-            velocity[y][x] = (velocity[y][x] + acceleration) * 0.92;
+            velocity[y][x] += force;
+
+            velocity[y][x] *= 0.97; // daha az sönüm
+
+            velocity[y][x] += (Math.random()-0.5)*0.02; // enerji enjeksiyonu
 
             let value = field[y][x] + velocity[y][x];
 
+            // clamp
             value = Math.max(0,Math.min(1,value));
 
             next[y][x]=value;
             velNext[y][x]=velocity[y][x];
 
-            // AUDIO FROM MOTION
-            if(noiseGain){
-                noiseGain.gain.value = 0.01 + Math.abs(velocity[y][x])*0.05;
+            // AUDIO CONTROL (motion-based)
+            if(osc){
+                let motion = Math.abs(velocity[y][x]);
+
+                osc.frequency.value =
+                    100 +
+                    motion * 600 +
+                    Math.sin(Date.now()*0.001)*50;
             }
         }
     }
@@ -130,7 +133,7 @@ function step(){
     velocity=velNext;
 }
 
-// RENDER (REALISTIC COLOR MAP)
+// COLOR FIX (NO GREEN LOCK)
 function render(){
 
     let img=ctx.createImageData(W,H);
@@ -142,20 +145,26 @@ function render(){
 
             let r,g,b;
 
-            if(v<0.3){
-                r=20;
-                g=40;
-                b=120; // derin yapı
+            // MULTI-PHASE COLOR SPACE
+            if(v < 0.25){
+                r = 20;
+                g = 30;
+                b = 120; // derin mavi
             }
-            else if(v<0.6){
-                r=30;
-                g=140;
-                b=60; // canlı alan
+            else if(v < 0.5){
+                r = 20;
+                g = 180;
+                b = 120; // canlı yeşil
+            }
+            else if(v < 0.75){
+                r = 200;
+                g = 160;
+                b = 60; // sıcak toprak
             }
             else{
-                r=180;
-                g=140;
-                b=80; // ışık/toprak
+                r = 240;
+                g = 240;
+                b = 240; // ışık
             }
 
             let i=(y*W+x)*4;
