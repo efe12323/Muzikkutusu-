@@ -2,8 +2,8 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quantum Field Fermentation</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Emergent World Prototype</title>
 
 <style>
 body{
@@ -11,256 +11,268 @@ body{
     background:#000;
     display:flex;
     flex-direction:column;
-    justify-content:center;
     align-items:center;
+    justify-content:center;
     height:100vh;
-    color:white;
-    font-family:Arial,sans-serif;
+    overflow:hidden;
 }
 
 canvas{
-    width:500px;
-    height:500px;
-    border:1px solid #333;
+    width:700px;
+    height:700px;
     image-rendering:pixelated;
+    border:1px solid #222;
 }
 
 button{
     margin-top:10px;
     padding:10px 20px;
-    cursor:pointer;
 }
 </style>
 </head>
 <body>
 
-<canvas id="canvas" width="200" height="200"></canvas>
+<canvas id="c" width="220" height="220"></canvas>
 <button id="audioBtn">Sesi Başlat</button>
 
 <script>
 
-const W = 200;
-const H = 200;
+const W=220;
+const H=220;
 
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("c");
+const ctx=canvas.getContext("2d");
 
-let field = [];
-let memory = [];
-let velocity = [];
-let phase = [];
-
-// ---------------- INIT ----------------
+let A=[];
+let B=[];
 
 for(let y=0;y<H;y++){
 
-    field[y] = [];
-    memory[y] = [];
-    velocity[y] = [];
-    phase[y] = [];
+    A[y]=[];
+    B[y]=[];
 
     for(let x=0;x<W;x++){
 
-        const v = Math.random();
-
-        field[y][x] = v;
-        memory[y][x] = v;
-
-        velocity[y][x] =
-            (Math.random()-0.5)*0.04;
-
-        phase[y][x] =
-            Math.random()*Math.PI*2;
+        A[y][x]=1;
+        B[y][x]=0;
     }
 }
+
+// başlangıç çekirdekleri
+
+for(let i=0;i<25;i++){
+
+    let cx=Math.random()*W|0;
+    let cy=Math.random()*H|0;
+
+    for(let y=-8;y<=8;y++){
+        for(let x=-8;x<=8;x++){
+
+            let nx=cx+x;
+            let ny=cy+y;
+
+            if(
+                nx>=0 &&
+                ny>=0 &&
+                nx<W &&
+                ny<H
+            ){
+                B[ny][nx]=1;
+            }
+        }
+    }
+}
+
+const Da=1.0;
+const Db=0.45;
+const feed=0.055;
+const kill=0.062;
 
 // ---------------- AUDIO ----------------
 
-let audioCtx = null;
-let osc = null;
-let gainNode = null;
+let audioCtx=null;
+let osc=null;
+let gain=null;
 
 document
 .getElementById("audioBtn")
-.addEventListener("click", startAudio);
-
-function startAudio(){
+.onclick=()=>{
 
     if(audioCtx) return;
 
-    audioCtx =
-        new (window.AudioContext ||
-             window.webkitAudioContext)();
+    audioCtx=
+        new(window.AudioContext||
+            window.webkitAudioContext)();
 
-    osc = audioCtx.createOscillator();
-    gainNode = audioCtx.createGain();
+    osc=audioCtx.createOscillator();
+    gain=audioCtx.createGain();
 
-    osc.type = "sine";
-    osc.frequency.value = 220;
+    osc.type="sine";
+    osc.frequency.value=220;
 
-    gainNode.gain.value = 0.02;
+    gain.gain.value=0.03;
 
-    osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
 
     osc.start();
-}
+};
 
-// ---------------- STEP ----------------
+function laplace(grid,x,y){
 
-function step(){
+    let sum=0;
 
-    let next = [];
+    sum+=grid[y][x]*-1;
 
-    let totalEnergy = 0;
+    const n=[
+        [0,-1],[0,1],
+        [-1,0],[1,0]
+    ];
 
-    for(let y=0;y<H;y++){
+    for(let d of n){
 
-        next[y] = [];
+        let nx=x+d[0];
+        let ny=y+d[1];
 
-        for(let x=0;x<W;x++){
-
-            let sum = 0;
-            let count = 0;
-
-            for(let dy=-1;dy<=1;dy++){
-                for(let dx=-1;dx<=1;dx++){
-
-                    const nx=x+dx;
-                    const ny=y+dy;
-
-                    if(
-                        nx>=0 &&
-                        ny>=0 &&
-                        nx<W &&
-                        ny<H
-                    ){
-                        sum += field[ny][nx];
-                        count++;
-                    }
-                }
-            }
-
-            const avg = sum/count;
-
-            const self = field[y][x];
-            const old = memory[y][x];
-
-            const farX =
-                (x*7 + y*3) % W;
-
-            const farY =
-                (y*11 + x*5) % H;
-
-            const farInfluence =
-                field[farY][farX] * 0.05;
-
-            const fermentation =
-                Math.sin(old*6.28318)*0.03;
-
-            const force =
-                (avg-self)*0.18 +
-                fermentation*0.15 +
-                farInfluence*0.25;
-
-            velocity[y][x] += force;
-
-            velocity[y][x] *= 0.992;
-
-            velocity[y][x] +=
-                (Math.random()-0.5)*0.008;
-
-            let psi =
-                self + velocity[y][x];
-
-            psi =
-                Math.max(
-                    0,
-                    Math.min(1,psi)
-                );
-
-            next[y][x] = psi;
-
-            memory[y][x] =
-                memory[y][x]*0.995 +
-                psi*0.005;
-
-            phase[y][x] +=
-                velocity[y][x]*4;
-
-            totalEnergy +=
-                Math.abs(
-                    velocity[y][x]
-                );
+        if(
+            nx>=0 &&
+            ny>=0 &&
+            nx<W &&
+            ny<H
+        ){
+            sum+=grid[ny][nx]*0.2;
         }
     }
 
-    field = next;
+    return sum;
+}
 
-    // Audio update
+function step(){
+
+    let nextA=[];
+    let nextB=[];
+
+    let totalEnergy=0;
+
+    for(let y=0;y<H;y++){
+
+        nextA[y]=[];
+        nextB[y]=[];
+
+        for(let x=0;x<W;x++){
+
+            let a=A[y][x];
+            let b=B[y][x];
+
+            let reaction=
+                a*b*b;
+
+            let newA=
+                a +
+                (Da*laplace(A,x,y)
+                - reaction
+                + feed*(1-a));
+
+            let newB=
+                b +
+                (Db*laplace(B,x,y)
+                + reaction
+                - (kill+feed)*b);
+
+            newA=Math.max(0,
+                Math.min(1,newA));
+
+            newB=Math.max(0,
+                Math.min(1,newB));
+
+            nextA[y][x]=newA;
+            nextB[y][x]=newB;
+
+            totalEnergy+=
+                Math.abs(newA-a)+
+                Math.abs(newB-b);
+        }
+    }
+
+    A=nextA;
+    B=nextB;
 
     if(osc){
 
-        const energy =
-            totalEnergy / (W*H);
+        let energy=
+            totalEnergy/(W*H);
 
-        osc.frequency.value =
+        osc.frequency.value=
             120 +
-            energy*15000;
+            energy*12000;
 
-        gainNode.gain.value =
-            0.01 +
-            energy*0.1;
+        gain.gain.value=
+            Math.min(
+                0.08,
+                0.01+energy
+            );
     }
 }
 
-// ---------------- RENDER ----------------
-
 function render(){
 
-    const img =
+    const img=
         ctx.createImageData(W,H);
 
     for(let y=0;y<H;y++){
         for(let x=0;x<W;x++){
 
-            const v =
-                field[y][x];
+            let a=A[y][x];
+            let b=B[y][x];
 
-            const p =
-                phase[y][x];
+            let v=a-b;
 
-            const r =
-                (Math.sin(p)+1)*127.5*v;
+            let r=
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        120+v*300
+                    )
+                );
 
-            const g =
-                (Math.sin(
-                    p+2.094
-                )+1)*127.5*v;
+            let g=
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        80+b*255
+                    )
+                );
 
-            const b =
-                (Math.sin(
-                    p+4.188
-                )+1)*127.5*v;
+            let bl=
+                Math.max(
+                    0,
+                    Math.min(
+                        255,
+                        255-a*255
+                    )
+                );
 
-            const i =
+            let i=
                 (y*W+x)*4;
 
-            img.data[i] = r;
-            img.data[i+1] = g;
-            img.data[i+2] = b;
-            img.data[i+3] = 255;
+            img.data[i]=r;
+            img.data[i+1]=g;
+            img.data[i+2]=bl;
+            img.data[i+3]=255;
         }
     }
 
     ctx.putImageData(img,0,0);
 }
 
-// ---------------- LOOP ----------------
-
 function loop(){
 
-    step();
+    for(let i=0;i<2;i++){
+        step();
+    }
+
     render();
 
     requestAnimationFrame(loop);
@@ -269,6 +281,5 @@ function loop(){
 loop();
 
 </script>
-
 </body>
 </html>
