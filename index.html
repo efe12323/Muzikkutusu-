@@ -2,63 +2,132 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum World v7 FIX</title>
+<title>Quantum Field Fermentation System</title>
 
 <style>
 body{
     margin:0;
     background:#000;
     display:flex;
-    justify-content:center;
+    flex-direction:column;
     align-items:center;
+    justify-content:center;
     height:100vh;
+    color:white;
+    font-family:Arial;
 }
+
 canvas{
-    border:1px solid #222;
+    border:1px solid #333;
     image-rendering: pixelated;
+    width:500px;
+    height:500px;
+}
+
+button{
+    margin-top:10px;
+    padding:10px 20px;
 }
 </style>
 </head>
 <body>
 
-<canvas id="c" width="240" height="240"></canvas>
+<canvas id="c" width="200" height="200"></canvas>
+<button onclick="startAudio()">Sesi Başlat</button>
 
 <script>
 
-const W=240,H=240;
-const c=document.getElementById("c");
-const ctx=c.getContext("2d");
+const W=200;
+const H=200;
 
-let field=[], velocity=[];
+const canvas=document.getElementById("c");
+const ctx=canvas.getContext("2d");
 
-// 🌱 INIT (canlı başlat)
+let field=[];
+let memory=[];
+
+// ---------------- INIT ----------------
+
 for(let y=0;y<H;y++){
+
     field[y]=[];
-    velocity[y]=[];
+    memory[y]=[];
 
     for(let x=0;x<W;x++){
-        field[y][x]=0.4 + Math.random()*0.2; // 🔥 kritik FIX
-        velocity[y][x]=0;
+
+        let v=Math.random();
+
+        field[y][x]=v;
+        memory[y][x]=v;
     }
 }
+
+// ---------------- AUDIO ----------------
+
+let audioCtx;
+let nodes=[];
+
+function startAudio(){
+
+    if(audioCtx) return;
+
+    audioCtx =
+        new (window.AudioContext ||
+             window.webkitAudioContext)();
+
+    for(let i=0;i<30;i++){
+
+        let osc=audioCtx.createOscillator();
+        let gain=audioCtx.createGain();
+
+        osc.type="sine";
+
+        osc.frequency.value=
+            100+Math.random()*800;
+
+        gain.gain.value=0.015;
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+
+        nodes.push({
+            osc,
+            gain
+        });
+    }
+}
+
+// ---------------- FIELD ----------------
 
 function step(){
 
     let next=[];
 
     for(let y=0;y<H;y++){
+
         next[y]=[];
 
         for(let x=0;x<W;x++){
 
-            let sum=0,count=0;
+            let sum=0;
+            let count=0;
+
+            // yakın etkileşim
 
             for(let dy=-1;dy<=1;dy++){
                 for(let dx=-1;dx<=1;dx++){
 
-                    let nx=x+dx,ny=y+dy;
+                    let nx=x+dx;
+                    let ny=y+dy;
 
-                    if(nx>=0&&ny>=0&&nx<W&&ny<H){
+                    if(
+                        nx>=0 &&
+                        ny>=0 &&
+                        nx<W &&
+                        ny<H
+                    ){
                         sum+=field[ny][nx];
                         count++;
                     }
@@ -67,40 +136,83 @@ function step(){
 
             let avg=sum/count;
 
-            let v=field[y][x];
+            let self=field[y][x];
+            let old=memory[y][x];
 
-            // 🌊 stronger diffusion
-            let force=(avg - v) * 0.35;
+            // uzak alan etkisi
 
-            velocity[y][x]=(velocity[y][x] + force) * 0.90;
+            let farX=(x+40)%W;
+            let farY=(y+40)%H;
 
-            // 🔥 LIFE INJECTION (KRİTİK)
-            velocity[y][x] += (Math.random()-0.5)*0.03;
+            let farInfluence=
+                field[farY][farX]*0.05;
 
-            v += velocity[y][x];
+            // fermantasyon
 
-            // ❌ no hard collapse anymore
-            v = Math.max(0.05, Math.min(0.95, v));
+            let fermentation=
+                Math.sin(old*6.28318)*0.03;
 
-            next[y][x]=v;
+            let psi=
+                self*0.55 +
+                avg*0.30 +
+                old*0.15 +
+                farInfluence +
+                fermentation +
+                (Math.random()-0.5)*0.01;
+
+            psi=Math.max(0,Math.min(1,psi));
+
+            next[y][x]=psi;
+
+            // hafıza güncelle
+
+            memory[y][x]=
+                memory[y][x]*0.98 +
+                psi*0.02;
+
+            // ses bağlantısı
+
+            if(nodes.length){
+
+                let idx=
+                    (x+y)%nodes.length;
+
+                let freq=
+                    120 +
+                    psi*900 +
+                    fermentation*300;
+
+                nodes[idx]
+                    .osc
+                    .frequency
+                    .value=freq;
+            }
         }
     }
 
     field=next;
 }
 
+// ---------------- RENDER ----------------
+
 function render(){
 
-    let img=ctx.createImageData(W,H);
+    let img=
+        ctx.createImageData(W,H);
 
     for(let y=0;y<H;y++){
         for(let x=0;x<W;x++){
 
             let v=field[y][x];
 
-            let r = v * 180;
-            let g = v * 220;
-            let b = 255 - v * 180;
+            let r=
+                Math.sin(v*12)*127+128;
+
+            let g=
+                Math.sin(v*12+2)*127+128;
+
+            let b=
+                Math.sin(v*12+4)*127+128;
 
             let i=(y*W+x)*4;
 
@@ -114,9 +226,13 @@ function render(){
     ctx.putImageData(img,0,0);
 }
 
+// ---------------- LOOP ----------------
+
 function loop(){
+
     step();
     render();
+
     requestAnimationFrame(loop);
 }
 
