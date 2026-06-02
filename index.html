@@ -2,7 +2,8 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Quantum Field Fermentation System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Field Fermentation</title>
 
 <style>
 body{
@@ -10,62 +11,78 @@ body{
     background:#000;
     display:flex;
     flex-direction:column;
-    align-items:center;
     justify-content:center;
+    align-items:center;
     height:100vh;
     color:white;
-    font-family:Arial;
+    font-family:Arial,sans-serif;
 }
 
 canvas{
-    border:1px solid #333;
-    image-rendering: pixelated;
     width:500px;
     height:500px;
+    border:1px solid #333;
+    image-rendering:pixelated;
 }
 
 button{
     margin-top:10px;
     padding:10px 20px;
+    cursor:pointer;
 }
 </style>
 </head>
 <body>
 
-<canvas id="c" width="200" height="200"></canvas>
-<button onclick="startAudio()">Sesi Başlat</button>
+<canvas id="canvas" width="200" height="200"></canvas>
+<button id="audioBtn">Sesi Başlat</button>
 
 <script>
 
-const W=200;
-const H=200;
+const W = 200;
+const H = 200;
 
-const canvas=document.getElementById("c");
-const ctx=canvas.getContext("2d");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-let field=[];
-let memory=[];
+let field = [];
+let memory = [];
+let velocity = [];
+let phase = [];
 
 // ---------------- INIT ----------------
 
 for(let y=0;y<H;y++){
 
-    field[y]=[];
-    memory[y]=[];
+    field[y] = [];
+    memory[y] = [];
+    velocity[y] = [];
+    phase[y] = [];
 
     for(let x=0;x<W;x++){
 
-        let v=Math.random();
+        const v = Math.random();
 
-        field[y][x]=v;
-        memory[y][x]=v;
+        field[y][x] = v;
+        memory[y][x] = v;
+
+        velocity[y][x] =
+            (Math.random()-0.5)*0.04;
+
+        phase[y][x] =
+            Math.random()*Math.PI*2;
     }
 }
 
 // ---------------- AUDIO ----------------
 
-let audioCtx;
-let nodes=[];
+let audioCtx = null;
+let osc = null;
+let gainNode = null;
+
+document
+.getElementById("audioBtn")
+.addEventListener("click", startAudio);
 
 function startAudio(){
 
@@ -75,52 +92,42 @@ function startAudio(){
         new (window.AudioContext ||
              window.webkitAudioContext)();
 
-    for(let i=0;i<30;i++){
+    osc = audioCtx.createOscillator();
+    gainNode = audioCtx.createGain();
 
-        let osc=audioCtx.createOscillator();
-        let gain=audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 220;
 
-        osc.type="sine";
+    gainNode.gain.value = 0.02;
 
-        osc.frequency.value=
-            100+Math.random()*800;
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
 
-        gain.gain.value=0.015;
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start();
-
-        nodes.push({
-            osc,
-            gain
-        });
-    }
+    osc.start();
 }
 
-// ---------------- FIELD ----------------
+// ---------------- STEP ----------------
 
 function step(){
 
-    let next=[];
+    let next = [];
+
+    let totalEnergy = 0;
 
     for(let y=0;y<H;y++){
 
-        next[y]=[];
+        next[y] = [];
 
         for(let x=0;x<W;x++){
 
-            let sum=0;
-            let count=0;
-
-            // yakın etkileşim
+            let sum = 0;
+            let count = 0;
 
             for(let dy=-1;dy<=1;dy++){
                 for(let dx=-1;dx<=1;dx++){
 
-                    let nx=x+dx;
-                    let ny=y+dy;
+                    const nx=x+dx;
+                    const ny=y+dy;
 
                     if(
                         nx>=0 &&
@@ -128,98 +135,121 @@ function step(){
                         nx<W &&
                         ny<H
                     ){
-                        sum+=field[ny][nx];
+                        sum += field[ny][nx];
                         count++;
                     }
                 }
             }
 
-            let avg=sum/count;
+            const avg = sum/count;
 
-            let self=field[y][x];
-            let old=memory[y][x];
+            const self = field[y][x];
+            const old = memory[y][x];
 
-            // uzak alan etkisi
+            const farX =
+                (x*7 + y*3) % W;
 
-            let farX=(x+40)%W;
-            let farY=(y+40)%H;
+            const farY =
+                (y*11 + x*5) % H;
 
-            let farInfluence=
-                field[farY][farX]*0.05;
+            const farInfluence =
+                field[farY][farX] * 0.05;
 
-            // fermantasyon
-
-            let fermentation=
+            const fermentation =
                 Math.sin(old*6.28318)*0.03;
 
-            let psi=
-                self*0.55 +
-                avg*0.30 +
-                old*0.15 +
-                farInfluence +
-                fermentation +
-                (Math.random()-0.5)*0.01;
+            const force =
+                (avg-self)*0.18 +
+                fermentation*0.15 +
+                farInfluence*0.25;
 
-            psi=Math.max(0,Math.min(1,psi));
+            velocity[y][x] += force;
 
-            next[y][x]=psi;
+            velocity[y][x] *= 0.992;
 
-            // hafıza güncelle
+            velocity[y][x] +=
+                (Math.random()-0.5)*0.008;
 
-            memory[y][x]=
-                memory[y][x]*0.98 +
-                psi*0.02;
+            let psi =
+                self + velocity[y][x];
 
-            // ses bağlantısı
+            psi =
+                Math.max(
+                    0,
+                    Math.min(1,psi)
+                );
 
-            if(nodes.length){
+            next[y][x] = psi;
 
-                let idx=
-                    (x+y)%nodes.length;
+            memory[y][x] =
+                memory[y][x]*0.995 +
+                psi*0.005;
 
-                let freq=
-                    120 +
-                    psi*900 +
-                    fermentation*300;
+            phase[y][x] +=
+                velocity[y][x]*4;
 
-                nodes[idx]
-                    .osc
-                    .frequency
-                    .value=freq;
-            }
+            totalEnergy +=
+                Math.abs(
+                    velocity[y][x]
+                );
         }
     }
 
-    field=next;
+    field = next;
+
+    // Audio update
+
+    if(osc){
+
+        const energy =
+            totalEnergy / (W*H);
+
+        osc.frequency.value =
+            120 +
+            energy*15000;
+
+        gainNode.gain.value =
+            0.01 +
+            energy*0.1;
+    }
 }
 
 // ---------------- RENDER ----------------
 
 function render(){
 
-    let img=
+    const img =
         ctx.createImageData(W,H);
 
     for(let y=0;y<H;y++){
         for(let x=0;x<W;x++){
 
-            let v=field[y][x];
+            const v =
+                field[y][x];
 
-            let r=
-                Math.sin(v*12)*127+128;
+            const p =
+                phase[y][x];
 
-            let g=
-                Math.sin(v*12+2)*127+128;
+            const r =
+                (Math.sin(p)+1)*127.5*v;
 
-            let b=
-                Math.sin(v*12+4)*127+128;
+            const g =
+                (Math.sin(
+                    p+2.094
+                )+1)*127.5*v;
 
-            let i=(y*W+x)*4;
+            const b =
+                (Math.sin(
+                    p+4.188
+                )+1)*127.5*v;
 
-            img.data[i]=r;
-            img.data[i+1]=g;
-            img.data[i+2]=b;
-            img.data[i+3]=255;
+            const i =
+                (y*W+x)*4;
+
+            img.data[i] = r;
+            img.data[i+1] = g;
+            img.data[i+2] = b;
+            img.data[i+3] = 255;
         }
     }
 
