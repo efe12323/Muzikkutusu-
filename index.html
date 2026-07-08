@@ -1,285 +1,576 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Emergent World Prototype</title>
-
-<style>
-body{
-    margin:0;
-    background:#000;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    height:100vh;
-    overflow:hidden;
-}
-
-canvas{
-    width:700px;
-    height:700px;
-    image-rendering:pixelated;
-    border:1px solid #222;
-}
-
-button{
-    margin-top:10px;
-    padding:10px 20px;
-}
-</style>
-</head>
-<body>
-
-<canvas id="c" width="220" height="220"></canvas>
-<button id="audioBtn">Sesi Başlat</button>
-
-<script>
-
-const W=220;
-const H=220;
-
-const canvas=document.getElementById("c");
-const ctx=canvas.getContext("2d");
-
-let A=[];
-let B=[];
-
-for(let y=0;y<H;y++){
-
-    A[y]=[];
-    B[y]=[];
-
-    for(let x=0;x<W;x++){
-
-        A[y][x]=1;
-        B[y][x]=0;
-    }
-}
-
-// başlangıç çekirdekleri
-
-for(let i=0;i<25;i++){
-
-    let cx=Math.random()*W|0;
-    let cy=Math.random()*H|0;
-
-    for(let y=-8;y<=8;y++){
-        for(let x=-8;x<=8;x++){
-
-            let nx=cx+x;
-            let ny=cy+y;
-
-            if(
-                nx>=0 &&
-                ny>=0 &&
-                nx<W &&
-                ny<H
-            ){
-                B[ny][nx]=1;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Kart Analiz Aracı</title>
+    <style>
+        :root {
+            --bg: #0f0f12;
+            --card: #1a1a22;
+            --accent: #00ff9d;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border: #333;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(90deg, #00ff9d, #00cc7a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        .main-button {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            margin: 40px auto;
+            padding: 24px 32px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #00ff9d, #00cc7a);
+            color: #000;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0, 255, 157, 0.3);
+        }
+        
+        .main-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 255, 157, 0.4);
+        }
+        
+        .main-button:active {
+            transform: scale(0.98);
+        }
+        
+        .main-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .scan-status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.1rem;
+            color: var(--accent);
+            display: none;
+        }
+        
+        .results {
+            display: none;
+            gap: 24px;
+            margin-top: 32px;
+        }
+        
+        .card {
+            background-color: var(--card);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        
+        .info-item {
+            background-color: #25252e;
+            padding: 14px 18px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+        
+        .info-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            font-size: 1.05rem;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        
+        .records-container {
+            margin-top: 20px;
+        }
+        
+        .record {
+            background-color: #25252e;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 16px;
+            border: 1px solid #333;
+        }
+        
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #444;
+        }
+        
+        .log-panel {
+            margin-top: 40px;
+        }
+        
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .log-container {
+            background-color: #0a0a0c;
+            border: 1px solid #333;
+            border-radius: 12px;
+            height: 260px;
+            overflow-y: auto;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #00ff9d;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+        }
+        
+        .timestamp {
+            color: #666;
+            margin-right: 12px;
+        }
+        
+        .status-success { color: #00ff9d; }
+        .status-error { color: #ff3b5c; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .nfc-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .main-button {
+                padding: 20px 24px;
+                font-size: 1.3rem;
             }
         }
-    }
-}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>NFC Kart Analiz Aracı</h1>
+            <p class="subtitle">Web NFC ile kartlarınızı anında analiz edin</p>
+        </header>
 
-const Da=1.0;
-const Db=0.45;
-const feed=0.055;
-const kill=0.062;
+        <div id="scanSection">
+            <button id="scanButton" class="main-button">
+                <span style="font-size: 1.8rem; display: block; margin-bottom: 8px;">📱</span>
+                NFC KARTINI OKU
+            </button>
+            <div id="scanStatus" class="scan-status">
+                🔄 NFC taraması aktif... Kartınızı yaklaştırın
+            </div>
+        </div>
 
-// ---------------- AUDIO ----------------
+        <div id="results" class="results">
+            <!-- Kart Bilgileri -->
+            <div class="card">
+                <div class="card-header">
+                    <span style="font-size: 1.8rem;">🔖</span>
+                    <h2 class="card-title">Kart Bilgileri</h2>
+                </div>
+                <div class="info-grid" id="cardInfo">
+                    <!-- JS ile doldurulacak -->
+                </div>
+            </div>
 
-let audioCtx=null;
-let osc=null;
-let gain=null;
+            <!-- NDEF Kayıtları -->
+            <div class="card">
+                <div class="card-header">
+                    <span style="font-size: 1.8rem;">📋</span>
+                    <h2 class="card-title">NDEF Kayıtları</h2>
+                </div>
+                <div id="ndefRecords" class="records-container">
+                    <!-- JS ile doldurulacak -->
+                </div>
+            </div>
 
-document
-.getElementById("audioBtn")
-.onclick=()=>{
+            <!-- Ham Veri -->
+            <div class="card">
+                <div class="card-header">
+                    <span style="font-size: 1.8rem;">🔬</span>
+                    <h2 class="card-title">Ham Veri (HEX)</h2>
+                </div>
+                <pre id="rawHex" style="background:#0a0a0c; padding:20px; border-radius:12px; overflow-x:auto; font-size:0.9rem; line-height:1.4; color:#bbb; white-space:pre-wrap;"></pre>
+                
+                <div style="margin-top:24px;">
+                    <div class="card-header" style="border:none; padding-bottom:0;">
+                        <span style="font-size: 1.6rem;">📝</span>
+                        <h3 class="card-title" style="font-size:1.2rem;">ASCII Karşılığı</h3>
+                    </div>
+                    <pre id="asciiData" style="background:#0a0a0c; padding:20px; border-radius:12px; font-size:0.9rem; line-height:1.4; color:#bbb;"></pre>
+                </div>
+            </div>
+        </div>
 
-    if(audioCtx) return;
+        <!-- Log Panel -->
+        <div class="log-panel card">
+            <div class="log-header">
+                <h3 style="color: var(--accent);">İşlem Günlüğü</h3>
+                <button id="clearLog" style="background:none; border:none; color:#666; cursor:pointer; font-size:0.9rem;">Temizle</button>
+            </div>
+            <div id="logContainer" class="log-container">
+                <!-- Loglar buraya eklenecek -->
+            </div>
+        </div>
 
-    audioCtx=
-        new(window.AudioContext||
-            window.webkitAudioContext)();
+        <footer>
+            Web NFC API • Android Chrome desteklenir • Tek dosya uygulaması
+        </footer>
+    </div>
 
-    osc=audioCtx.createOscillator();
-    gain=audioCtx.createGain();
+    <script>
+        // ====================== NFC ANALİZ ARACI ======================
+        
+        let nfcReader = null;
+        let isScanning = false;
 
-    osc.type="sine";
-    osc.frequency.value=220;
+        const logContainer = document.getElementById('logContainer');
+        const scanButton = document.getElementById('scanButton');
+        const scanStatus = document.getElementById('scanStatus');
+        const resultsDiv = document.getElementById('results');
+        const cardInfoDiv = document.getElementById('cardInfo');
+        const ndefRecordsDiv = document.getElementById('ndefRecords');
+        const rawHexDiv = document.getElementById('rawHex');
+        const asciiDataDiv = document.getElementById('asciiData');
+        const clearLogBtn = document.getElementById('clearLog');
 
-    gain.gain.value=0.03;
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-};
-
-function laplace(grid,x,y){
-
-    let sum=0;
-
-    sum+=grid[y][x]*-1;
-
-    const n=[
-        [0,-1],[0,1],
-        [-1,0],[1,0]
-    ];
-
-    for(let d of n){
-
-        let nx=x+d[0];
-        let ny=y+d[1];
-
-        if(
-            nx>=0 &&
-            ny>=0 &&
-            nx<W &&
-            ny<H
-        ){
-            sum+=grid[ny][nx]*0.2;
+        // Loglama fonksiyonu
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            let prefix = '';
+            if (type === 'success') {
+                prefix = '<span class="status-success">[OK]</span> ';
+            } else if (type === 'error') {
+                prefix = '<span class="status-error">[HATA]</span> ';
+            }
+            
+            entry.innerHTML = `<span class="timestamp">[\( {timestamp}]</span> \){prefix}${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
-    }
 
-    return sum;
-}
-
-function step(){
-
-    let nextA=[];
-    let nextB=[];
-
-    let totalEnergy=0;
-
-    for(let y=0;y<H;y++){
-
-        nextA[y]=[];
-        nextB[y]=[];
-
-        for(let x=0;x<W;x++){
-
-            let a=A[y][x];
-            let b=B[y][x];
-
-            let reaction=
-                a*b*b;
-
-            let newA=
-                a +
-                (Da*laplace(A,x,y)
-                - reaction
-                + feed*(1-a));
-
-            let newB=
-                b +
-                (Db*laplace(B,x,y)
-                + reaction
-                - (kill+feed)*b);
-
-            newA=Math.max(0,
-                Math.min(1,newA));
-
-            newB=Math.max(0,
-                Math.min(1,newB));
-
-            nextA[y][x]=newA;
-            nextB[y][x]=newB;
-
-            totalEnergy+=
-                Math.abs(newA-a)+
-                Math.abs(newB-b);
+        // Hex ve ASCII dönüştürme
+        function arrayBufferToHex(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let hex = '';
+            for (let i = 0; i < bytes.length; i++) {
+                hex += bytes[i].toString(16).padStart(2, '0').toUpperCase();
+                if (i < bytes.length - 1) hex += ' ';
+            }
+            return hex;
         }
-    }
 
-    A=nextA;
-    B=nextB;
-
-    if(osc){
-
-        let energy=
-            totalEnergy/(W*H);
-
-        osc.frequency.value=
-            120 +
-            energy*12000;
-
-        gain.gain.value=
-            Math.min(
-                0.08,
-                0.01+energy
-            );
-    }
-}
-
-function render(){
-
-    const img=
-        ctx.createImageData(W,H);
-
-    for(let y=0;y<H;y++){
-        for(let x=0;x<W;x++){
-
-            let a=A[y][x];
-            let b=B[y][x];
-
-            let v=a-b;
-
-            let r=
-                Math.max(
-                    0,
-                    Math.min(
-                        255,
-                        120+v*300
-                    )
-                );
-
-            let g=
-                Math.max(
-                    0,
-                    Math.min(
-                        255,
-                        80+b*255
-                    )
-                );
-
-            let bl=
-                Math.max(
-                    0,
-                    Math.min(
-                        255,
-                        255-a*255
-                    )
-                );
-
-            let i=
-                (y*W+x)*4;
-
-            img.data[i]=r;
-            img.data[i+1]=g;
-            img.data[i+2]=bl;
-            img.data[i+3]=255;
+        function arrayBufferToASCII(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let ascii = '';
+            for (let i = 0; i < bytes.length; i++) {
+                const byte = bytes[i];
+                if (byte >= 32 && byte <= 126) {
+                    ascii += String.fromCharCode(byte);
+                } else {
+                    ascii += '.';
+                }
+            }
+            return ascii;
         }
-    }
 
-    ctx.putImageData(img,0,0);
-}
+        // Kart bilgilerini göster
+        function displayCardInfo(serialNumber) {
+            cardInfoDiv.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">UID / Seri Numarası</div>
+                    <div class="info-value">${serialNumber || 'Erişim Yok'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Teknoloji</div>
+                    <div class="info-value">NDEF (Web NFC)</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Tarayıcı</div>
+                    <div class="info-value">Web NFC API</div>
+                </div>
+            `;
+        }
 
-function loop(){
+        // Tek bir NDEF kaydını render et
+        function createRecordElement(record, index) {
+            const recordDiv = document.createElement('div');
+            recordDiv.className = 'record';
+            
+            let contentHTML = '';
+            let recordTypeName = record.recordType || 'Bilinmiyor';
+            
+            if (record.recordType === 'text') {
+                try {
+                    const decoder = new TextDecoder(record.encoding || 'utf-8');
+                    contentHTML = `<strong>İçerik:</strong> ${decoder.decode(record.data)}`;
+                } catch(e) {
+                    contentHTML = `<strong>İçerik:</strong> <span style="color:#ff3b5c;">Okunamadı</span>`;
+                }
+            } else if (record.recordType === 'url' || record.recordType === 'U') {
+                try {
+                    const decoder = new TextDecoder();
+                    contentHTML = `<strong>URL:</strong> <a href="\( {decoder.decode(record.data)}" target="_blank" style="color:var(--accent);"> \){decoder.decode(record.data)}</a>`;
+                } catch(e) {
+                    contentHTML = `<strong>URL:</strong> <span style="color:#ff3b5c;">Geçersiz</span>`;
+                }
+            } else {
+                const hex = arrayBufferToHex(record.data || new ArrayBuffer(0));
+                contentHTML = `
+                    <strong>MIME / Tür:</strong> ${record.mediaType || record.recordType || 'Uygulanamaz'}<br>
+                    <strong>Payload (HEX):</strong> \( {hex.substring(0, 80)} \){hex.length > 80 ? '...' : ''}
+                `;
+            }
+            
+            recordDiv.innerHTML = `
+                <div class="record-header">
+                    <div><strong>Kayıt #${index + 1}</strong> — ${recordTypeName}</div>
+                    <div style="font-size:0.8rem; color:#666;">${record.id ? 'ID: ' + record.id : ''}</div>
+                </div>
+                <div style="margin-top:8px; font-size:0.95rem;">
+                    ${contentHTML}
+                </div>
+            `;
+            
+            return recordDiv;
+        }
 
-    for(let i=0;i<2;i++){
-        step();
-    }
+        // Tüm NDEF kayıtlarını göster
+        function displayNDEFRecords(records) {
+            ndefRecordsDiv.innerHTML = '';
+            
+            if (!records || records.length === 0) {
+                ndefRecordsDiv.innerHTML = `
+                    <div style="text-align:center; padding:40px 20px; color:#666;">
+                        <div style="font-size:3rem; margin-bottom:16px;">📭</div>
+                        <p>Bu kartta NDEF kaydı bulunmuyor</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            records.forEach((record, index) => {
+                const el = createRecordElement(record, index);
+                ndefRecordsDiv.appendChild(el);
+            });
+        }
 
-    render();
+        // Ana sonuç gösterimi
+        function showResults(event) {
+            resultsDiv.style.display = 'grid';
+            
+            const serialNumber = event.serialNumber || 'Bilinmiyor';
+            displayCardInfo(serialNumber);
+            
+            // Tüm mesajı hex'e çevir
+            let fullPayload = new Uint8Array();
+            
+            if (event.message && event.message.records) {
+                displayNDEFRecords(event.message.records);
+                
+                // Tüm kayıtların verisini birleştir
+                event.message.records.forEach(record => {
+                    if (record.data) {
+                        const view = new Uint8Array(record.data);
+                        const combined = new Uint8Array(fullPayload.length + view.length);
+                        combined.set(fullPayload);
+                        combined.set(view, fullPayload.length);
+                        fullPayload = combined;
+                    }
+                });
+            } else {
+                ndefRecordsDiv.innerHTML = `<div class="empty-state">NDEF mesajı bulunamadı</div>`;
+            }
+            
+            const hexData = arrayBufferToHex(fullPayload);
+            const asciiText = arrayBufferToASCII(fullPayload);
+            
+            rawHexDiv.textContent = hexData || 'Veri yok';
+            asciiDataDiv.textContent = asciiText || 'ASCII verisi yok';
+        }
 
-    requestAnimationFrame(loop);
-}
+        // Tarama başlat
+        async function startNFCSscan() {
+            if (!('NDEFReader' in window)) {
+                addLog('Tarayıcınız Web NFC API desteklemiyor. Android Chrome kullanın.', 'error');
+                alert('❌ Web NFC desteği yok.\n\nBu özellik yalnızca Android Chrome tarayıcısında çalışır.');
+                return;
+            }
+            
+            try {
+                scanButton.disabled = true;
+                scanStatus.style.display = 'block';
+                isScanning = true;
+                
+                addLog('NFC tarayıcı başlatılıyor...', 'info');
+                
+                nfcReader = new NDEFReader();
+                
+                await nfcReader.scan();
+                
+                addLog('✅ NFC taraması başlatıldı. Kartınızı telefonun arkasına yaklaştırın.', 'success');
+                
+                nfcReader.onreading = event => {
+                    addLog('✅ Kart başarıyla okundu!', 'success');
+                    console.log('NFC Event:', event);
+                    
+                    showResults(event);
+                    
+                    // Tarama devam ediyor
+                    setTimeout(() => {
+                        scanStatus.style.display = 'block';
+                    }, 800);
+                };
+                
+                nfcReader.onreadingerror = event => {
+                    addLog('❌ Kart okunamadı. Tekrar deneyin.', 'error');
+                    console.error('NFC Okuma Hatası:', event);
+                };
+                
+            } catch (error) {
+                console.error(error);
+                let msg = 'Bilinmeyen hata';
+                
+                if (error.name === 'NotAllowedError') {
+                    msg = 'NFC izni reddedildi. Tarayıcı ayarlarından izni açın.';
+                } else if (error.name === 'NotSupportedError') {
+                    msg = 'Bu cihaz veya tarayıcı NFC desteklemiyor.';
+                }
+                
+                addLog(`Hata: ${msg}`, 'error');
+                alert('⚠️ ' + msg);
+                
+                // Reset
+                scanButton.disabled = false;
+                scanStatus.style.display = 'none';
+                isScanning = false;
+            }
+        }
 
-loop();
+        // Log temizleme
+        function clearLog() {
+            if (confirm('Günlük tamamen temizlensin mi?')) {
+                logContainer.innerHTML = '';
+                addLog('Günlük temizlendi.', 'info');
+            }
+        }
 
-</script>
-</body>
-</html>
+        // Event Listeners
+        function initEventListeners() {
+            scanButton.addEventListener('click', startNFCSscan);
+            clearLogBtn.addEventListener('click', clearLog);
+            
+            // Klavye kısayolu (R tuşu)
+            document.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'r' && !isScanning) {
+                    startNFCSscan();
+                }
+            });
+        }
+
+        // Sayfa yüklendiğinde
+        function init() {
+            addLog('NFC Kart Analiz Aracı başlatıldı.', 'success');
+            addLog('Hazır. "NFC Kartını Oku" butonuna basın.', 'info');
+            
+            initEventListeners();
+            
+            // Demo bilgisi
+            if (!('NDEFReader' in window)) {
+                const warning = document.createElement('div');
+                warning.style.cssText = 'background:#3a2a00; color:#ffcc66; padd
